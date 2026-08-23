@@ -1,0 +1,5 @@
+interface:
+  display_name: "Review scRNA QC"
+  short_description: "Diagnose sample-aware single-cell QC"
+  default_prompt: "Use $review-scrna-qc to diagnose QC and propose auditable filtering decisions."
+
