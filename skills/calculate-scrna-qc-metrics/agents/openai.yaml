@@ -1,4 +1,4 @@
 interface:
-  display_name: "Calculate scRNA QC Metrics"
+  display_name: "01 Calculate scRNA QC Metrics"
   short_description: "Compute comprehensive per-cell scRNA QC metrics"
   default_prompt: "Use $calculate-scrna-qc-metrics to compute per-cell QC metrics with my existing pixi environment."

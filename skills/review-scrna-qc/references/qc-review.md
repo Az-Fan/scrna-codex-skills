@@ -15,8 +15,11 @@ Recognized aliases, in priority order:
 | g2m_score | g2m_score, G2M.Score | descriptive only |
 
 Fractions and percentages are reviewed on their stored scale; the script does not silently rescale them.
+Columns containing no finite numeric values are unavailable even if the column name exists.
 
 Candidate bounds combine global 1st/99th percentiles with median ± 3 MAD. Explicit values in `thresholds` override generated candidates. Generated thresholds are screening suggestions, not accepted biological decisions.
+
+The generated bounds are global exploratory heuristics, not validated universal QC cutoffs. Review sample distributions, tissue biology, chemistry, sequencing depth, and expected rare populations before accepting any threshold. Treat DecontX and synthetic-doublet scores as model outputs rather than ground-truth labels.
 
 The joint candidate scenario applies all available filtering bounds only to estimate per-sample and per-group retention. It never subsets or saves a filtered object.
 

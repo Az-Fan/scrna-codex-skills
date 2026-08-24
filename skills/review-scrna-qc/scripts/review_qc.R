@@ -35,10 +35,16 @@ aliases <- list(
   g2m_score = c("g2m_score", "G2M.Score"))
 resolve <- function(x) { hit <- x[x %in% names(md)]; if (length(hit)) hit[[1]] else NA_character_ }
 cols <- vapply(aliases, resolve, character(1))
-availability <- data.frame(metric = names(cols), source_column = unname(cols),
-                           available = !is.na(cols), stringsAsFactors = FALSE)
+finite_n <- vapply(cols, function(column) {
+  if (is.na(column)) return(0L)
+  sum(is.finite(suppressWarnings(as.numeric(md[[column]]))))
+}, integer(1))
+availability <- data.frame(metric = names(cols), source_column = unname(cols), finite_cells = finite_n,
+                           available = !is.na(cols) & finite_n > 0L,
+                           reason = ifelse(is.na(cols), "column_not_found", ifelse(finite_n == 0L, "no_finite_values", "")),
+                           stringsAsFactors = FALSE)
 write.table(availability, file.path(out, "metric_availability.tsv"), sep="\t", quote=FALSE, row.names=FALSE)
-available <- names(cols)[!is.na(cols)]
+available <- availability$metric[availability$available]
 if (!length(available)) stop("No recognized QC metric columns were found")
 for (m in available) md[[m]] <- suppressWarnings(as.numeric(md[[cols[[m]]]]))
 

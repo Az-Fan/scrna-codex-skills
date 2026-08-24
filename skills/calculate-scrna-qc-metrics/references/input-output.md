@@ -21,6 +21,8 @@ Require an RDS or QS Seurat object with raw counts. A sample metadata column is 
 
 Set `parameters.species` to `mouse` or `human` for mitochondrial, cell-cycle, and hemoglobin symbols.
 
+For Seurat input, set `parameters.assay` to the assay containing raw non-negative counts. The default is `RNA` when present; never use corrected or integrated values as raw counts.
+
 Require an existing pixi executable and pixi project. Never create or change the environment.
 
 ## Metrics
@@ -33,6 +35,13 @@ Require an existing pixi executable and pixi project. Never create or change the
 - `hbb_score`, `is_HQ`
 
 Write `metric_status.tsv` with `computed` or `skipped` and a reason for every optional metric.
+
+Interpretation limits:
+
+- `nuclear_frac` is the unspliced / (spliced + unspliced) proxy from Velocyto matrices, not a direct measurement of nuclear localization.
+- `ambient_frac_decontx` is a DecontX contamination estimate. With filtered counts alone it has less background information than a workflow that also supplies empty droplets.
+- `doublet_score` is the sc06 synthetic-doublet nearest-neighbour score, not the canonical DoubletFinder package classification and not proof that a cell is a doublet.
+- Cell-cycle and hemoglobin scores are descriptive covariates. Do not remove cells solely because these scores are high without biological review.
 
 ## Output
 

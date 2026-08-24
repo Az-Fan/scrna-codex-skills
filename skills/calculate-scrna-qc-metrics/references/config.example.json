@@ -14,6 +14,7 @@
   "samples": [],
   "parameters": {
     "species": "mouse",
+    "assay": "RNA",
     "min_genes_hq": 500,
     "mito_pattern": "^mt-",
     "doublet_artificial_fraction": 0.2,

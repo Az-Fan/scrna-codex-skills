@@ -30,7 +30,7 @@ rd_PCA <- function(norm.dat, select.genes = rownames(norm.dat), select.cells = c
   list(rd.dat = reduced, pca = pca)
 }
 
-doubletFinder <- function(data, select.genes, proportion.artificial = 0.20, k = NULL) {
+sc06SyntheticDoubletScore <- function(data, select.genes, proportion.artificial = 0.20, k = NULL) {
   if (is.null(k)) k <- round(max(10, min(100, ncol(data) * 0.01)))
   real.cells <- colnames(data)
   n_doublets <- round(length(real.cells) / (1 - proportion.artificial) - length(real.cells))

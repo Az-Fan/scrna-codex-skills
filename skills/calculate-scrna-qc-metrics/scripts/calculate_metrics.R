@@ -44,16 +44,25 @@ read_chrY <- function(path) {
   fields <- strsplit(lines, "\t", fixed = TRUE)
   fields <- fields[vapply(fields, length, integer(1)) >= 9]
   genes <- fields[vapply(fields, function(x) x[[3]] == "gene" && x[[1]] %in% c("Y", "chrY"), logical(1))]
-  unique(vapply(genes, function(x) sub('.*gene_name "([^"]+)".*', "\\1", x[[9]]), character(1)))
+  attributes <- vapply(genes, `[[`, character(1), 9)
+  has_name <- grepl('gene_name "[^"]+"', attributes)
+  unique(sub('.*gene_name "([^"]+)".*', "\\1", attributes[has_name]))
 }
 chrY_genes <- read_chrY(getv("input.gtf_file"))
 
 get_counts <- function(obj) {
-  assay <- Seurat::DefaultAssay(obj)
+  requested <- getv("parameters.assay")
+  assay <- if (!is.null(requested)) requested else if ("RNA" %in% Seurat::Assays(obj)) "RNA" else Seurat::DefaultAssay(obj)
+  if (!assay %in% Seurat::Assays(obj)) stop("Configured assay not found in Seurat object: ", assay)
   if (utils::packageVersion("SeuratObject") >= "5.0.0") {
-    return(SeuratObject::LayerData(obj, assay = assay, layer = "counts"))
+    counts <- SeuratObject::LayerData(obj, assay = assay, layer = "counts")
+  } else {
+    counts <- Seurat::GetAssayData(obj, assay = assay, slot = "counts")
   }
-  Seurat::GetAssayData(obj, assay = assay, slot = "counts")
+  if (!nrow(counts) || !ncol(counts)) stop("The selected assay has no usable counts matrix: ", assay)
+  stored_values <- if (inherits(counts, "sparseMatrix")) counts@x else as.vector(counts)
+  if (length(stored_values) && (any(!is.finite(stored_values)) || any(stored_values < 0))) stop("Counts must be finite and non-negative in assay: ", assay)
+  counts
 }
 read_star <- function(directory) {
   counts <- as(Matrix::readMM(file.path(directory, "matrix.mtx.gz")), "CsparseMatrix")
@@ -110,11 +119,12 @@ calculate_one <- function(counts, metadata, sample_id, velocity_dir = NULL) {
   if (requireNamespace("RANN", quietly = TRUE) && requireNamespace("S4Vectors", quietly = TRUE)) {
     doublet_error <- tryCatch({
       seu <- Seurat::FindVariableFeatures(seu, selection.method = "vst", nfeatures = 2000, verbose = FALSE)
-      score <- doubletFinder(counts, Seurat::VariableFeatures(seu), artificial_fraction)[[1]]
+      score <- sc06SyntheticDoubletScore(counts, Seurat::VariableFeatures(seu), artificial_fraction)[[1]]
       metadata[names(score), "doublet_score"] <- score
       NULL
     }, error = function(e) conditionMessage(e))
-    statuses <- rbind(statuses, status_row(sample_id, "doublet_score", if (is.null(doublet_error)) "computed" else "skipped", doublet_error %||% ""))
+    statuses <- rbind(statuses, status_row(sample_id, "doublet_score", if (is.null(doublet_error)) "computed" else "skipped",
+                                          if (is.null(doublet_error)) "sc06 synthetic-doublet nearest-neighbour score; not canonical DoubletFinder classification" else doublet_error))
   } else statuses <- rbind(statuses, status_row(sample_id, "doublet_score", "skipped", "RANN or S4Vectors unavailable"))
 
   metadata$phase <- NA_character_; metadata$s_score <- NA_real_; metadata$g2m_score <- NA_real_
@@ -187,7 +197,12 @@ if (input_type == "starsolo") {
     for (column in setdiff(colnames(result$metadata), c("sample_id", "batch_id"))) combined_meta[cells, column] <- result$metadata[cells, column]
     all_status[[sample_id]] <- result$status
   }
-  for (column in setdiff(colnames(combined_meta), colnames(obj[[]]))) obj[[column]] <- combined_meta[colnames(obj), column]
+  qc_columns <- c("n_genes", "n_UMIs", "mito_frac", "chrY_frac", "nuclear_frac",
+                  "ambient_frac_decontx", "doublet_score", "phase", "s_score", "g2m_score",
+                  "hbb_score", "is_HQ")
+  for (column in intersect(qc_columns, colnames(combined_meta))) {
+    obj[[column]] <- combined_meta[colnames(obj), column]
+  }
   saveRDS(obj, file.path(out_root, "qc_metrics_object.rds"))
   gz <- gzfile(file.path(out_root, "metadata.tsv.gz"), "wt"); write.table(combined_meta, gz, sep = "\t", quote = FALSE); close(gz)
   write.table(do.call(rbind, all_status), file.path(out_root, "metric_status.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
