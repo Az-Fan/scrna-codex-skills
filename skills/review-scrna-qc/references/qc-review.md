@@ -19,3 +19,5 @@ Fractions and percentages are reviewed on their stored scale; the script does no
 Candidate bounds combine global 1st/99th percentiles with median ± 3 MAD. Explicit values in `thresholds` override generated candidates. Generated thresholds are screening suggestions, not accepted biological decisions.
 
 The joint candidate scenario applies all available filtering bounds only to estimate per-sample and per-group retention. It never subsets or saves a filtered object.
+
+When coordinates exist, generate one UMAP for every available QC metric. Auto-detect `seurat_clusters`/`cluster` and common annotation columns for grouped violin plots. Record every generated or skipped plot in `plot_status.tsv`.

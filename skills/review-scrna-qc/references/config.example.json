@@ -10,7 +10,9 @@
   "metadata": {
     "sample": "sample_id",
     "condition": "condition",
-    "batch": "batch_id"
+    "batch": "batch_id",
+    "cluster": "seurat_clusters",
+    "annotation": "annotation_manual"
   },
   "output_dir": "/path/to/qc_review",
   "thresholds": {}
