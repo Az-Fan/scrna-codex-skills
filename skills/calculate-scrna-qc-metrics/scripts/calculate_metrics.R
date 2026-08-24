@@ -153,7 +153,11 @@ if (input_type == "starsolo") {
     gene_dir <- file.path(root, sample_id, "Solo.out/Gene/filtered")
     velocity_dir <- file.path(root, sample_id, "Solo.out/Velocyto/filtered")
     raw <- read_star(gene_dir)
-    metadata <- data.frame(row.names = colnames(raw$counts), sample_id = sample_id, batch_id = batch_id)
+    metadata <- data.frame(
+      row.names = colnames(raw$counts),
+      sample_id = rep(sample_id, ncol(raw$counts)),
+      batch_id = rep(batch_id, ncol(raw$counts))
+    )
     result <- calculate_one(raw$counts, metadata, sample_id, velocity_dir)
     out <- file.path(out_root, sample_id); dir.create(out, recursive = TRUE, showWarnings = FALSE)
     Matrix::writeMM(raw$counts, file.path(out, "counts.mtx")); system2("gzip", c("-f", file.path(out, "counts.mtx")))
