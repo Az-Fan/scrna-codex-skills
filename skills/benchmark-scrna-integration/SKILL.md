@@ -1,6 +1,6 @@
 ---
 name: benchmark-scrna-integration
-description: Compare uncorrected and batch-integrated scRNA-seq representations, including Harmony, Seurat RPCA, scVI, scANVI, and BBKNN when available. Use when diagnosing batch effects, selecting an integration method or parameters, checking overcorrection, or validating that biological structure and sample mixing are both preserved.
+description: Build an uncorrected scRNA-seq integration baseline and optionally compare it with Harmony while preserving biological structure and sample provenance. Use when diagnosing batch effects, establishing a required no-correction baseline, or evaluating whether Harmony improves batch mixing without obvious biological loss.
 ---
 
 # Benchmark scRNA Integration
@@ -15,14 +15,13 @@ Treat no correction as a required baseline and method selection as evidence-base
 4. Keep feature selection, neighbor count, dimensions, seeds, and evaluation labels comparable.
 5. Evaluate sample mixing, batch predictability, cell-type separation, local structure, cluster stability, and condition preservation.
 6. Inspect embeddings by sample, batch, condition, cell type, and QC metrics.
-7. Compare sensitive parameters such as Harmony theta or RPCA anchors when the conclusion depends on them.
+7. Compare sensitive Harmony parameters when the conclusion depends on them.
 8. Produce a benchmark table and a recommendation with explicit tradeoffs.
 
 ## Guardrails
 
 - Do not select a method from UMAP appearance alone.
 - Do not reward mixing when batch is confounded with real biology.
-- Do not use scANVI labels derived from the evaluation target without documenting circularity.
 - Preserve the uncorrected representation and raw counts.
 
 Read [references/benchmark-criteria.md](references/benchmark-criteria.md) for the evaluation dimensions.

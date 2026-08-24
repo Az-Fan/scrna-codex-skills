@@ -1,6 +1,6 @@
 ---
 name: review-scrna-qc
-description: Diagnose and review sample-aware quality control for scRNA-seq count matrices or Seurat/AnnData objects. Use for QC reporting, threshold proposals, filtering sensitivity analysis, doublet or ambient-RNA review, and before annotation, integration, or focused subpopulation analysis.
+description: Diagnose and review sample-aware quality control for Seurat RDS/QS objects. Use for per-sample QC reporting, threshold proposals, and before annotation, integration, or focused subpopulation analysis; the default executor reports diagnostics and never filters cells.
 ---
 
 # Review scRNA QC
@@ -13,10 +13,9 @@ Separate deterministic diagnostics from project-specific filtering decisions.
 2. Calculate library size, detected genes, mitochondrial fraction, and available organism/tissue-specific metrics.
 3. Summarize distributions per biological sample, condition, and batch before pooling.
 4. Flag outliers using both distribution-aware rules and interpretable candidate thresholds.
-5. Review doublet and ambient-RNA evidence when tools or results are available.
-6. Compare candidate filtering scenarios by sample retention, cell-type composition, and embedding structure.
-7. Generate a decision table that distinguishes retain, exclude, and manual-review cells or clusters.
-8. Apply filtering only after thresholds or exclusions are confirmed; retain original object and cell IDs.
+5. Compare candidate filtering scenarios by sample retention and condition or batch balance.
+6. Generate a decision table that distinguishes retain, exclude, and manual-review cells or clusters.
+7. Apply filtering only after thresholds or exclusions are confirmed; retain original object and cell IDs.
 
 ## Guardrails
 

@@ -1,6 +1,6 @@
 ---
 name: standardize-scrna-input
-description: Standardize scRNA-seq inputs and metadata from 10x matrices, Cell Ranger or STARsolo outputs, Seurat RDS/QS objects, AnnData H5AD files, and counts-plus-metadata bundles. Use when starting or migrating a public or local single-cell RNA-seq project, diagnosing incompatible inputs, or preparing a stable object contract for downstream skills.
+description: Standardize scRNA-seq inputs and metadata from 10x matrix directories or H5 files and Seurat RDS/QS objects. Use when starting or migrating a public or local single-cell RNA-seq project, diagnosing incompatible inputs, or preparing a stable object contract for downstream skills.
 ---
 
 # Standardize scRNA Input

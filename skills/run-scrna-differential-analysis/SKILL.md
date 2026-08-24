@@ -1,6 +1,6 @@
 ---
 name: run-scrna-differential-analysis
-description: Design and run scRNA-seq differential expression, cluster marker, pseudobulk, enrichment, and pathway-focused analyses. Use for condition comparisons within cell types, marker discovery, sample-level pseudobulk inference, design-matrix review, enrichment of DEG results, or determining whether a public dataset supports formal differential claims.
+description: Audit scRNA-seq differential designs and run sample-level pseudobulk DESeq2 comparisons from raw counts when replication is adequate. Use for condition comparisons, biological-replicate checks, sample-by-condition cell counts, contrast validation, or determining whether a dataset supports formal differential claims.
 ---
 
 # Run scRNA Differential Analysis
@@ -13,11 +13,9 @@ Choose the statistical unit before choosing the test.
 2. Audit independent replicate counts and condition-batch or patient-condition confounding.
 3. Tabulate cells for every sample-by-population combination and define transparent minimums.
 4. Use raw counts for pseudobulk aggregation. Build and validate the sample-level design matrix.
-5. Run pseudobulk DESeq2 or edgeR for formal inference when replication supports it.
-6. Use cell-level FindMarkers only as exploratory or marker-oriented evidence and label it accordingly.
-7. Apply independent filtering and multiple-testing correction; retain complete result tables.
-8. Run enrichment from a declared universe and ranked or thresholded gene list.
-9. Produce effect-size plots, sample-level expression views, and a limitations summary.
+5. Run pseudobulk DESeq2 for formal inference when replication supports it.
+6. Apply independent filtering and multiple-testing correction; retain complete result tables.
+7. Produce effect-size plots, sample-level expression views, and a limitations summary.
 
 ## Guardrails
 

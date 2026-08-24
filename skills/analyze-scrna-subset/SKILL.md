@@ -1,6 +1,6 @@
 ---
 name: analyze-scrna-subset
-description: Perform focused reanalysis of a selected scRNA-seq population such as endothelial, immune, stromal, or epithelial cells. Use when extracting a broad cell type, reclustering it, comparing integration choices, identifying subtypes or states, reviewing contaminant clusters, and testing exclusion scenarios without duplicating whole-project objects.
+description: Prepare a focused scRNA-seq population for reanalysis by selecting configured labels and exporting raw counts, metadata, cell IDs, sample summaries, provenance, and a derivative Seurat object. Use before reclustering, subtype annotation, integration comparison, or exclusion-sensitivity analysis.
 ---
 
 # Analyze scRNA Subset

@@ -1,6 +1,6 @@
 ---
 name: annotate-scrna-cells
-description: Cluster and annotate scRNA-seq cells using cluster markers, canonical markers, optional reference-based labels, and explicit human review. Use when assigning broad cell types or subtypes, comparing resolutions, preparing an annotation review table, or writing confirmed annotations back to Seurat or AnnData objects.
+description: Cluster and prepare scRNA-seq cell annotations using cluster markers, canonical-marker review, UMAP diagnostics, and explicit human confirmation. Use when assigning broad cell types or subtypes, preparing an annotation review table, or generating a clustered Seurat object without prematurely writing final labels.
 ---
 
 # Annotate scRNA Cells
@@ -13,10 +13,9 @@ Combine evidence; never turn one automated label source into final truth.
 2. Evaluate several biologically plausible resolutions and record cluster stability and size.
 3. Compute cluster markers with detection fraction, effect size, and adjusted significance.
 4. Plot canonical positive and exclusion markers across clusters and samples.
-5. Add reference-based annotation when an appropriate species/tissue reference exists.
-6. Generate `annotation-review.tsv` with cluster, candidate label, evidence, conflicts, QC flags, and decision status.
-7. Pause for human review when labels are ambiguous or imply deletion.
-8. Write confirmed labels into a new metadata column and save annotation provenance.
+5. Generate `annotation-review.tsv` with cluster, candidate label, evidence, conflicts, QC flags, and decision status.
+6. Pause for human review when labels are ambiguous or imply deletion.
+7. Write confirmed labels into a new metadata column and save annotation provenance.
 
 ## Guardrails
 
