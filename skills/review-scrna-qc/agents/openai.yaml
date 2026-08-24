@@ -1,5 +1,4 @@
 interface:
   display_name: "Review scRNA QC"
-  short_description: "Diagnose sample-aware single-cell QC"
-  default_prompt: "Use $review-scrna-qc to diagnose QC and propose auditable filtering decisions."
-
+  short_description: "Generate QC atlas and threshold audit"
+  default_prompt: "Use $review-scrna-qc to generate a complete sample-aware QC figure atlas and auditable candidate-threshold tables without filtering cells."

@@ -1,31 +1,43 @@
 ---
 name: review-scrna-qc
-description: Diagnose and review sample-aware quality control for Seurat RDS/QS objects. Use for per-sample QC reporting, threshold proposals, and before annotation, integration, or focused subpopulation analysis; the default executor reports diagnostics and never filters cells.
+description: Generate a sample-aware scRNA-seq QC figure atlas, metric availability report, candidate threshold review table, and retention sensitivity tables from a Seurat RDS/QS object. Use after QC metrics have been calculated and before filtering; it never filters cells or modifies the input object.
 ---
 
-# Review scRNA QC
+# Review scRNA-seq QC
 
-Separate deterministic diagnostics from project-specific filtering decisions.
+Use the existing project pixi environment. Never create, install, or update an environment.
 
-## Workflow
+## Required inputs
 
-1. Verify raw counts and sample identity with `$standardize-scrna-input` when needed.
-2. Calculate library size, detected genes, mitochondrial fraction, and available organism/tissue-specific metrics.
-3. Summarize distributions per biological sample, condition, and batch before pooling.
-4. Flag outliers using both distribution-aware rules and interpretable candidate thresholds.
-5. Compare candidate filtering scenarios by sample retention and condition or batch balance.
-6. Generate a decision table that distinguishes retain, exclude, and manual-review cells or clusters.
-7. Apply filtering only after thresholds or exclusions are confirmed; retain original object and cell IDs.
+- A Seurat `.rds` or `.qs` object containing raw cell metadata and available QC columns.
+- The existing pixi project path.
+- The metadata column identifying samples.
+- An explicit output directory. If it is absent, ask the user where results should be saved before execution.
 
-## Guardrails
+Condition and batch columns are optional. Missing optional QC metrics are skipped and recorded rather than treated as errors.
 
-- Do not reuse fixed thresholds merely because they worked for another dataset.
-- Do not remove a cluster solely for high mitochondrial fraction; inspect markers, sample concentration, counts, and doublet evidence together.
-- Report whether exclusions disproportionately affect a condition or batch.
-- Treat filtering as a sensitivity analysis when borderline cells could affect conclusions.
+## Run
 
-Read [references/qc-review.md](references/qc-review.md) for required tables and plots.
+1. Copy `references/config.example.json` and adapt paths/column names.
+2. Dry-run first:
 
-## Execution
+   `python scripts/run.py --config CONFIG.json`
 
-Create a JSON config from [references/config.example.json](references/config.example.json), run `scripts/run.py --config <config>` in the selected compute context, inspect the manifest, then rerun with `--execute`. Use the bundled default R executor unless the environment requires an explicit argv override. Keep threshold approval outside the executor; the default executor never filters cells.
+3. Show the resolved input, pixi manifest, environment, output directory, and command.
+4. After confirmation, execute:
+
+   `python scripts/run.py --config CONFIG.json --execute`
+
+Read `references/qc-review.md` only when interpreting the threshold table or changing metric aliases.
+
+## Guarantees
+
+- Produce figures and review tables only; never filter cells or write a filtered Seurat object.
+- Treat thresholds as candidates requiring biological review.
+- Keep approval, decision, and notes fields blank.
+- Preserve the input object.
+- Record unavailable metrics and skipped plots.
+
+## Outputs
+
+The output directory contains a multipage `qc_atlas.pdf`, standalone PNG figures, metric availability, sample summaries and quantiles, candidate threshold review, candidate retention summaries, and `run_manifest.json`.

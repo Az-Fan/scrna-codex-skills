@@ -1,1 +1,17 @@
-{"project":{"id":"project_id"},"input":{"object":"path/to/object"},"metadata":{"sample":"sample_column","condition":"condition_column","batch":"batch_column"},"output_dir":"results/qc"}
+{
+  "pixi": {
+    "project": "/path/to/existing/pixi-project",
+    "environment": "default",
+    "executable": "/optional/path/to/pixi"
+  },
+  "input": {
+    "object": "/path/to/seurat_object.rds"
+  },
+  "metadata": {
+    "sample": "sample_id",
+    "condition": "condition",
+    "batch": "batch_id"
+  },
+  "output_dir": "/path/to/qc_review",
+  "thresholds": {}
+}
