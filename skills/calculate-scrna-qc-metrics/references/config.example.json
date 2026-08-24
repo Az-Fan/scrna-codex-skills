@@ -1,0 +1,21 @@
+{
+  "pixi": {
+    "executable": "/path/to/existing/pixi",
+    "project": "/path/to/project/01-scrna-qc",
+    "environment": "default"
+  },
+  "input": {
+    "starsolo_dir": "/path/to/starsolo",
+    "gtf_file": "/path/to/reference/genes.gtf"
+  },
+  "samples": [
+    {"sample_id": "sample_1", "batch_id": "batch_1"}
+  ],
+  "parameters": {
+    "min_genes_hq": 500,
+    "mito_pattern": "^mt-",
+    "doublet_artificial_fraction": 0.2,
+    "seed": 1
+  },
+  "output_dir": "/path/chosen/by/user/qc_metrics"
+}
