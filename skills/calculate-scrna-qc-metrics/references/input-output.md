@@ -1,25 +1,29 @@
 # Input and output contract
 
-## Input
+## Input modes
 
-For each declared `sample_id`, require:
+### STARsolo
+
+For each declared sample, require:
 
 ```text
 <starsolo_dir>/<sample_id>/Solo.out/Gene/filtered/
   matrix.mtx.gz
   features.tsv.gz
   barcodes.tsv.gz
-<starsolo_dir>/<sample_id>/Solo.out/Velocyto/filtered/
-  spliced.mtx.gz
-  unspliced.mtx.gz
-  barcodes.tsv.gz
 ```
 
-Require a matching gene-annotation GTF. The current executor uses mouse gene symbols, `^mt-`, mouse cell-cycle symbol conversion, and a mouse hemoglobin list.
+Use `Velocyto/filtered/{spliced,unspliced}.mtx.gz` when present; otherwise skip `nuclear_frac`. Use a matching GTF when provided; otherwise skip `chrY_frac`.
 
-Require an existing pixi executable and the existing QC pixi project. The skill never creates or changes the environment.
+### Seurat
 
-## Per-cell metadata
+Require an RDS or QS Seurat object with raw counts. A sample metadata column is optional; without one, treat the object as one sample. A batch column is optional. Preserve the input and write a derivative object.
+
+Set `parameters.species` to `mouse` or `human` for mitochondrial, cell-cycle, and hemoglobin symbols.
+
+Require an existing pixi executable and pixi project. Never create or change the environment.
+
+## Metrics
 
 - `sample_id`, `batch_id`
 - `n_genes`, `n_UMIs`
@@ -28,13 +32,23 @@ Require an existing pixi executable and the existing QC pixi project. The skill 
 - `phase`, `s_score`, `g2m_score`
 - `hbb_score`, `is_HQ`
 
+Write `metric_status.tsv` with `computed` or `skipped` and a reason for every optional metric.
+
 ## Output
 
-For every sample, write under `<output_dir>/<sample_id>/`:
+For STARsolo, write under `<output_dir>/<sample_id>/`:
 
 - `counts.mtx.gz`
 - `features.tsv.gz`
 - `metadata.tsv.gz`
 - `qc_diagnosis.png`
+- `metric_status.tsv`
 
-Write `run_manifest.json` at the output root. No cells are removed.
+For Seurat, write under `<output_dir>/`:
+
+- `qc_metrics_object.rds`
+- `metadata.tsv.gz`
+- `qc_diagnosis.png`
+- `metric_status.tsv`
+
+Write `run_manifest.json` at the output root. Never remove cells.

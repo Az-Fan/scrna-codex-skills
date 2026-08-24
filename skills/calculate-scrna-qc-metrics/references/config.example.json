@@ -5,13 +5,15 @@
     "environment": "default"
   },
   "input": {
-    "starsolo_dir": "/path/to/starsolo",
-    "gtf_file": "/path/to/reference/genes.gtf"
+    "type": "seurat",
+    "object": "/path/to/object.rds",
+    "starsolo_dir": null,
+    "gtf_file": null
   },
-  "samples": [
-    {"sample_id": "sample_1", "batch_id": "batch_1"}
-  ],
+  "metadata": {"sample": "sample_id", "batch": "batch_id"},
+  "samples": [],
   "parameters": {
+    "species": "mouse",
     "min_genes_hq": 500,
     "mito_pattern": "^mt-",
     "doublet_artificial_fraction": 0.2,

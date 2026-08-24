@@ -1,6 +1,6 @@
 ---
 name: calculate-scrna-qc-metrics
-description: Calculate comprehensive per-cell QC metrics for mouse scRNA-seq samples from STARsolo Gene/filtered and Velocyto/filtered matrices, following the sc06 implementation. Use when computing counts, detected genes, mitochondrial, chromosome-Y, nuclear, ambient-RNA, doublet, cell-cycle, and hemoglobin metrics before filtering.
+description: Calculate available per-cell QC metrics from STARsolo matrices or a Seurat RDS/QS object, following the sc06 implementation. Use before filtering to add counts, detected genes, mitochondrial, chromosome-Y, nuclear, ambient-RNA, doublet, cell-cycle, and hemoglobin metrics while recording metrics that cannot be computed.
 ---
 
 # Calculate scRNA QC Metrics
@@ -12,9 +12,9 @@ Use the project's existing pixi environment. Never create an environment or inst
 Before execution, inspect paths read-only and obtain:
 
 - the existing pixi project directory or `pixi.toml`;
-- the STARsolo root containing one directory per sample;
-- a GTF matching the STARsolo reference;
-- sample IDs and batch IDs;
+- either a STARsolo root or a Seurat RDS/QS object;
+- species and relevant metadata columns;
+- optional GTF, Velocyto matrices, sample IDs, and batch IDs when available;
 - the result output directory.
 
 Always ask where results should be saved when the user has not provided an output directory. Do not invent or silently default `output_dir`.
@@ -30,10 +30,11 @@ The executor computes metrics and writes new files; it never filters cells or ch
 
 ## Boundaries
 
-- Support the mouse STARsolo layout implemented and tested in `sc06`.
-- Require `Gene/filtered` and `Velocyto/filtered` matrices for every sample.
+- Support STARsolo matrices and Seurat RDS/QS objects with raw counts.
+- Use optional GTF and Velocyto inputs when available; record skipped metrics when they are absent.
 - Treat the `n_genes` threshold as a diagnostic flag only.
-- Stop and report missing packages or files; never install or repair dependencies automatically.
+- Stop only when the primary object or count matrix is unreadable. Record optional missing inputs or packages as skipped metrics.
+- Never install or repair dependencies automatically.
 - Do not infer sample batches from sample names.
 
 Read [references/input-output.md](references/input-output.md) when preparing or reviewing a run.
