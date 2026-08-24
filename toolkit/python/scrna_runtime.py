@@ -39,6 +39,15 @@ SPECS = {
     },
 }
 
+DRIVERS = {
+    "standardize-scrna-input": "standardize_input.R",
+    "review-scrna-qc": "qc_report.R",
+    "annotate-scrna-cells": "annotate_cells.R",
+    "benchmark-scrna-integration": "integration_benchmark.R",
+    "analyze-scrna-subset": "analyze_subset.R",
+    "run-scrna-differential-analysis": "differential_analysis.R",
+}
+
 
 def nested_get(data, dotted):
     value = data
@@ -61,7 +70,15 @@ def sha256(path):
     return digest.hexdigest()
 
 
-def validate(skill, config):
+def default_argv(skill, config_path):
+    rscript = shutil.which("Rscript")
+    driver = Path(__file__).resolve().parents[1] / "R" / DRIVERS[skill]
+    if rscript and driver.is_file():
+        return [rscript, str(driver), str(config_path.resolve())]
+    return None
+
+
+def validate(skill, config, config_path):
     errors, warnings = [], []
     spec = SPECS[skill]
     for field in spec["required"]:
@@ -79,8 +96,8 @@ def validate(skill, config):
     executor = config.get("executor", {})
     if executor and not isinstance(executor.get("argv", []), list):
         errors.append("executor.argv must be a JSON array, never a shell command string")
-    if not executor:
-        warnings.append("no executor configured; dry-run and validation are available, execution is disabled")
+    if not executor and default_argv(skill, config_path) is None:
+        warnings.append("default R executor is unavailable; dry-run remains available")
     return errors, warnings
 
 
@@ -117,7 +134,7 @@ def main(skill):
         config = json.loads(args.config.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise SystemExit(f"invalid config: {exc}")
-    errors, warnings = validate(skill, config)
+    errors, warnings = validate(skill, config, args.config)
     manifest = make_manifest(skill, config, args.config, errors, warnings)
     manifest_path = args.manifest or args.config.with_name(f"{skill}.manifest.json")
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -131,7 +148,7 @@ def main(skill):
     print(f"READY: {skill}; manifest={manifest_path}")
     if not args.execute:
         return 0
-    argv = config.get("executor", {}).get("argv")
+    argv = config.get("executor", {}).get("argv") or default_argv(skill, args.config)
     if not argv:
         print("ERROR: --execute requires executor.argv", file=sys.stderr)
         return 2
@@ -141,4 +158,3 @@ def main(skill):
         return 2
     completed = subprocess.run([executable] + [str(x) for x in argv[1:]], check=False)
     return completed.returncode
-
