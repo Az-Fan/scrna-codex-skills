@@ -5,7 +5,7 @@ description: Perform focused reanalysis of a selected scRNA-seq population such 
 
 # Analyze scRNA Subset
 
-Generalize the review pattern developed in `sc06/09-ec-analysis` to any selected population.
+Apply the same auditable reanalysis pattern to any selected population.
 
 ## Workflow
 
@@ -27,3 +27,6 @@ Generalize the review pattern developed in `sc06/09-ec-analysis` to any selected
 
 Read [references/subset-review.md](references/subset-review.md) for the expected checkpoints.
 
+## Execution
+
+Create a JSON config from [references/config.example.json](references/config.example.json) and run `scripts/run.py --config <config>`. Confirm the inclusion labels from the source object's metadata before execution. Use `executor.argv` for a versioned subset-analysis entrypoint and keep parent-object writeback as a separate explicit action.

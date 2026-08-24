@@ -28,3 +28,6 @@ Choose the statistical unit before choosing the test.
 
 Read [references/statistical-design.md](references/statistical-design.md) before executing a comparison.
 
+## Execution
+
+Create a JSON config from [references/config.example.json](references/config.example.json) and run `scripts/run.py --config <config>`. Audit replication and design rank before adding `executor.argv`. Use an argv array for a versioned differential-analysis entrypoint; refuse formal pseudobulk execution when the design audit fails.

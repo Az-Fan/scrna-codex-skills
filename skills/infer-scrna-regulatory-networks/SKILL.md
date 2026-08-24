@@ -1,6 +1,6 @@
 ---
 name: infer-scrna-regulatory-networks
-description: Build and interpret scRNA-seq gene regulatory networks and regulon activity using metacells, pySCENIC-compatible workflows, regulon scoring, RSS, differential regulon analysis, and target-to-TF screening. Use when investigating transcription-factor programs within cell types or conditions and when migrating the sc06 GRN workflow to another species or project.
+description: Build and interpret scRNA-seq gene regulatory networks and regulon activity using metacells, pySCENIC-compatible workflows, regulon scoring, RSS, differential regulon analysis, and target-to-TF screening. Use when investigating transcription-factor programs within cell types or conditions or adapting a regulatory-network workflow to a new species or project.
 ---
 
 # Infer scRNA Regulatory Networks
@@ -26,4 +26,3 @@ Treat regulons as model-derived hypotheses requiring database provenance and ort
 - Keep unsupervised discovery separate from hypothesis-driven ranking.
 
 Read [references/grn-provenance.md](references/grn-provenance.md) before running inference.
-

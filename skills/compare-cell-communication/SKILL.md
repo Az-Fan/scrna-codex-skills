@@ -20,10 +20,9 @@ Parameterize grouping explicitly and distinguish descriptive networks from repli
 
 ## Guardrails
 
-- Never retain inherited labels such as `early/late` when the project comparison is different.
+- Never retain comparison labels inherited from another project.
 - Do not claim differential communication from pooled groups without acknowledging sample replication.
 - Do not interpret database presence as evidence that both genes are detectably expressed.
 - Preserve group and cell-type mappings used in every comparison.
 
 Read [references/communication-design.md](references/communication-design.md) before comparing groups.
-

@@ -20,10 +20,13 @@ Separate deterministic diagnostics from project-specific filtering decisions.
 
 ## Guardrails
 
-- Do not reuse fixed thresholds merely because they worked for `sc06`.
+- Do not reuse fixed thresholds merely because they worked for another dataset.
 - Do not remove a cluster solely for high mitochondrial fraction; inspect markers, sample concentration, counts, and doublet evidence together.
 - Report whether exclusions disproportionately affect a condition or batch.
 - Treat filtering as a sensitivity analysis when borderline cells could affect conclusions.
 
 Read [references/qc-review.md](references/qc-review.md) for required tables and plots.
 
+## Execution
+
+Create a JSON config from [references/config.example.json](references/config.example.json), run `scripts/run.py --config <config>` in the selected compute context, inspect the manifest, then execute the environment-appropriate QC entrypoint through `executor.argv`. Keep threshold approval outside the executor so dry-run never filters cells.

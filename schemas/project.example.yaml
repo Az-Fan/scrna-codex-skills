@@ -1,7 +1,7 @@
 project:
   id: example-project
   species: mouse
-  tissue: heart
+  tissue: example_tissue
 input:
   object: data/seurat_object.qs
   format: seurat_qs
@@ -11,8 +11,7 @@ metadata:
   batch: batch
   cell_type: cell_type
 comparisons:
-  - id: case-vs-control
+  - id: group-b-vs-group-a
     factor: condition
-    numerator: case
-    denominator: control
-
+    numerator: group_b
+    denominator: group_a

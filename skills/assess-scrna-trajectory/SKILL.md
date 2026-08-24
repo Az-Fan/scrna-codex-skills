@@ -20,10 +20,9 @@ Require a biological lineage hypothesis before fitting pseudotime.
 
 ## Guardrails
 
-- Never carry lineage names or roots from another tissue, such as the original Mega/Ery/Mono/CLP/pDC settings.
+- Never carry lineage names, roots, or endpoints from another dataset.
 - Do not infer temporal progression solely from a two-dimensional UMAP.
 - Do not force a trajectory across disconnected cell identities.
 - Report when condition or batch is indistinguishable from pseudotime.
 
 Read [references/trajectory-checklist.md](references/trajectory-checklist.md) before fitting a lineage.
-

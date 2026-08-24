@@ -1,0 +1,1 @@
+{"project":{"id":"project_id"},"input":{"object":"path/to/object"},"metadata":{"sample":"sample_column","condition":"condition_column","cell_type":"cell_type_column"},"comparison":{"numerator":"group_b","denominator":"group_a"},"output_dir":"results/differential"}

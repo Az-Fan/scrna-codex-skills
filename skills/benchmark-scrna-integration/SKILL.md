@@ -27,3 +27,6 @@ Treat no correction as a required baseline and method selection as evidence-base
 
 Read [references/benchmark-criteria.md](references/benchmark-criteria.md) for the evaluation dimensions.
 
+## Execution
+
+Create a JSON config from [references/config.example.json](references/config.example.json) and run `scripts/run.py --config <config>` first. Require a valid batch field and an uncorrected baseline. Use `executor.argv` only for a versioned benchmark entrypoint in the selected environment; preserve identical inputs across methods.

@@ -1,4 +1,3 @@
 sample_id	condition	batch
-control_1	control	batch1
-case_1	case	batch1
-
+sample_1	group_a	batch_1
+sample_2	group_b	batch_1

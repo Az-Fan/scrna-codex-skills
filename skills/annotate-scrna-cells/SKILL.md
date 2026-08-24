@@ -22,8 +22,11 @@ Combine evidence; never turn one automated label source into final truth.
 
 - Keep cluster IDs separate from biological labels.
 - Detect sample-specific clusters and possible doublets before naming rare types.
-- Do not hard-code mouse-heart or EC markers into general execution logic.
+- Do not hard-code tissue-, species-, or cell-type-specific markers into general execution logic.
 - Preserve broad and fine labels as separate columns.
 
 Read [references/annotation-review.md](references/annotation-review.md) before producing the review table.
 
+## Execution
+
+Create a JSON config from [references/config.example.json](references/config.example.json) and run `scripts/run.py --config <config>` before clustering. Use the manifest to record inputs and outputs. Execute marker and review-table generation through `executor.argv`; never place confirmed labels in the executor configuration before human review.
