@@ -29,4 +29,4 @@ Read [references/qc-review.md](references/qc-review.md) for required tables and 
 
 ## Execution
 
-Create a JSON config from [references/config.example.json](references/config.example.json), run `scripts/run.py --config <config>` in the selected compute context, inspect the manifest, then execute the environment-appropriate QC entrypoint through `executor.argv`. Keep threshold approval outside the executor so dry-run never filters cells.
+Create a JSON config from [references/config.example.json](references/config.example.json), run `scripts/run.py --config <config>` in the selected compute context, inspect the manifest, then rerun with `--execute`. Use the bundled default R executor unless the environment requires an explicit argv override. Keep threshold approval outside the executor; the default executor never filters cells.

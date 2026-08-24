@@ -30,4 +30,4 @@ Read [references/statistical-design.md](references/statistical-design.md) before
 
 ## Execution
 
-Create a JSON config from [references/config.example.json](references/config.example.json) and run `scripts/run.py --config <config>`. Audit replication and design rank before adding `executor.argv`. Use an argv array for a versioned differential-analysis entrypoint; refuse formal pseudobulk execution when the design audit fails.
+Create a JSON config from [references/config.example.json](references/config.example.json) and run `scripts/run.py --config <config>`, then rerun with `--execute`. The default is audit-only. Set `analysis.mode` to `pseudobulk` only after reviewing replication and design; the executor refuses formal pseudobulk when either comparison group has fewer than two independent samples.

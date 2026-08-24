@@ -63,6 +63,16 @@ save_scrna_object <- function(obj, path) {
   } else saveRDS(obj, path)
 }
 
+get_raw_counts <- function(obj, assay = NULL) {
+  if (!requireNamespace("SeuratObject", quietly = TRUE)) stop("Package 'SeuratObject' is required")
+  assay <- assay %||% Seurat::DefaultAssay(obj)
+  if (utils::packageVersion("SeuratObject") >= "5.0.0") {
+    SeuratObject::LayerData(obj, assay = assay, layer = "counts")
+  } else {
+    SeuratObject::GetAssayData(obj, assay = assay, slot = "counts")
+  }
+}
+
 write_run_manifest <- function(config, skill, out, artifacts, notes = character()) {
   manifest <- list(
     schema_version = 1L,
@@ -76,4 +86,3 @@ write_run_manifest <- function(config, skill, out, artifacts, notes = character(
   )
   jsonlite::write_json(manifest, file.path(out, "run_manifest.json"), auto_unbox = TRUE, pretty = TRUE)
 }
-

@@ -29,4 +29,4 @@ Read [references/annotation-review.md](references/annotation-review.md) before p
 
 ## Execution
 
-Create a JSON config from [references/config.example.json](references/config.example.json) and run `scripts/run.py --config <config>` before clustering. Use the manifest to record inputs and outputs. Execute marker and review-table generation through `executor.argv`; never place confirmed labels in the executor configuration before human review.
+Create a JSON config from [references/config.example.json](references/config.example.json) and run `scripts/run.py --config <config>` before clustering. Use the manifest to record inputs and outputs, then rerun with `--execute` to generate clusters, markers, a UMAP, and the review table. Never place confirmed labels in the executor configuration before human review.

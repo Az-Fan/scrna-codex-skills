@@ -20,7 +20,10 @@ if (!"percent.mt" %in% colnames(meta)) {
 metrics <- intersect(c("nCount_RNA", "nFeature_RNA", "percent.mt"), colnames(meta))
 if (!length(metrics)) stop("No standard QC metrics found")
 summary <- do.call(rbind, lapply(split(meta, meta[[sample_col]]), function(x) {
-  values <- unlist(lapply(metrics, function(m) c(median = median(x[[m]], na.rm = TRUE), q01 = quantile(x[[m]], .01, na.rm = TRUE), q99 = quantile(x[[m]], .99, na.rm = TRUE))))
+  values <- unlist(lapply(metrics, function(m) {
+    z <- c(median = median(x[[m]], na.rm = TRUE), q01 = unname(quantile(x[[m]], .01, na.rm = TRUE)), q99 = unname(quantile(x[[m]], .99, na.rm = TRUE)))
+    stats::setNames(z, paste(m, names(z), sep = "_"))
+  }))
   data.frame(cells = nrow(x), as.list(values), check.names = FALSE)
 }))
 summary[[sample_col]] <- rownames(summary); rownames(summary) <- NULL

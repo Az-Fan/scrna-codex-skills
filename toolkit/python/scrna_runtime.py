@@ -15,7 +15,7 @@ from pathlib import Path
 SPECS = {
     "standardize-scrna-input": {
         "required": ["project.id", "input.path", "input.format", "metadata.sample", "output_dir"],
-        "artifacts": ["standardized_object", "samples_table", "field_mapping", "provenance"],
+        "artifacts": ["standardized_object", "samples_table", "cell_metadata", "field_mapping", "provenance"],
     },
     "review-scrna-qc": {
         "required": ["project.id", "input.object", "metadata.sample", "output_dir"],
@@ -23,19 +23,19 @@ SPECS = {
     },
     "annotate-scrna-cells": {
         "required": ["project.id", "input.object", "metadata.sample", "output_dir"],
-        "artifacts": ["cluster_markers", "annotation_review", "marker_plots", "run_manifest"],
+        "artifacts": ["cluster_markers", "annotation_review", "cluster_plot", "run_manifest"],
     },
     "benchmark-scrna-integration": {
         "required": ["project.id", "input.object", "metadata.sample", "metadata.batch", "output_dir"],
-        "artifacts": ["benchmark_table", "embeddings", "diagnostic_plots", "run_manifest"],
+        "artifacts": ["benchmark_table", "benchmark_object", "diagnostic_plots", "run_manifest"],
     },
     "analyze-scrna-subset": {
         "required": ["project.id", "input.object", "metadata.sample", "metadata.cell_type", "subset.include", "output_dir"],
-        "artifacts": ["subset_counts", "subset_metadata", "subset_review", "provenance"],
+        "artifacts": ["subset_counts", "subset_metadata", "subset_summary", "provenance"],
     },
     "run-scrna-differential-analysis": {
         "required": ["project.id", "input.object", "metadata.sample", "metadata.condition", "comparison.numerator", "comparison.denominator", "output_dir"],
-        "artifacts": ["design_audit", "sample_cell_counts", "differential_results", "run_manifest"],
+        "artifacts": ["design_audit", "sample_cell_counts", "run_manifest"],
     },
 }
 
@@ -72,8 +72,10 @@ def sha256(path):
 
 def default_argv(skill, config_path):
     rscript = shutil.which("Rscript")
-    driver = Path(__file__).resolve().parents[1] / "R" / DRIVERS[skill]
-    if rscript and driver.is_file():
+    here = Path(__file__).resolve()
+    drivers = [here.parents[1] / "R" / DRIVERS[skill], here.parent / DRIVERS[skill]]
+    driver = next((path for path in drivers if path.is_file()), None)
+    if rscript and driver is not None:
         return [rscript, str(driver), str(config_path.resolve())]
     return None
 

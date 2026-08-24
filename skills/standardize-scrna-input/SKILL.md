@@ -28,4 +28,4 @@ Read [references/input-contract.md](references/input-contract.md) for the canoni
 
 ## Execution
 
-Create a project-local JSON config from [references/config.example.json](references/config.example.json). Run `scripts/run.py --config <config>` in the selected compute context before changing data. Treat a nonzero exit as blocking. Add a safe argv array under `executor.argv` and rerun with `--execute` only after the dry-run manifest is correct. Never use a shell command string.
+Create a project-local JSON config from [references/config.example.json](references/config.example.json). Run `scripts/run.py --config <config>` in the selected compute context before changing data. Treat a nonzero exit as blocking. Rerun with `--execute` only after the dry-run manifest is correct. Use the bundled default R executor; set a safe argv array under `executor.argv` only to override it. Never use a shell command string.

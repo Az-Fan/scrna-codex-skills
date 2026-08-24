@@ -6,7 +6,10 @@ if (!requireNamespace("Seurat", quietly = TRUE)) stop("Package 'Seurat' is requi
 obj <- load_scrna_object(cfg_get(config, "input.object", required = TRUE), "auto")
 sample_col <- cfg_get(config, "metadata.sample", required = TRUE); condition_col <- cfg_get(config, "metadata.condition", required = TRUE)
 assert_metadata(obj, c(sample_col, condition_col)); numerator <- cfg_get(config, "comparison.numerator", required = TRUE); denominator <- cfg_get(config, "comparison.denominator", required = TRUE)
-meta <- obj[[]]; design <- unique(meta[c(sample_col, condition_col)]); design <- design[design[[condition_col]] %in% c(numerator, denominator), , drop = FALSE]
+meta <- obj[[]]
+missing_groups <- setdiff(c(numerator, denominator), unique(as.character(meta[[condition_col]])))
+if (length(missing_groups)) stop("Comparison groups absent from metadata: ", paste(missing_groups, collapse = ", "))
+design <- unique(meta[c(sample_col, condition_col)]); design <- design[design[[condition_col]] %in% c(numerator, denominator), , drop = FALSE]
 sample_condition_counts <- table(design[[condition_col]])
 out <- prepare_output(config); audit_path <- file.path(out, "design_audit.tsv"); counts_path <- file.path(out, "sample_cell_counts.tsv")
 utils::write.table(data.frame(condition = names(sample_condition_counts), biological_samples = as.integer(sample_condition_counts)), audit_path, sep = "\t", quote = FALSE, row.names = FALSE)
@@ -17,7 +20,7 @@ if (mode == "pseudobulk") {
   if (length(sample_condition_counts) != 2L || any(sample_condition_counts < 2L)) stop("Formal pseudobulk requires at least two independent samples per compared condition")
   if (!requireNamespace("DESeq2", quietly = TRUE)) stop("Package 'DESeq2' is required for pseudobulk")
   cells <- rownames(meta)[meta[[condition_col]] %in% c(numerator, denominator)]
-  sub <- subset(obj, cells = cells); counts <- Seurat::LayerData(sub, assay = Seurat::DefaultAssay(sub), layer = "counts")
+  sub <- subset(obj, cells = cells); counts <- get_raw_counts(sub)
   groups <- factor(sub[[]][[sample_col]]); mm <- Matrix::sparse.model.matrix(~ 0 + groups); pb <- counts %*% mm; colnames(pb) <- sub("^groups", "", colnames(pb))
   coldata <- design[match(colnames(pb), design[[sample_col]]), , drop = FALSE]; rownames(coldata) <- coldata[[sample_col]]; coldata[[condition_col]] <- relevel(factor(coldata[[condition_col]]), denominator)
   dds <- DESeq2::DESeqDataSetFromMatrix(round(as.matrix(pb)), coldata, stats::as.formula(paste0("~", condition_col))); dds <- DESeq2::DESeq(dds)

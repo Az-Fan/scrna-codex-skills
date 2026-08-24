@@ -21,4 +21,5 @@ if ("harmony" %in% methods) {
 }
 out <- prepare_output(config); table_path <- file.path(out, "integration_methods.tsv"); object_path <- file.path(out, "integration_benchmark_object.qs")
 utils::write.table(records, table_path, sep = "\t", quote = FALSE, row.names = FALSE); save_scrna_object(baseline, object_path)
-write_run_manifest(config, "benchmark-scrna-integration", out, c(table_path, object_path), "No method was declared best automatically")
+plot_path <- file.path(out, "integration_diagnostics.pdf"); grDevices::pdf(plot_path, width = 9, height = 7); print(Seurat::DimPlot(baseline, reduction = "umap_baseline", group.by = batch_col)); if ("umap_harmony" %in% names(baseline@reductions)) print(Seurat::DimPlot(baseline, reduction = "umap_harmony", group.by = batch_col)); grDevices::dev.off()
+write_run_manifest(config, "benchmark-scrna-integration", out, c(table_path, object_path, plot_path), "No method was declared best automatically")

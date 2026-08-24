@@ -29,4 +29,4 @@ Read [references/benchmark-criteria.md](references/benchmark-criteria.md) for th
 
 ## Execution
 
-Create a JSON config from [references/config.example.json](references/config.example.json) and run `scripts/run.py --config <config>` first. Require a valid batch field and an uncorrected baseline. Use `executor.argv` only for a versioned benchmark entrypoint in the selected environment; preserve identical inputs across methods.
+Create a JSON config from [references/config.example.json](references/config.example.json) and run `scripts/run.py --config <config>` first. Require a valid batch field and an uncorrected baseline, then rerun with `--execute`. The default executor always produces the baseline and optionally runs configured supported methods; preserve identical inputs across methods.

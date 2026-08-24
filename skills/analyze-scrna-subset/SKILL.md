@@ -29,4 +29,4 @@ Read [references/subset-review.md](references/subset-review.md) for the expected
 
 ## Execution
 
-Create a JSON config from [references/config.example.json](references/config.example.json) and run `scripts/run.py --config <config>`. Confirm the inclusion labels from the source object's metadata before execution. Use `executor.argv` for a versioned subset-analysis entrypoint and keep parent-object writeback as a separate explicit action.
+Create a JSON config from [references/config.example.json](references/config.example.json) and run `scripts/run.py --config <config>`. Confirm the inclusion labels from the source object's metadata, then rerun with `--execute`. The default executor exports counts, metadata, a summary, cell IDs, and a derivative object; keep parent-object writeback as a separate explicit action.
