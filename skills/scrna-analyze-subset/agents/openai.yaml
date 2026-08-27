@@ -1,0 +1,4 @@
+interface:
+  display_name: "Analyze scRNA Subset"
+  short_description: "Reanalyze a selected cell population"
+  default_prompt: "Use $scrna-analyze-subset to perform a focused subpopulation analysis."

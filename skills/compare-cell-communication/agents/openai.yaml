@@ -1,5 +1,0 @@
-interface:
-  display_name: "Compare Cell Communication"
-  short_description: "Analyze and compare ligand receptor networks"
-  default_prompt: "Use $compare-cell-communication to compare cell-cell communication conditions."
-

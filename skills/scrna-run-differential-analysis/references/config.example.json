@@ -1,0 +1,40 @@
+{
+  "project": {"id": "project_id"},
+  "input": {"object": "path/to/seurat_object.qs"},
+  "metadata": {
+    "sample": "sample_id",
+    "condition": "condition",
+    "population": "celltype_final",
+    "covariates": ["batch"]
+  },
+  "population": {"mode": "all", "include": [], "exclude": []},
+  "comparisons": [
+    {"id": "treated_vs_control", "numerator": "treated", "denominator": "control"}
+  ],
+  "analysis": {
+    "stage": "differential",
+    "method": "pseudobulk_deseq2",
+    "assay": "RNA",
+    "design": "~ batch + condition",
+    "min_cells_per_sample_population": 20,
+    "min_samples_per_group": 2,
+    "min_total_count": 10,
+    "min_count_per_sample": 10,
+    "min_samples_expressed": 2,
+    "padj_threshold": 0.05,
+    "lfc_threshold": 0.25,
+    "lfc_shrink": true
+  },
+  "plots": {"top_genes": 30},
+  "enrichment": {
+    "enabled": false,
+    "species": "mouse",
+    "gene_id_type": "SYMBOL",
+    "databases": ["GO_BP", "GO_MF", "GO_CC", "KEGG", "REACTOME", "HALLMARK"],
+    "min_input_genes": 5,
+    "min_gene_set_size": 10,
+    "max_gene_set_size": 500,
+    "plot_top_terms": 10
+  },
+  "output_dir": "results/differential"
+}

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Assess scRNA Trajectory"
-  short_description: "Evaluate and run hypothesis-led trajectories"
-  default_prompt: "Use $assess-scrna-trajectory to assess whether trajectory analysis is justified."

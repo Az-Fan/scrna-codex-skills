@@ -1,0 +1,31 @@
+{
+  "project": {"id": "published_or_external_deg"},
+  "input": {
+    "differential_table": "path/to/full_differential_results.tsv"
+  },
+  "analysis": {
+    "stage": "enrichment_only",
+    "padj_threshold": 0.05,
+    "lfc_threshold": 0.25
+  },
+  "enrichment": {
+    "enabled": true,
+    "species": "human",
+    "gene_id_type": "SYMBOL",
+    "databases": ["GO_BP", "GO_MF", "GO_CC", "KEGG", "REACTOME", "HALLMARK"],
+    "table_columns": {
+      "gene": "gene",
+      "log2fc": "log2FoldChange",
+      "pvalue": "pvalue",
+      "padj": "padj",
+      "stat": "stat",
+      "population": "population",
+      "comparison": "comparison_id"
+    },
+    "min_input_genes": 5,
+    "min_gene_set_size": 10,
+    "max_gene_set_size": 500,
+    "plot_top_terms": 10
+  },
+  "output_dir": "results/enrichment_from_table"
+}

@@ -1,0 +1,20 @@
+{
+  "project": {"id": "project_id"},
+  "input": {"object": "path/to/clustered_object.qs"},
+  "metadata": {"cluster": "seurat_clusters"},
+  "analysis": {
+    "assay": "RNA",
+    "test_use": "wilcox",
+    "only_pos": true,
+    "logfc_threshold": 0.25,
+    "min_pct": 0.1,
+    "min_diff_pct": -0.1,
+    "return_thresh": 0.05,
+    "max_cells_per_ident": null,
+    "random_seed": 1,
+    "join_layers": true,
+    "normalize_if_missing": true
+  },
+  "reporting": {"top_n": 20, "dotplot_top_n": 5},
+  "output_dir": "results/cluster_markers"
+}

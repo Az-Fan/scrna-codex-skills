@@ -1,0 +1,4 @@
+interface:
+  display_name: "scRNA Differential Analysis"
+  short_description: "Run batch pseudobulk DE and enrichment"
+  default_prompt: "Use $scrna-run-differential-analysis to run auditable cell-type differential expression and optional enrichment."

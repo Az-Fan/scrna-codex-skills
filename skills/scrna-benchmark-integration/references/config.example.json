@@ -1,0 +1,32 @@
+{
+  "project": {"id": "project_id"},
+  "input": {"object": "path/to/filtered_seurat.qs", "assay": "RNA"},
+  "metadata": {
+    "sample": "sample_id",
+    "batch_variables": ["batch_id"],
+    "biological_labels": ["cell_type"],
+    "condition": "condition"
+  },
+  "benchmark": {
+    "methods": [
+      {"name": "none"},
+      {"name": "harmony", "parameter_grid": {"theta": [1, 2, 4]}},
+      {"name": "rpca", "parameter_grid": {"k_anchor": [10, 20, 30], "k_weight": [50]}},
+      {"name": "scvi", "parameter_grid": {"n_latent": [20, 30]}},
+      {"name": "scanvi", "parameter_grid": {"n_latent": [30]}},
+      {"name": "bbknn", "parameter_grid": {"neighbors_within_batch": [3]}}
+    ],
+    "dims": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+    "neighbors": {"k": 20},
+    "seed": 1234,
+    "python_argv_prefix": ["python3"]
+  },
+  "metrics": {
+    "batch_removal": ["ilisi", "batch_asw", "pcr_comparison", "graph_connectivity"],
+    "biological_conservation": ["clisi", "label_asw", "isolated_labels", "nmi", "ari"]
+  },
+  "plots": ["score_heatmap", "metric_tradeoff", "umap_by_batch", "umap_by_label"],
+  "gene_programs": {},
+  "scoring": {"enabled": false, "batch_weight": 0.3, "biology_weight": 0.7},
+  "output_dir": "results/integration_benchmark"
+}

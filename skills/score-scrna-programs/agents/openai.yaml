@@ -1,5 +1,0 @@
-interface:
-  display_name: "Score scRNA Programs"
-  short_description: "Analyze pathways and latent gene programs"
-  default_prompt: "Use $score-scrna-programs to quantify pathways and gene programs."
-

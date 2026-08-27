@@ -1,0 +1,4 @@
+interface:
+  display_name: "Standardize scRNA Input"
+  short_description: "Normalize public and local scRNA-seq inputs"
+  default_prompt: "Use $scrna-standardize-input to inspect and standardize this single-cell dataset."

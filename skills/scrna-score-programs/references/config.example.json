@@ -1,0 +1,38 @@
+{
+  "project": {"id": "project_id"},
+  "input": {
+    "object": "path/to/seurat_object.qs",
+    "assay": "RNA",
+    "layer": "counts"
+  },
+  "species": "mouse",
+  "tasks": [
+    {
+      "name": "hallmark_vision",
+      "method": "vision",
+      "gene_sets": {"source": "msigdb", "collection": "MH"},
+      "coverage": {"min_genes": 3, "min_fraction": 0.1, "on_insufficient": "skip"}
+    },
+    {
+      "name": "progeny",
+      "method": "progeny",
+      "layer": "data",
+      "parameters": {"top": 500, "scale": false}
+    },
+    {
+      "name": "custom_ucell",
+      "method": "ucell",
+      "gene_sets": {
+        "source": "inline",
+        "sets": {"example_program": ["GeneA", "GeneB", "GeneC", "GeneD"]}
+      }
+    }
+  ],
+  "summarize_by": ["sample_id", "celltype", "condition"],
+  "random_seed": 1,
+  "cores": 8,
+  "cache": {"enabled": true},
+  "resources": {"cache_dir": "results/program_scores/resource_cache"},
+  "output": {"object_format": "qs"},
+  "output_dir": "results/program_scores"
+}

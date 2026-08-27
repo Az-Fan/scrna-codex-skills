@@ -1,4 +1,0 @@
-interface:
-  display_name: "Run scRNA Differential Analysis"
-  short_description: "Run exploratory and pseudobulk comparisons"
-  default_prompt: "Use $run-scrna-differential-analysis to design and run this comparison."

@@ -1,5 +1,0 @@
-interface:
-  display_name: "Benchmark scRNA Integration"
-  short_description: "Compare batch correction without losing biology"
-  default_prompt: "Use $benchmark-scrna-integration to compare integration methods for this dataset."
-
