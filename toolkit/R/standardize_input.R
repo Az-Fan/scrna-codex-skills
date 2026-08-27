@@ -11,14 +11,20 @@ assert_metadata(obj, sample_col)
 out <- prepare_output(config)
 meta_path <- file.path(out, "cell_metadata.tsv")
 samples_path <- file.path(out, "samples.tsv")
-object_path <- file.path(out, "standardized_object.qs")
+object_format <- tolower(cfg_get(config, "output.object_format", "auto"))
+if (!object_format %in% c("auto", "qs", "rds")) stop("output.object_format must be one of: auto, qs, rds")
+if (object_format == "auto") object_format <- if (requireNamespace("qs", quietly = TRUE)) "qs" else "rds"
+if (object_format == "qs" && !requireNamespace("qs", quietly = TRUE)) {
+  stop("output.object_format='qs' requires package 'qs'; use 'auto' or 'rds' in this pixi environment")
+}
+object_path <- file.path(out, paste0("standardized_object.", object_format))
 utils::write.table(cbind(cell_id = rownames(obj[[]]), obj[[]]), meta_path, sep = "\t", quote = FALSE, row.names = FALSE)
 sample_fields <- unique(c(sample_col, cfg_get(config, "metadata.condition"), cfg_get(config, "metadata.batch")))
 sample_fields <- sample_fields[!vapply(sample_fields, is.null, logical(1))]
 samples <- unique(obj[[]][sample_fields])
 utils::write.table(samples, samples_path, sep = "\t", quote = FALSE, row.names = FALSE)
 save_scrna_object(obj, object_path)
-jsonlite::write_json(list(source = normalizePath(path), format = format, cells = ncol(obj), genes = nrow(obj)), file.path(out, "provenance.json"), auto_unbox = TRUE, pretty = TRUE)
+jsonlite::write_json(list(source = normalizePath(path), format = format, object_format = object_format, cells = ncol(obj), genes = nrow(obj)), file.path(out, "provenance.json"), auto_unbox = TRUE, pretty = TRUE)
 mapping_path <- file.path(out, "field_mapping.json")
 jsonlite::write_json(cfg_get(config, "metadata", list()), mapping_path, auto_unbox = TRUE, pretty = TRUE)
 write_run_manifest(config, "scrna-standardize-input", out, c(object_path, meta_path, samples_path, mapping_path, file.path(out, "provenance.json")))

@@ -1,6 +1,6 @@
 # scRNA-seq Codex Skills
 
-Nine Codex/Wisp-compatible skills for auditable single-cell RNA-seq analysis. The authoritative source is this repository; server-side analysis uses the existing pixi environments.
+Nine Codex/Wisp-compatible skills for auditable single-cell RNA-seq analysis. The canonical development working tree is `/home/faz_laptop/projects/scrna-codex-skills` on `ssh:xiyouyun`; GitHub is its synchronized distribution remote. Server-side analysis uses the existing pixi environments.
 
 ## Released skills
 
@@ -16,12 +16,24 @@ Nine Codex/Wisp-compatible skills for auditable single-cell RNA-seq analysis. Th
 
 ## Install the fixed release
 
+Clone the fixed tag from GitHub, then assemble all nine self-contained skill directories with the bundled installer:
+
 ```bash
-git clone --branch v1.1.0 --depth 1 git@github.com:Az-Fan/scrna-codex-skills.git
-python scrna-codex-skills/scripts/install_skills.py
+git clone --branch v1.2.0 --depth 1 git@github.com:Az-Fan/scrna-codex-skills.git
+python scrna-codex-skills/scripts/install_skills.py --target .wisp/skills
 ```
 
-On Windows PowerShell, use `py` when that is the configured launcher. Pass `--target .wisp/skills` for a project-local Wisp installation. Existing installations are never overwritten unless `--force` is supplied.
+For a personal Codex installation, use `--target ~/.codex/skills`. On Windows PowerShell, use `py` when that is the configured launcher. Existing installations are never overwritten unless `--force` is supplied.
+
+To update an existing clone and replace an installed Wisp copy with this fixed release:
+
+```bash
+git -C scrna-codex-skills fetch --tags
+git -C scrna-codex-skills checkout v1.2.0
+python scrna-codex-skills/scripts/install_skills.py --target .wisp/skills --force
+```
+
+Restart the agent session after installation or update so skill discovery is refreshed. Installation changes agent instructions and bundled executors only; it does not install R/Python packages or alter the server pixi environments.
 
 ## Source architecture
 
@@ -32,6 +44,12 @@ Validate and smoke-test assembly:
 ```bash
 python scripts/validate_runtime_manifest.py
 python scripts/smoke_install.py
+```
+
+Run the real nine-skill deterministic fixture test in the registered server environment:
+
+```bash
+python tests/e2e/run_fixture_e2e.py
 ```
 
 Build `.skill` archives when a release is ready:
@@ -48,6 +66,8 @@ Generate the small four-sample Seurat fixture inside a compatible server pixi en
 Rscript tests/fixtures/create_fixture.R tests/fixtures/tiny_scrna.rds
 ```
 
-The generated RDS is intentionally ignored by Git. The generator is deterministic and provides 80 cells, two conditions, two batches, two cell types, two clusters, integer counts, QC metadata, and a UMAP embedding for future end-to-end tests.
+The generated RDS is intentionally ignored by Git. The generator is deterministic and provides 80 cells, two conditions, two batches, two cell types, two clusters, integer counts, QC metadata, and a UMAP embedding for end-to-end tests.
 
 The client needs Codex and/or WispScience. The registered analysis server must have pixi and the project environments under `~/projects/scrna_envs`. See each skill's `references/compatibility.md`.
+
+Repository synchronization and release invariants are enforced by [AGENTS.md](AGENTS.md).

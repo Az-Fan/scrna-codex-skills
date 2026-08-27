@@ -1,1 +1,7 @@
-{"project":{"id":"project_id"},"input":{"path":"path/to/input","format":"auto"},"metadata":{"sample":"sample_column"},"output_dir":"results/standardized"}
+{
+  "project": {"id": "project_id"},
+  "input": {"path": "path/to/input", "format": "auto"},
+  "metadata": {"sample": "sample_column"},
+  "output": {"object_format": "auto"},
+  "output_dir": "results/standardized"
+}

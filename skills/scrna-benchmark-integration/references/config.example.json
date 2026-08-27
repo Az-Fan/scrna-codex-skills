@@ -19,7 +19,7 @@
     "dims": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
     "neighbors": {"k": 20},
     "seed": 1234,
-    "python_argv_prefix": ["python3"]
+    "python_argv_prefix": ["pixi", "run", "--manifest-path", "/path/to/03-integration/pixi.toml", "-e", "scvi", "--", "python"]
   },
   "metrics": {
     "batch_removal": ["ilisi", "batch_asw", "pcr_comparison", "graph_connectivity"],
