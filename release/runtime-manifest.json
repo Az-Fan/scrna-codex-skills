@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skills": {
+    "scrna-calculate-qc-metrics": {"python": ["check_dependencies.py"], "r": ["calculate_metrics.R", "doublet_finder.R"]},
+    "scrna-review-qc": {"python": ["check_dependencies.py"], "r": ["review_qc.R"]},
+    "scrna-standardize-input": {"python": ["check_dependencies.py", "runner_bootstrap.py", "scrna_runtime.py", "validate_project.py"], "r": ["runtime.R", "standardize_input.R"]},
+    "scrna-analyze-subset": {"python": ["check_dependencies.py", "runner_bootstrap.py", "scrna_runtime.py", "validate_project.py"], "r": ["runtime.R", "analyze_subset.R"]},
+    "scrna-annotate-cells": {"python": ["check_dependencies.py", "runner_bootstrap.py", "scrna_runtime.py", "validate_project.py"], "r": ["runtime.R", "annotate_cells.R"]},
+    "scrna-find-cluster-markers": {"python": ["check_dependencies.py", "runner_bootstrap.py", "scrna_runtime.py", "validate_project.py"], "r": ["runtime.R", "find_cluster_markers.R"]},
+    "scrna-benchmark-integration": {"python": ["check_dependencies.py", "runner_bootstrap.py", "scrna_runtime.py", "validate_project.py"], "r": ["runtime.R", "integration_benchmark.R"]},
+    "scrna-score-programs": {"python": ["check_dependencies.py", "runner_bootstrap.py", "scrna_runtime.py", "validate_project.py"], "r": ["runtime.R", "score_programs.R"]},
+    "scrna-run-differential-analysis": {"python": ["check_dependencies.py", "runner_bootstrap.py", "scrna_runtime.py", "validate_project.py"], "r": ["runtime.R", "differential_utils.R", "differential_analysis.R"]}
+  }
+}

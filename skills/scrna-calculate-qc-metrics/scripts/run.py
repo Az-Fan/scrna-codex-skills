@@ -65,7 +65,12 @@ def main():
         fail("Existing pixi executable not found; set pixi.executable. The skill will not install it")
     environment = pixi_config.get("environment", "default")
     output = Path(output_value).expanduser().resolve()
-    driver = Path(__file__).with_name("calculate_metrics.R").resolve()
+    script = Path(__file__).resolve()
+    driver_candidates = [script.with_name("calculate_metrics.R")]
+    driver_candidates.extend(parent / "toolkit" / "R" / "calculate_metrics.R" for parent in script.parents)
+    driver = next((path for path in driver_candidates if path.is_file()), None)
+    if driver is None:
+        fail("calculate_metrics.R not found; install a self-contained build or run from the source repository")
     command = [pixi, "run", "--manifest-path", str(manifest), "-e", environment,
                "--", "Rscript", str(driver), str(config_path)]
     plan = {

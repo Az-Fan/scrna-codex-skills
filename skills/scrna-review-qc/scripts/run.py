@@ -37,7 +37,12 @@ def main():
     if not pixi:
         fail("Existing pixi executable not found; set pixi.executable. This skill will not install it")
     output = Path(output_value).expanduser().resolve()
-    driver = Path(__file__).with_name("review_qc.R").resolve()
+    script = Path(__file__).resolve()
+    driver_candidates = [script.with_name("review_qc.R")]
+    driver_candidates.extend(parent / "toolkit" / "R" / "review_qc.R" for parent in script.parents)
+    driver = next((path for path in driver_candidates if path.is_file()), None)
+    if driver is None:
+        fail("review_qc.R not found; install a self-contained build or run from the source repository")
     environment = pixi_cfg.get("environment", "default")
     command = [pixi, "run", "--manifest-path", str(manifest), "-e", environment,
                "--", "Rscript", str(driver), str(config_path)]

@@ -17,10 +17,6 @@ SPECS = {
         "required": ["project.id", "input.path", "input.format", "metadata.sample", "output_dir"],
         "artifacts": ["standardized_object", "samples_table", "cell_metadata", "field_mapping", "provenance"],
     },
-    "review-scrna-qc": {
-        "required": ["project.id", "input.object", "metadata.sample", "output_dir"],
-        "artifacts": ["qc_summary", "qc_plots", "decision_table", "run_manifest"],
-    },
     "scrna-annotate-cells": {
         "required": ["project.id", "input.object", "metadata.sample", "output_dir"],
         "artifacts": ["cluster_markers", "annotation_review", "cluster_plot", "run_manifest"],
@@ -32,10 +28,6 @@ SPECS = {
     "scrna-benchmark-integration": {
         "required": ["project.id", "input.object", "metadata.sample", "metadata.batch_variables", "benchmark.methods", "metrics", "plots", "output_dir"],
         "artifacts": ["method_runs", "metric_results", "method_summary", "design_confounding", "selected_plots", "benchmark_object", "recommendation", "run_manifest"],
-    },
-    "preprocess-and-cluster-scrna": {
-        "required": ["project.id", "input.object", "metadata.sample", "output_dir"],
-        "artifacts": ["processed_object", "scenario_summary", "diagnostic_plots", "run_manifest"],
     },
     "scrna-analyze-subset": {
         "required": ["project.id", "input.object", "metadata.sample", "metadata.cell_type", "subset.include", "output_dir"],
@@ -53,11 +45,9 @@ SPECS = {
 
 DRIVERS = {
     "scrna-standardize-input": "standardize_input.R",
-    "review-scrna-qc": "qc_report.R",
     "scrna-annotate-cells": "annotate_cells.R",
     "scrna-find-cluster-markers": "find_cluster_markers.R",
     "scrna-benchmark-integration": "integration_benchmark.R",
-    "preprocess-and-cluster-scrna": "preprocess_cluster.R",
     "scrna-analyze-subset": "analyze_subset.R",
     "scrna-run-differential-analysis": "differential_analysis.R",
     "scrna-score-programs": "score_programs.R",
