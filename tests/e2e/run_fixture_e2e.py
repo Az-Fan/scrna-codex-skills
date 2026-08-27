@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import gzip
 import hashlib
 import json
 import os
@@ -73,13 +74,15 @@ def main() -> int:
     installed = repo / "test-output/installed"
     configs = output_root / "configs"
     fixture = repo / "tests/fixtures/tiny_scrna.rds"
+    qc_fixture = repo / "tests/fixtures/tiny_scrna_multilayer.rds"
     if output_root.exists() and args.start_at is None:
         shutil.rmtree(output_root)
     output_root.mkdir(parents=True, exist_ok=True)
 
     annotation_r = args.env_root / "02-annotation/.pixi/envs/default/bin/Rscript"
-    call([annotation_r, repo / "tests/fixtures/create_fixture.R", fixture], cwd=repo)
+    call([annotation_r, repo / "tests/fixtures/create_fixture.R", fixture, qc_fixture], cwd=repo)
     fixture_hash = sha256(fixture)
+    qc_fixture_hash = sha256(qc_fixture)
     call([sys.executable, repo / "scripts/install_skills.py", "--target", installed, "--force"], cwd=repo)
 
     qc_project = args.env_root / "01-scrna-qc"
@@ -87,8 +90,10 @@ def main() -> int:
     definitions = {
         "scrna-calculate-qc-metrics": {
             "pixi": {"executable": str(args.pixi), "project": str(qc_project), "environment": "default"},
-            "input": {"type": "seurat", "object": str(fixture), "starsolo_dir": None, "gtf_file": None},
+            "input": {"type": "seurat", "object": str(qc_fixture), "starsolo_dir": None, "gtf_file": None},
             "metadata": {"sample": "sample_label", "batch": "batch_id"}, "samples": [],
+            "ambient_rna": {"method": "skip", "cluster_column": None},
+            "parallel": {"workers": 2},
             "parameters": {"species": "mouse", "assay": "RNA", "min_genes_hq": 3, "mito_pattern": "^mt-", "doublet_artificial_fraction": 0.2, "seed": 1},
         },
         "scrna-review-qc": {
@@ -138,6 +143,17 @@ def main() -> int:
         manifest = json.loads((out / "run_manifest.json").read_text(encoding="utf-8"))
         if manifest.get("skill") != skill:
             raise RuntimeError(f"{skill}: run manifest skill mismatch: {manifest.get('skill')!r}")
+        if skill == "scrna-calculate-qc-metrics":
+            with gzip.open(out / "metadata.tsv.gz", "rt", encoding="utf-8", newline="") as handle:
+                metadata_rows = list(csv.DictReader(handle, delimiter="\t"))
+            if len(metadata_rows) != 80:
+                raise RuntimeError(f"{skill}: multi-layer input produced {len(metadata_rows)} cells instead of 80")
+            with (out / "metric_status.tsv").open(encoding="utf-8", newline="") as handle:
+                ambient_rows = [row for row in csv.DictReader(handle, delimiter="\t") if row["metric"] == "ambient_frac_decontx"]
+            if len(ambient_rows) != 4 or any(row["status"] != "skipped" or row["reason"] != "disabled_by_config" for row in ambient_rows):
+                raise RuntimeError(f"{skill}: configured DecontX skip was not recorded correctly: {ambient_rows}")
+            if manifest.get("parallel_workers") != 2 or manifest.get("ambient_rna_method") != "skip":
+                raise RuntimeError(f"{skill}: execution controls missing from run manifest")
         if skill == "scrna-run-differential-analysis":
             with (out / "task_status.tsv").open(encoding="utf-8", newline="") as handle:
                 statuses = [row["status"] for row in csv.DictReader(handle, delimiter="\t")]
@@ -148,6 +164,10 @@ def main() -> int:
     report["fixture_sha256_after"] = sha256(fixture)
     if report["fixture_sha256_after"] != fixture_hash:
         raise RuntimeError("source fixture was modified by an executor")
+    report["qc_fixture_sha256_before"] = qc_fixture_hash
+    report["qc_fixture_sha256_after"] = sha256(qc_fixture)
+    if report["qc_fixture_sha256_after"] != qc_fixture_hash:
+        raise RuntimeError("multi-layer QC fixture was modified by an executor")
     report["status"] = "passed"
     write_json(output_root / "e2e-report.json", report)
     print(json.dumps(report, indent=2))

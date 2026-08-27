@@ -23,7 +23,17 @@ if (!species %in% c("mouse", "human")) stop("parameters.species must be mouse or
 min_genes_hq <- as.integer(getv("parameters.min_genes_hq", 500))
 mito_pattern <- getv("parameters.mito_pattern", if (species == "mouse") "^mt-" else "^MT-")
 artificial_fraction <- as.numeric(getv("parameters.doublet_artificial_fraction", 0.2))
-set.seed(as.integer(getv("parameters.seed", 1)))
+base_seed <- as.integer(getv("parameters.seed", 1))
+if (is.na(base_seed)) stop("parameters.seed must be an integer")
+workers <- as.integer(getv("parallel.workers", 1))
+if (is.na(workers) || workers < 1L) stop("parallel.workers must be a positive integer")
+ambient_method <- tolower(getv("ambient_rna.method", "decontx"))
+if (!ambient_method %in% c("decontx", "skip")) stop("ambient_rna.method must be decontx or skip")
+decontx_cluster_col <- getv("ambient_rna.cluster_column")
+if (!is.null(decontx_cluster_col) && (!is.character(decontx_cluster_col) || length(decontx_cluster_col) != 1L || !nzchar(decontx_cluster_col))) {
+  stop("ambient_rna.cluster_column must be null or a non-empty metadata column name")
+}
+set.seed(base_seed)
 script_file <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE)[1])
 source(file.path(dirname(normalizePath(script_file)), "doublet_finder.R"))
 
@@ -55,11 +65,28 @@ get_counts <- function(obj) {
   assay <- if (!is.null(requested)) requested else if ("RNA" %in% Seurat::Assays(obj)) "RNA" else Seurat::DefaultAssay(obj)
   if (!assay %in% Seurat::Assays(obj)) stop("Configured assay not found in Seurat object: ", assay)
   if (utils::packageVersion("SeuratObject") >= "5.0.0") {
+    count_layers <- SeuratObject::Layers(obj[[assay]], search = "^counts($|\\.)")
+    if (!length(count_layers)) stop("The selected assay has no counts layer: ", assay)
+    if (length(count_layers) > 1L) {
+      obj[[assay]] <- SeuratObject::JoinLayers(
+        obj[[assay]], layers = "counts", new = "counts"
+      )
+    }
     counts <- SeuratObject::LayerData(obj, assay = assay, layer = "counts")
   } else {
     counts <- Seurat::GetAssayData(obj, assay = assay, slot = "counts")
   }
   if (!nrow(counts) || !ncol(counts)) stop("The selected assay has no usable counts matrix: ", assay)
+  object_cells <- colnames(obj)
+  missing_cells <- setdiff(object_cells, colnames(counts))
+  extra_cells <- setdiff(colnames(counts), object_cells)
+  if (length(missing_cells) || length(extra_cells)) {
+    stop(
+      "Counts cells do not match the Seurat object for assay ", assay,
+      ": ", length(missing_cells), " missing and ", length(extra_cells), " extra"
+    )
+  }
+  counts <- counts[, object_cells, drop = FALSE]
   stored_values <- if (inherits(counts, "sparseMatrix")) counts@x else as.vector(counts)
   if (length(stored_values) && (any(!is.finite(stored_values)) || any(stored_values < 0))) stop("Counts must be finite and non-negative in assay: ", assay)
   counts
@@ -73,7 +100,12 @@ read_star <- function(directory) {
   list(counts = counts, features = features)
 }
 
-calculate_one <- function(counts, metadata, sample_id, velocity_dir = NULL) {
+calculate_one <- function(counts, metadata, sample_id, velocity_dir = NULL, sample_seed = base_seed, decontx_z = NULL) {
+  if (!identical(rownames(metadata), colnames(counts))) {
+    if (!setequal(rownames(metadata), colnames(counts))) stop("Metadata cells do not match counts for sample: ", sample_id)
+    metadata <- metadata[colnames(counts), , drop = FALSE]
+  }
+  set.seed(sample_seed)
   metadata$n_genes <- Matrix::colSums(counts > 0)
   metadata$n_UMIs <- Matrix::colSums(counts)
   statuses <- rbind(status_row(sample_id, "n_genes", "computed"), status_row(sample_id, "n_UMIs", "computed"))
@@ -104,10 +136,17 @@ calculate_one <- function(counts, metadata, sample_id, velocity_dir = NULL) {
   } else statuses <- rbind(statuses, status_row(sample_id, "nuclear_frac", "skipped", "Velocyto matrices not provided"))
 
   metadata$ambient_frac_decontx <- NA_real_
-  if (requireNamespace("celda", quietly = TRUE) && requireNamespace("SingleCellExperiment", quietly = TRUE)) {
+  if (ambient_method == "skip") {
+    statuses <- rbind(statuses, status_row(sample_id, "ambient_frac_decontx", "skipped", "disabled_by_config"))
+  } else if (requireNamespace("celda", quietly = TRUE) && requireNamespace("SingleCellExperiment", quietly = TRUE)) {
     ambient_error <- tryCatch({
+      if (!is.null(decontx_z)) {
+        if (length(decontx_z) != ncol(counts)) stop("DecontX cluster labels do not match the sample cell count")
+        if (anyNA(decontx_z) || any(!nzchar(as.character(decontx_z)))) stop("DecontX cluster labels contain missing or empty values")
+        if (length(unique(decontx_z)) < 2L) stop("DecontX cluster labels must contain at least two broad cell populations")
+      }
       sce <- SingleCellExperiment::SingleCellExperiment(assays = list(counts = counts), colData = metadata)
-      sce <- celda::decontX(sce)
+      sce <- celda::decontX(sce, z = decontx_z, seed = sample_seed)
       metadata$ambient_frac_decontx <- SummarizedExperiment::colData(sce)$decontX_contamination
       NULL
     }, error = function(e) conditionMessage(e))
@@ -156,9 +195,34 @@ plot_qc <- function(metadata, path, title = NULL) {
   ggplot2::ggsave(path, plot, width = 5, height = 4, units = "in", dpi = 300)
 }
 
+run_sample_jobs <- function(items, FUN) {
+  if (!length(items)) return(list())
+  n_workers <- min(workers, length(items))
+  indices <- seq_along(items)
+  if (n_workers == 1L || .Platform$OS.type == "windows") {
+    if (workers > 1L && .Platform$OS.type == "windows") {
+      warning("parallel.workers > 1 is not supported by this executor on Windows; using one worker")
+    }
+    return(lapply(indices, function(i) FUN(items[[i]], i)))
+  }
+  message("Running ", length(items), " samples with ", n_workers, " workers")
+  results <- parallel::mclapply(
+    indices,
+    function(i) FUN(items[[i]], i),
+    mc.cores = n_workers,
+    mc.preschedule = TRUE,
+    mc.set.seed = FALSE
+  )
+  failed <- vapply(results, inherits, logical(1), what = "try-error")
+  if (any(failed)) {
+    stop("Sample workers failed: ", paste(vapply(results[failed], as.character, character(1)), collapse = "; "))
+  }
+  results
+}
+
 if (input_type == "starsolo") {
   root <- normalizePath(getv("input.starsolo_dir"), mustWork = TRUE)
-  for (sample in getv("samples")) {
+  process_star_sample <- function(sample, sample_index) {
     sample_id <- sample$sample_id; batch_id <- sample$batch_id
     gene_dir <- file.path(root, sample_id, "Solo.out/Gene/filtered")
     velocity_dir <- file.path(root, sample_id, "Solo.out/Velocyto/filtered")
@@ -168,14 +232,16 @@ if (input_type == "starsolo") {
       sample_id = rep(sample_id, ncol(raw$counts)),
       batch_id = rep(batch_id, ncol(raw$counts))
     )
-    result <- calculate_one(raw$counts, metadata, sample_id, velocity_dir)
+    result <- calculate_one(raw$counts, metadata, sample_id, velocity_dir, base_seed + sample_index - 1L)
     out <- file.path(out_root, sample_id); dir.create(out, recursive = TRUE, showWarnings = FALSE)
     Matrix::writeMM(raw$counts, file.path(out, "counts.mtx")); system2("gzip", c("-f", file.path(out, "counts.mtx")))
     gz <- gzfile(file.path(out, "features.tsv.gz"), "wt"); write.table(raw$features, gz, sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE); close(gz)
     gz <- gzfile(file.path(out, "metadata.tsv.gz"), "wt"); write.table(result$metadata, gz, sep = "\t", quote = FALSE); close(gz)
     write.table(result$status, file.path(out, "metric_status.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
     plot_qc(result$metadata, file.path(out, "qc_diagnosis.png"), sample_id)
+    list(sample_id = sample_id, status = result$status)
   }
+  invisible(run_sample_jobs(getv("samples"), process_star_sample))
 } else {
   object_path <- normalizePath(getv("input.object"), mustWork = TRUE)
   ext <- tolower(tools::file_ext(object_path))
@@ -188,12 +254,29 @@ if (input_type == "starsolo") {
   sample_col <- getv("metadata.sample"); batch_col <- getv("metadata.batch")
   sample_values <- if (!is.null(sample_col) && sample_col %in% colnames(original_meta)) as.character(original_meta[[sample_col]]) else rep("all_cells", nrow(original_meta))
   batch_values <- if (!is.null(batch_col) && batch_col %in% colnames(original_meta)) as.character(original_meta[[batch_col]]) else rep(NA_character_, nrow(original_meta))
+  if (!is.null(decontx_cluster_col) && !decontx_cluster_col %in% colnames(original_meta)) {
+    stop("Configured ambient_rna.cluster_column not found in Seurat metadata: ", decontx_cluster_col)
+  }
+  cluster_values <- if (!is.null(decontx_cluster_col)) as.character(original_meta[[decontx_cluster_col]]) else NULL
   names(sample_values) <- names(batch_values) <- rownames(original_meta)
+  if (!is.null(cluster_values)) names(cluster_values) <- rownames(original_meta)
   combined_meta <- original_meta; all_status <- list()
-  for (sample_id in unique(sample_values)) {
+  sample_ids <- unique(sample_values)
+  process_seurat_sample <- function(sample_id, sample_index) {
     cells <- names(sample_values)[sample_values == sample_id]
     meta <- data.frame(row.names = cells, sample_id = sample_id, batch_id = batch_values[cells])
-    result <- calculate_one(counts[, cells, drop = FALSE], meta, sample_id)
+    result <- calculate_one(
+      counts[, cells, drop = FALSE], meta, sample_id,
+      sample_seed = base_seed + sample_index - 1L,
+      decontx_z = if (!is.null(cluster_values)) cluster_values[cells] else NULL
+    )
+    list(sample_id = sample_id, cells = cells, result = result)
+  }
+  sample_results <- run_sample_jobs(sample_ids, process_seurat_sample)
+  for (sample_result in sample_results) {
+    sample_id <- sample_result$sample_id
+    cells <- sample_result$cells
+    result <- sample_result$result
     for (column in setdiff(colnames(result$metadata), c("sample_id", "batch_id"))) combined_meta[cells, column] <- result$metadata[cells, column]
     all_status[[sample_id]] <- result$status
   }

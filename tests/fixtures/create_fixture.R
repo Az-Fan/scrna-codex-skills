@@ -1,5 +1,6 @@
 args <- commandArgs(trailingOnly = TRUE)
 output <- if (length(args)) args[[1]] else "tests/fixtures/tiny_scrna.rds"
+multilayer_output <- if (length(args) >= 2L) args[[2]] else NULL
 if (!requireNamespace("Seurat", quietly = TRUE)) stop("Seurat is required")
 if (!requireNamespace("Matrix", quietly = TRUE)) stop("Matrix is required")
 set.seed(20260827)
@@ -25,3 +26,11 @@ obj[["umap"]] <- SeuratObject::CreateDimReducObject(embeddings = embedding, key 
 dir.create(dirname(output), recursive = TRUE, showWarnings = FALSE)
 saveRDS(obj, output)
 cat(normalizePath(output), "\n")
+if (!is.null(multilayer_output)) {
+  if (utils::packageVersion("SeuratObject") < "5.0.0") stop("Multi-layer fixture requires SeuratObject >= 5.0.0")
+  multilayer <- obj
+  multilayer[["RNA"]] <- split(multilayer[["RNA"]], f = multilayer$sample_label)
+  dir.create(dirname(multilayer_output), recursive = TRUE, showWarnings = FALSE)
+  saveRDS(multilayer, multilayer_output)
+  cat(normalizePath(multilayer_output), "\n")
+}

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -64,6 +65,24 @@ def main():
     if not pixi:
         fail("Existing pixi executable not found; set pixi.executable. The skill will not install it")
     environment = pixi_config.get("environment", "default")
+    parallel_config = config.get("parallel", {})
+    if not isinstance(parallel_config, dict):
+        fail("parallel must be an object")
+    workers = parallel_config.get("workers", 1)
+    if isinstance(workers, bool) or not isinstance(workers, int) or workers < 1:
+        fail("parallel.workers must be a positive integer")
+    ambient_config = config.get("ambient_rna", {})
+    if not isinstance(ambient_config, dict):
+        fail("ambient_rna must be an object")
+    ambient_method = ambient_config.get("method", "decontx")
+    if not isinstance(ambient_method, str):
+        fail("ambient_rna.method must be decontx or skip")
+    ambient_method = ambient_method.lower()
+    if ambient_method not in {"decontx", "skip"}:
+        fail("ambient_rna.method must be decontx or skip")
+    cluster_column = ambient_config.get("cluster_column")
+    if cluster_column is not None and (not isinstance(cluster_column, str) or not cluster_column.strip()):
+        fail("ambient_rna.cluster_column must be null or a non-empty metadata column name")
     output = Path(output_value).expanduser().resolve()
     script = Path(__file__).resolve()
     driver_candidates = [script.with_name("calculate_metrics.R")]
@@ -82,6 +101,9 @@ def main():
         "input": str(primary),
         "gtf_file": str(gtf) if gtf else None,
         "samples": samples,
+        "parallel_workers": workers,
+        "ambient_rna_method": ambient_method,
+        "ambient_rna_cluster_column": cluster_column,
         "output_dir": str(output),
         "command": command,
         "note": "Unavailable optional metrics are recorded as skipped; no cells or environments are changed.",
@@ -90,7 +112,11 @@ def main():
     if not args.execute:
         return
     output.mkdir(parents=True, exist_ok=True)
-    subprocess.run(command, check=True)
+    execution_env = os.environ.copy()
+    if workers > 1:
+        for variable in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
+            execution_env[variable] = "1"
+    subprocess.run(command, check=True, env=execution_env)
     (output / "run_manifest.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")
 
 

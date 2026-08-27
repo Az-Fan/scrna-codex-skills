@@ -15,6 +15,8 @@ Before execution, inspect paths read-only and obtain:
 - either a STARsolo root or a Seurat RDS/QS object;
 - species and relevant metadata columns;
 - optional GTF, Velocyto matrices, sample IDs, and batch IDs when available;
+- whether to run DecontX now, and an optional broad-cell-population metadata column when reliable labels already exist;
+- the number of independent samples to process concurrently;
 - the result output directory.
 
 Always ask where results should be saved when the user has not provided an output directory. Do not invent or silently default `output_dir`.
@@ -27,6 +29,10 @@ Always ask where results should be saved when the user has not provided an outpu
 4. Run `scripts/run.py --config <config> --execute` only after confirmation.
 
 The executor computes metrics and writes new files; it never filters cells or changes the pixi environment.
+
+For Seurat v5 input, let the executor join multiple raw-count layers in memory and verify that the resulting matrix covers every object cell. Do not require callers to modify or resave their source object first.
+
+Set `ambient_rna.method` to `skip` for a fast run that records DecontX as deliberately skipped. Set `ambient_rna.cluster_column` only for complete, broad population labels; supplying it bypasses DecontX's cell-population estimation, although celda still generates a UMAP for its result object. Use `parallel.workers` to process independent samples concurrently, bounded by available memory and the number of samples.
 
 ## Boundaries
 

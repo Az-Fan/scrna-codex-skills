@@ -12,6 +12,11 @@
   },
   "metadata": {"sample": "sample_id", "batch": "batch_id"},
   "samples": [],
+  "ambient_rna": {
+    "method": "decontx",
+    "cluster_column": null
+  },
+  "parallel": {"workers": 1},
   "parameters": {
     "species": "mouse",
     "assay": "RNA",
