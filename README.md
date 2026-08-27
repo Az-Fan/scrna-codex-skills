@@ -1,9 +1,11 @@
 # scRNA-seq Codex Skills
 
-Seven self-contained Codex skills for auditable single-cell RNA-seq analysis. The authoritative source is this repository; server-side analysis uses the existing locked pixi environments.
+Nine self-contained Codex skills for auditable single-cell RNA-seq analysis. The authoritative source is this repository; server-side analysis uses the existing pixi environments.
 
 ## Released skills
 
+- `scrna-calculate-qc-metrics`
+- `scrna-review-qc`
 - `scrna-standardize-input`
 - `scrna-analyze-subset`
 - `scrna-annotate-cells`
@@ -14,21 +16,17 @@ Seven self-contained Codex skills for auditable single-cell RNA-seq analysis. Th
 
 ## Install
 
-Clone a fixed release and install all skills:
-
 ```bash
-git clone --branch v1.0.0 --depth 1 git@github.com:Az-Fan/scrna-codex-skills.git
+git clone --branch v1.1.0 --depth 1 git@github.com:Az-Fan/scrna-codex-skills.git
 python scrna-codex-skills/scripts/install_skills.py
 ```
 
-On Windows PowerShell, use `py` instead of `python` when that is the configured launcher. To install into another Codex-compatible directory, pass `--target PATH`. Existing installations are never overwritten unless `--force` is supplied.
+On Windows PowerShell, use `py` when that is the configured launcher. Pass `--target PATH` for another Codex-compatible directory. Existing installations are never overwritten unless `--force` is supplied.
 
-The client only needs Codex and/or WispScience. The registered analysis server must have pixi and the project environments under `~/projects/scrna_envs`; see each skill's `references/compatibility.md` and run its bundled dependency checker there.
+The client needs Codex and/or WispScience. The registered analysis server must have pixi and the project environments under `~/projects/scrna_envs`. See each skill's `references/compatibility.md`.
 
 ## Verify
 
 ```bash
 python scripts/smoke_install.py
 ```
-
-The smoke suite copies every skill into an isolated temporary directory, compiles Python sources, and starts both the executor and dependency-check CLI without relying on the repository-level toolkit.
