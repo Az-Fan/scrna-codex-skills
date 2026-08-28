@@ -16,4 +16,4 @@ if (!requireNamespace("Matrix", quietly = TRUE)) stop("Package 'Matrix' is requi
 Matrix::writeMM(counts, count_path); utils::write.table(rownames(counts), file.path(out, "features.tsv"), quote = FALSE, row.names = FALSE, col.names = FALSE); utils::write.table(colnames(counts), file.path(out, "barcodes.tsv"), quote = FALSE, row.names = FALSE, col.names = FALSE)
 save_scrna_object(sub, object_path)
 summary <- as.data.frame(table(sample = sub[[]][[sample_col]], selected_label = sub[[]][[type_col]])); utils::write.table(summary, summary_path, sep = "\t", quote = FALSE, row.names = FALSE)
-write_run_manifest(config, "scrna-analyze-subset", out, c(object_path, count_path, meta_path, summary_path, file.path(out, "features.tsv"), file.path(out, "barcodes.tsv")), "Parent object was not modified")
+write_run_manifest(config, "08-scrna-analyze-subset", out, c(object_path, count_path, meta_path, summary_path, file.path(out, "features.tsv"), file.path(out, "barcodes.tsv")), "Parent object was not modified")

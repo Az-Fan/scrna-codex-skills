@@ -3,16 +3,19 @@
 import argparse, json, shutil, subprocess
 from pathlib import Path
 
+from scrna_runtime import resolved_rscript
+
 PROFILES = {
-    "scrna-calculate-qc-metrics": ("01-scrna-qc", ["Seurat", "SeuratObject", "Matrix", "jsonlite"], ["qs", "RANN", "S4Vectors"]),
-    "scrna-review-qc": ("01-scrna-qc", ["Seurat", "SeuratObject", "Matrix", "jsonlite"], ["qs"]),
-    "scrna-standardize-input": ("01-scrna-qc", ["Seurat", "SeuratObject", "Matrix", "jsonlite"], ["qs"]),
-    "scrna-analyze-subset": ("02-annotation", ["Seurat", "SeuratObject", "Matrix", "jsonlite"], ["qs"]),
-    "scrna-annotate-cells": ("02-annotation", ["Seurat", "SeuratObject", "Matrix", "jsonlite"], ["qs"]),
-    "scrna-find-cluster-markers": ("02-annotation", ["Seurat", "SeuratObject", "Matrix", "jsonlite"], ["qs"]),
-    "scrna-benchmark-integration": ("03-integration", ["Seurat", "SeuratObject", "Matrix", "jsonlite"], ["qs", "harmony"]),
-    "scrna-score-programs": ("05-pathway_program", ["Seurat", "Matrix", "jsonlite"], ["qs", "VISION", "AUCell", "progeny"]),
-    "scrna-run-differential-analysis": ("06-deg-analysis", ["Seurat", "Matrix", "jsonlite", "DESeq2"], ["qs", "clusterProfiler", "msigdbr"]),
+    "02-scrna-calculate-qc-metrics": ("01-scrna-qc", ["Seurat", "SeuratObject", "Matrix", "jsonlite"], ["qs", "RANN", "S4Vectors"]),
+    "03-scrna-review-qc": ("01-scrna-qc", ["Seurat", "SeuratObject", "Matrix", "jsonlite"], ["qs"]),
+    "01-scrna-standardize-input": ("01-scrna-qc", ["Seurat", "SeuratObject", "Matrix", "jsonlite"], ["qs"]),
+    "08-scrna-analyze-subset": ("02-annotation", ["Seurat", "SeuratObject", "Matrix", "jsonlite"], ["qs"]),
+    "07-scrna-annotate-cells": ("02-annotation", ["Seurat", "SeuratObject", "Matrix", "jsonlite"], ["qs"]),
+    "06-scrna-find-cluster-markers": ("02-annotation", ["Seurat", "SeuratObject", "Matrix", "jsonlite"], ["qs"]),
+    "04-scrna-preprocess-and-cluster": ("03-integration", ["Seurat", "SeuratObject", "Matrix", "jsonlite"], ["qs", "harmony"]),
+    "05-scrna-benchmark-integration": ("03-integration", ["Seurat", "SeuratObject", "Matrix", "jsonlite"], ["qs", "harmony"]),
+    "09-scrna-score-programs": ("05-pathway_program", ["Seurat", "Matrix", "jsonlite"], ["qs", "VISION", "AUCell", "progeny"]),
+    "10-scrna-run-differential-analysis": ("06-deg-analysis", ["Seurat", "Matrix", "jsonlite", "DESeq2"], ["qs", "clusterProfiler", "msigdbr"]),
 }
 
 def main():
@@ -23,11 +26,14 @@ def main():
     pixi=a.pixi_executable or shutil.which("pixi") or str(Path.home()/".pixi/bin/pixi")
     manifest=Path(a.pixi_root).expanduser().resolve()/env_dir/"pixi.toml"
     report={"skill":skill,"pixi_manifest":str(manifest),"pixi":pixi,"required_packages":{},"optional_packages":{},"compatible":False}
-    if not Path(pixi).is_file() or not manifest.is_file(): report["error"]="pixi executable or manifest is missing"; print(json.dumps(report,indent=2)); return 2
+    if not manifest.is_file(): report["error"]="pixi manifest is missing"; print(json.dumps(report,indent=2)); return 2
     expr="p<-c("+",".join(json.dumps(x) for x in packages)+");v<-vapply(p,function(x)if(requireNamespace(x,quietly=TRUE))as.character(packageVersion(x))else NA_character_,character(1));cat(jsonlite::toJSON(as.list(v),auto_unbox=TRUE,na='null'))"
-    env_r=manifest.parent/".pixi/envs/default/bin/Rscript"
-    command=[str(env_r),"-e",expr] if env_r.is_file() else [pixi,"run","--locked","--manifest-path",str(manifest),"--","Rscript","-e",expr]
-    report["runtime"]=str(env_r) if env_r.is_file() else "pixi run --locked"
+    env_r=resolved_rscript(skill, {"runtime": {"pixi_root": str(Path(a.pixi_root).expanduser().resolve())}})
+    if env_r is None:
+        report["error"]="registered pixi Rscript is missing; system R fallback is disabled"
+        print(json.dumps(report,indent=2)); return 2
+    command=[str(env_r),"-e",expr]
+    report["runtime"]=str(env_r)
     done=subprocess.run(command,text=True,capture_output=True)
     if done.returncode: report["error"]=done.stderr.strip() or "dependency probe failed"
     else:

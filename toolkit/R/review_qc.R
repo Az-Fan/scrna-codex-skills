@@ -7,6 +7,11 @@ if (length(args) != 1) stop("Usage: review_qc.R CONFIG.json")
 cfg <- fromJSON(args[[1]], simplifyVector = FALSE)
 out <- normalizePath(cfg$output_dir, mustWork = FALSE)
 dir.create(out, recursive = TRUE, showWarnings = FALSE)
+detail_level <- tolower(cfg$output$detail_level %||% "compact")
+if (!detail_level %in% c("compact", "full")) stop("output.detail_level must be compact or full")
+full_output <- identical(detail_level, "full")
+detail_out <- file.path(out, "details")
+if (full_output) dir.create(detail_out, recursive = TRUE, showWarnings = FALSE)
 obj_path <- normalizePath(cfg$input$object, mustWork = TRUE)
 obj <- if (grepl("\\.qs$", obj_path, ignore.case = TRUE)) {
   if (!requireNamespace("qs", quietly = TRUE)) stop("QS input requires qs in the selected pixi environment")
@@ -43,7 +48,7 @@ availability <- data.frame(metric = names(cols), source_column = unname(cols), f
                            available = !is.na(cols) & finite_n > 0L,
                            reason = ifelse(is.na(cols), "column_not_found", ifelse(finite_n == 0L, "no_finite_values", "")),
                            stringsAsFactors = FALSE)
-write.table(availability, file.path(out, "metric_availability.tsv"), sep="\t", quote=FALSE, row.names=FALSE)
+if (full_output) write.table(availability, file.path(detail_out, "metric_availability.tsv"), sep="\t", quote=FALSE, row.names=FALSE)
 available <- availability$metric[availability$available]
 if (!length(available)) stop("No recognized QC metric columns were found")
 for (m in available) md[[m]] <- suppressWarnings(as.numeric(md[[cols[[m]]]]))
@@ -57,7 +62,7 @@ qfun <- function(x) {
 long_stats <- do.call(rbind, lapply(split(seq_len(nrow(md)), md$.sample), function(ii)
   do.call(rbind, lapply(available, function(m) data.frame(sample=md$.sample[ii[1]], metric=m,
                                                         as.list(qfun(md[[m]][ii])), check.names=FALSE)))))
-write.table(long_stats, file.path(out, "qc_quantiles_by_sample.tsv"), sep="\t", quote=FALSE, row.names=FALSE)
+if (full_output) write.table(long_stats, file.path(detail_out, "qc_quantiles_by_sample.tsv"), sep="\t", quote=FALSE, row.names=FALSE)
 summary_wide <- reshape(long_stats[,c("sample","metric","n","median","q05","q95")], idvar="sample", timevar="metric", direction="wide")
 write.table(summary_wide, file.path(out, "qc_summary_by_sample.tsv"), sep="\t", quote=FALSE, row.names=FALSE)
 
@@ -89,19 +94,19 @@ retention <- function(group, label) {
   a$retention_fraction <- a$retained/a$total; names(a)[1] <- label; a
 }
 rs <- retention(md$.sample, "sample")
-write.table(rs, file.path(out, "candidate_retention_by_sample.tsv"), sep="\t", quote=FALSE, row.names=FALSE)
+if (full_output) write.table(rs, file.path(detail_out, "candidate_retention_by_sample.tsv"), sep="\t", quote=FALSE, row.names=FALSE)
 groups <- list()
 for (nm in names(optional_group)) if (!is.null(optional_group[[nm]]) && optional_group[[nm]] %in% names(md))
   groups[[nm]] <- retention(as.character(md[[optional_group[[nm]]]]), nm)
 rg <- if(length(groups)) do.call(rbind, lapply(names(groups), function(nm) {
   x <- groups[[nm]]; names(x)[1] <- "group"; x$group_type <- nm; x[,c("group_type","group","total","retained","retention_fraction")]
 })) else data.frame(group_type=character(),group=character(),total=integer(),retained=integer(),retention_fraction=numeric())
-write.table(rg, file.path(out, "candidate_retention_by_group.tsv"), sep="\t", quote=FALSE, row.names=FALSE)
+if (full_output) write.table(rg, file.path(detail_out, "candidate_retention_by_group.tsv"), sep="\t", quote=FALSE, row.names=FALSE)
 
 plot_long <- do.call(rbind, lapply(available, function(m) data.frame(sample=md$.sample, metric=m, value=md[[m]])))
 atlas <- list(); plot_log <- list()
 save_plot <- function(name, plot, width=12, height=8, reason="") {
-  ggsave(file.path(out, name), plot, width=width, height=height, dpi=300, bg="white", limitsize=FALSE)
+  if (full_output) ggsave(file.path(detail_out, name), plot, width=width, height=height, dpi=300, bg="white", limitsize=FALSE)
   atlas[[length(atlas)+1]] <<- plot
   plot_log[[length(plot_log)+1]] <<- data.frame(file=name, status="generated", reason=reason)
 }
@@ -176,7 +181,7 @@ p_ret <- ggplot(rs,aes(sample,retention_fraction)) + geom_col(fill="#59A14F") + 
   coord_cartesian(ylim=c(0,1)) + theme_classic() + theme(axis.text.x=element_text(angle=60,hjust=1)) +
   labs(x="Sample",y="Candidate retention")
 save_plot("candidate_retention_by_sample.png",p_ret,10,5)
-write.table(do.call(rbind,plot_log),file.path(out,"plot_status.tsv"),sep="\t",quote=FALSE,row.names=FALSE)
+if (full_output) write.table(do.call(rbind,plot_log),file.path(detail_out,"plot_status.tsv"),sep="\t",quote=FALSE,row.names=FALSE)
 pdf(file.path(out,"qc_atlas.pdf"),width=12,height=8,onefile=TRUE)
 for(p in atlas) print(p)
 dev.off()

@@ -19,4 +19,4 @@ review <- data.frame(cluster = clusters, candidate_broad = "", candidate_fine = 
 out <- prepare_output(config); marker_path <- file.path(out, "cluster_markers.tsv"); review_path <- file.path(out, "annotation_review.tsv"); object_path <- file.path(out, "clustered_object.qs")
 utils::write.table(markers, marker_path, sep = "\t", quote = FALSE, row.names = FALSE); utils::write.table(review, review_path, sep = "\t", quote = FALSE, row.names = FALSE); save_scrna_object(obj, object_path)
 plot_path <- file.path(out, "cluster_umap.pdf"); grDevices::pdf(plot_path, width = 8, height = 7); print(Seurat::DimPlot(obj, reduction = "umap", label = TRUE)); grDevices::dev.off()
-write_run_manifest(config, "scrna-annotate-cells", out, c(marker_path, review_path, object_path, plot_path), "Formal labels were not written")
+write_run_manifest(config, "07-scrna-annotate-cells", out, c(marker_path, review_path, object_path, plot_path), "Formal labels were not written")

@@ -14,6 +14,6 @@
 
 ## Release gate
 
-- Keep all nine released skills in `release/runtime-manifest.json` and build their self-contained runtime files with `scripts/install_skills.py` or `scripts/package_skills.py`.
+- Keep all ten released skills in `release/runtime-manifest.json` and build their self-contained runtime files with `scripts/install_skills.py` or `scripts/package_skills.py`.
 - Run manifest validation, install smoke tests, package checks, and `tests/e2e/run_fixture_e2e.py` before a release.
-- Do not claim install readiness unless all nine skills pass and the source fixture remains unchanged.
+- Do not claim install readiness unless all ten skills pass and the source fixture remains unchanged.

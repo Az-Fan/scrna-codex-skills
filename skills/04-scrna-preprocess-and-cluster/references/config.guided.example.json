@@ -1,0 +1,28 @@
+{
+  "project": {"id": "project_id"},
+  "workflow": {"mode": "guided", "action": "run"},
+  "input": {"object": "path/to/filtered_object.qs", "assay": "RNA", "qc_status": "filtered"},
+  "metadata": {"sample": "sample_id", "condition": "condition", "batch": "batch_id"},
+  "preprocessing": {
+    "normalization_method": "LogNormalize", "scale_factor": 10000,
+    "variable_feature_method": "vst", "n_variable_features": 2000,
+    "pca_npcs": 50,
+    "dims": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+    "seed": 1234
+  },
+  "cell_cycle": {"score": false, "species": "human"},
+  "scenarios": [{
+    "name": "standard", "regress_variables": [], "harmony": {"enabled": false},
+    "neighbors": {"k_param": 20},
+    "umap": {"n_neighbors": 30, "min_dist": 0.3, "metric": "cosine", "method": "uwot"},
+    "clustering": {
+      "mode": "scan",
+      "resolutions": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+      "selection": "review",
+      "stability": {"n_subsamples": 5, "subsample_frac": 0.8, "min_clusters": 3}
+    }
+  }],
+  "plots": {"group_by": ["sample_id", "condition", "batch_id"], "pt_size": 0.03, "preview_png": false},
+  "output": {"object_format": "qs", "drop_scale_data": true},
+  "output_dir": "results/preprocess-cluster-guided"
+}

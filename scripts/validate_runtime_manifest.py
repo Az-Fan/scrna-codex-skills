@@ -5,7 +5,12 @@ from pathlib import Path
 
 REPO=Path(__file__).resolve().parents[1]
 data=json.loads((REPO/"release/runtime-manifest.json").read_text(encoding="utf-8"))
-skills=data["skills"]; actual={p.name for p in (REPO/"skills").iterdir() if p.is_dir() and p.name.startswith("scrna-")}
+skills=data["skills"]
+actual={
+    p.name
+    for p in (REPO/"skills").iterdir()
+    if p.is_dir() and p.name[:2].isdigit() and p.name[2:].startswith("-scrna-")
+}
 errors=[]
 if set(skills)!=actual: errors.append(f"skill set mismatch: manifest={sorted(skills)} source={sorted(actual)}")
 for name,spec in skills.items():

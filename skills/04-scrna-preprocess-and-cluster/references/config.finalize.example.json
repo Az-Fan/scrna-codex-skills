@@ -1,0 +1,9 @@
+{
+  "project": {"id": "project_id"},
+  "workflow": {"mode": "guided", "action": "finalize_resolution"},
+  "input": {"object": "results/preprocess-cluster-guided/preprocessed_clustered_object.qs", "assay": "RNA", "qc_status": "filtered"},
+  "metadata": {"sample": "sample_id", "condition": "condition", "batch": "batch_id"},
+  "finalize": {"scenario": "standard", "resolution": 0.4},
+  "output": {"object_format": "qs", "drop_scale_data": true},
+  "output_dir": "results/preprocess-cluster-guided"
+}

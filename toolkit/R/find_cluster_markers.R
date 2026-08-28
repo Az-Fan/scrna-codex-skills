@@ -96,7 +96,7 @@ print(Seurat::DotPlot(obj, features = dot_genes, assay = assay) + Seurat::Rotate
 grDevices::dev.off()
 
 write_run_manifest(
-  config, "scrna-find-cluster-markers", out,
+  config, "06-scrna-find-cluster-markers", out,
   c(marker_path, top_path, summary_path, plot_path),
   c(paste0("assay=", assay), paste0("grouping=", if (is.null(cluster_col)) "active identities" else cluster_col),
     paste0("normalized_in_memory=", normalized_in_memory), "Input object was not rewritten")

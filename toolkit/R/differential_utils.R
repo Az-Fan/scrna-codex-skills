@@ -97,7 +97,7 @@ run_enrichment_only_workflow <- function(config) {
   artifacts <- file.path(out, "task_status.tsv")
   if (length(enriched)) { combined <- rbind_fill(enriched); write_tsv(combined, file.path(out, "enrichment_all_comparisons.tsv")); artifacts <- c(artifacts, file.path(out, "enrichment_all_comparisons.tsv")) }
   writeLines(capture.output(sessionInfo()), file.path(out, "sessionInfo.txt")); artifacts <- c(artifacts, file.path(out, "sessionInfo.txt"))
-  write_run_manifest(config, "scrna-run-differential-analysis", out, artifacts, c("stage=enrichment_only", "Differential input tables were not modified"))
+  write_run_manifest(config, "10-scrna-run-differential-analysis", out, artifacts, c("stage=enrichment_only", "Differential input tables were not modified"))
   if (!any(status$status %in% c("completed", "empty"))) stop("No table enrichment task completed; inspect task_status.tsv")
 }
 

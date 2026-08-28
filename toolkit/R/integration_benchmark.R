@@ -126,7 +126,7 @@ if (python_methods || requested_metrics || requested_plots) {
   prefix <- as_chr(cfg_get(config, "benchmark.python_argv_prefix", list("python3")))
   py_candidates <- c(
     file.path(dirname(script_file), "integration_python.py"),
-    file.path(dirname(script_file), "..", "..", "skills", "scrna-benchmark-integration", "scripts", "integration_python.py")
+    file.path(dirname(script_file), "..", "..", "skills", "05-scrna-benchmark-integration", "scripts", "integration_python.py")
   )
   py_script <- normalizePath(py_candidates[file.exists(py_candidates)][[1]], mustWork = TRUE)
   command <- prefix[[1]]; py_args <- c(prefix[-1], py_script, "--config", config_path, "--exchange", normalizePath(exchange, mustWork = TRUE))
@@ -139,4 +139,4 @@ artifacts <- c(file.path(out, "method_runs_r.tsv"), file.path(exchange, "embeddi
 for (candidate in c("method_runs.tsv", "metric_results_long.tsv", "method_summary.tsv", "method_ranking.tsv", "design_confounding.tsv", "recommendation.md", "benchmark_embeddings.h5ad")) {
   path <- file.path(out, candidate); if (file.exists(path)) artifacts <- c(artifacts, path)
 }
-write_run_manifest(config, "scrna-benchmark-integration", out, artifacts)
+write_run_manifest(config, "05-scrna-benchmark-integration", out, artifacts)

@@ -114,6 +114,6 @@ if (length(enrichment_rows)) {
 }
 writeLines(capture.output(sessionInfo()), file.path(out, "sessionInfo.txt"))
 artifacts <- c(artifacts, file.path(out, "sessionInfo.txt"))
-write_run_manifest(config, "scrna-run-differential-analysis", out, artifacts,
+write_run_manifest(config, "10-scrna-run-differential-analysis", out, artifacts,
                    c(paste0("method=", method), paste0("stage=", stage), "Positive log2 fold change means numerator > denominator", "Input object was not rewritten"))
 if (!any(status$status == "completed")) stop("No differential-analysis task completed; inspect task_status.tsv")

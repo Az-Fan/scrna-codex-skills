@@ -1,4 +1,0 @@
-interface:
-  display_name: "Score scRNA Programs"
-  short_description: "Score pathways and gene signatures"
-  default_prompt: "Use $scrna-score-programs to score declared pathways or gene signatures in a Seurat object with auditable coverage and caching."

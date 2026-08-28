@@ -1,6 +1,21 @@
+.scrna_runtime_started_at <- Sys.time()
+.scrna_sha256 <- function(path) {
+  if (is.null(path) || !file.exists(path) || !requireNamespace("digest", quietly = TRUE)) return(NA_character_)
+  digest::digest(path, algo = "sha256", file = TRUE)
+}
+
 read_skill_config <- function(path) {
   if (!requireNamespace("jsonlite", quietly = TRUE)) stop("Package 'jsonlite' is required")
-  jsonlite::fromJSON(path, simplifyVector = FALSE)
+  config <- jsonlite::fromJSON(path, simplifyVector = FALSE)
+  config_path <- normalizePath(path, mustWork = TRUE)
+  input <- config$input$object %||% config$input$path
+  attr(config, "config_path") <- config_path
+  attr(config, "input_record") <- list(
+    path = input,
+    bytes = if (!is.null(input) && file.exists(input)) unname(file.info(input)$size) else NA_real_,
+    sha256 = .scrna_sha256(input)
+  )
+  config
 }
 
 cfg_get <- function(x, keys, default = NULL, required = FALSE) {
@@ -74,15 +89,36 @@ get_raw_counts <- function(obj, assay = NULL) {
 }
 
 write_run_manifest <- function(config, skill, out, artifacts, notes = character()) {
+  artifact_records <- lapply(unique(artifacts), function(path) {
+    info <- file.info(path)
+    list(path = path, bytes = if (isTRUE(info$isdir)) NA_real_ else unname(info$size), sha256 = .scrna_sha256(path))
+  })
+  config_path <- attr(config, "config_path")
+  input_record <- attr(config, "input_record")
+  finished_at <- Sys.time()
   manifest <- list(
-    schema_version = 1L,
+    schema_version = 2L,
     skill = skill,
     project_id = cfg_get(config, "project.id", required = TRUE),
-    created_at = format(Sys.time(), tz = "UTC", usetz = TRUE),
-    input = cfg_get(config, "input.object", cfg_get(config, "input.path")),
+    started_at = format(.scrna_runtime_started_at, tz = "UTC", usetz = TRUE),
+    finished_at = format(finished_at, tz = "UTC", usetz = TRUE),
+    duration_seconds = as.numeric(difftime(finished_at, .scrna_runtime_started_at, units = "secs")),
+    command = commandArgs(FALSE),
+    config = list(path = config_path, sha256 = .scrna_sha256(config_path)),
+    input = input_record,
     output_dir = out,
-    artifacts = unname(as.list(artifacts)),
+    artifacts = artifact_records,
+    random_seed = attr(config, "resolved_random_seed") %||% cfg_get(config, "preprocessing.seed", cfg_get(config, "random_seed")),
+    exit_status = 0L,
     notes = unname(as.list(notes))
   )
-  jsonlite::write_json(manifest, file.path(out, "run_manifest.json"), auto_unbox = TRUE, pretty = TRUE)
+  action <- cfg_get(config, "workflow.action")
+  manifest_name <- if (skill == "04-scrna-preprocess-and-cluster" && identical(action, "finalize_resolution")) {
+    "run_manifest_finalize.json"
+  } else if (skill == "04-scrna-preprocess-and-cluster") {
+    "run_manifest_preprocess.json"
+  } else {
+    "run_manifest.json"
+  }
+  jsonlite::write_json(manifest, file.path(out, manifest_name), auto_unbox = TRUE, pretty = TRUE)
 }

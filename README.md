@@ -1,26 +1,31 @@
 # scRNA-seq Codex Skills
 
-Nine Codex/Wisp-compatible skills for auditable single-cell RNA-seq analysis. The canonical development working tree is `/home/faz_laptop/projects/scrna-codex-skills` on `ssh:xiyouyun`; GitHub is its synchronized distribution remote. Server-side analysis uses the existing pixi environments.
+Ten Codex/Wisp-compatible skills for auditable single-cell RNA-seq analysis. The canonical development working tree is `/home/faz_laptop/projects/scrna-codex-skills` on `ssh:xiyouyun`; GitHub is its synchronized distribution remote. Server-side analysis uses the existing pixi environments.
 
 ## Released skills
 
-- `scrna-calculate-qc-metrics`
-- `scrna-review-qc`
-- `scrna-standardize-input`
-- `scrna-analyze-subset`
-- `scrna-annotate-cells`
-- `scrna-find-cluster-markers`
-- `scrna-benchmark-integration`
-- `scrna-score-programs`
-- `scrna-run-differential-analysis`
+- `01-scrna-standardize-input`
+- `02-scrna-calculate-qc-metrics`
+- `03-scrna-review-qc`
+- `04-scrna-preprocess-and-cluster`
+- `05-scrna-benchmark-integration`
+- `06-scrna-find-cluster-markers`
+- `07-scrna-annotate-cells`
+- `08-scrna-analyze-subset`
+- `09-scrna-score-programs`
+- `10-scrna-run-differential-analysis`
+
+The numeric prefixes follow the primary execution flow. Integration benchmarking
+(`05`) is conditional when batch correction needs comparison, and focused subset
+reanalysis (`08`) is a downstream branch after a usable broad annotation exists.
 
 ## Install the fixed release
 
-Clone the fixed tag from GitHub, then assemble all nine self-contained skill directories with the bundled installer:
+Clone the fixed tag from GitHub, then assemble all ten self-contained skill directories with the bundled installer:
 
 ```bash
-git clone --branch v1.2.0 --depth 1 git@github.com:Az-Fan/scrna-codex-skills.git
-python scrna-codex-skills/scripts/install_skills.py --target .wisp/skills
+git clone --branch v2.0.0 --depth 1 git@github.com:Az-Fan/scrna-codex-skills.git
+python3 scrna-codex-skills/scripts/install_skills.py --target .wisp/skills
 ```
 
 For a personal Codex installation, use `--target ~/.codex/skills`. On Windows PowerShell, use `py` when that is the configured launcher. Existing installations are never overwritten unless `--force` is supplied.
@@ -29,8 +34,8 @@ To update an existing clone and replace an installed Wisp copy with this fixed r
 
 ```bash
 git -C scrna-codex-skills fetch --tags
-git -C scrna-codex-skills checkout v1.2.0
-python scrna-codex-skills/scripts/install_skills.py --target .wisp/skills --force
+git -C scrna-codex-skills checkout v2.0.0
+python3 scrna-codex-skills/scripts/install_skills.py --target .wisp/skills --force
 ```
 
 Restart the agent session after installation or update so skill discovery is refreshed. Installation changes agent instructions and bundled executors only; it does not install R/Python packages or alter the server pixi environments.
@@ -42,20 +47,20 @@ Restart the agent session after installation or update so skill discovery is ref
 Validate and smoke-test assembly:
 
 ```bash
-python scripts/validate_runtime_manifest.py
-python scripts/smoke_install.py
+python3 scripts/validate_runtime_manifest.py
+python3 scripts/smoke_install.py
 ```
 
-Run the real nine-skill deterministic fixture test in the registered server environment:
+Run the real ten-skill deterministic fixture test in the registered server environment:
 
 ```bash
-python tests/e2e/run_fixture_e2e.py
+python3 tests/e2e/run_fixture_e2e.py
 ```
 
 Build `.skill` archives when a release is ready:
 
 ```bash
-python scripts/package_skills.py --output dist
+python3 scripts/package_skills.py --output dist
 ```
 
 ## Reproducible fixture

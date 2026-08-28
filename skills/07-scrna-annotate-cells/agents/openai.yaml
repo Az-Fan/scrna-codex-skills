@@ -1,0 +1,4 @@
+interface:
+  display_name: "07 Annotate scRNA Cells"
+  short_description: "Cluster, mark, and review cell annotations"
+  default_prompt: "Use $07-scrna-annotate-cells to generate and review cell-type annotations."

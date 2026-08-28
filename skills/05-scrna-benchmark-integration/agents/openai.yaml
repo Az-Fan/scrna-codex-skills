@@ -1,0 +1,4 @@
+interface:
+  display_name: "05 Benchmark scRNA Integration"
+  short_description: "Benchmark selected batch-correction methods and parameters"
+  default_prompt: "Use $05-scrna-benchmark-integration to compare my selected batch-correction methods, metrics, batch variables, and plots without losing biology."

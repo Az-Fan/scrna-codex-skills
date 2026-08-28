@@ -1,0 +1,4 @@
+interface:
+  display_name: "06 Find scRNA Cluster Markers"
+  short_description: "Find annotation-ready markers across clusters"
+  default_prompt: "Use $06-scrna-find-cluster-markers to identify and summarize cluster markers for cell-type annotation."
