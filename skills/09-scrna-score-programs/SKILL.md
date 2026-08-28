@@ -17,6 +17,8 @@ Treat pathway analysis as explicit gene-level scoring with versioned resources a
 6. Inspect `task_manifest.json` for methods, resources, cache keys, output assays, and cache hits.
 7. Use cell-level scores for visualization. Read [references/interpretation-and-inference.md](references/interpretation-and-inference.md) before testing conditions.
 
+If execution may exceed 10 minutes, has uncertain duration, or could outlive the remote session, read [references/long-running-execution.md](references/long-running-execution.md) and launch the confirmed `--execute` command with `scripts/run_in_tmux.py`. Keep validation and dry runs in the foreground.
+
 ## Guardrails
 
 - Keep the input object unchanged and write a derivative object.

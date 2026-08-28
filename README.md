@@ -24,7 +24,7 @@ reanalysis (`08`) is a downstream branch after a usable broad annotation exists.
 Clone the fixed tag from GitHub, then assemble all ten self-contained skill directories with the bundled installer:
 
 ```bash
-git clone --branch v2.0.0 --depth 1 git@github.com:Az-Fan/scrna-codex-skills.git
+git clone --branch v2.1.0 --depth 1 git@github.com:Az-Fan/scrna-codex-skills.git
 python3 scrna-codex-skills/scripts/install_skills.py --target .wisp/skills
 ```
 
@@ -34,11 +34,15 @@ To update an existing clone and replace an installed Wisp copy with this fixed r
 
 ```bash
 git -C scrna-codex-skills fetch --tags
-git -C scrna-codex-skills checkout v2.0.0
+git -C scrna-codex-skills checkout v2.1.0
 python3 scrna-codex-skills/scripts/install_skills.py --target .wisp/skills --force
 ```
 
 Restart the agent session after installation or update so skill discovery is refreshed. Installation changes agent instructions and bundled executors only; it does not install R/Python packages or alter the server pixi environments.
+
+## Long-running execution
+
+Skills `02`, `04`, `05`, `06`, `07`, `09`, and `10` include a shared tmux supervisor for executions that may exceed 10 minutes or outlive a remote session. Dry runs remain in the foreground. After reviewing a skill's plan, use its bundled `scripts/run_in_tmux.py` to launch only the confirmed `--execute` command. The supervisor rejects duplicate active sessions and records an independent `tmux.log` plus `tmux_status.json`; the skill manifest and required artifacts remain the authoritative completion contract.
 
 ## Source architecture
 
@@ -49,6 +53,7 @@ Validate and smoke-test assembly:
 ```bash
 python3 scripts/validate_runtime_manifest.py
 python3 scripts/smoke_install.py
+python3 tests/test_tmux_runner.py
 ```
 
 Run the real ten-skill deterministic fixture test in the registered server environment:

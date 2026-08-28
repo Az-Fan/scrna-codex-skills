@@ -18,6 +18,8 @@ Choose the statistical unit before choosing the test. Treat positive log2 fold c
 7. Inspect `task_status.tsv`, full result tables, sample-level plots, and limitations before interpreting genes.
 8. Enable enrichment only after confirming species and gene identifiers. By default run the complete GO-BP/MF/CC, KEGG, Reactome, and Hallmark suite described in [references/enrichment-design.md](references/enrichment-design.md).
 
+If execution may exceed 10 minutes, has uncertain duration, or could outlive the remote session, read [references/long-running-execution.md](references/long-running-execution.md) and launch the confirmed `--execute` command with `scripts/run_in_tmux.py`. Keep validation and dry runs in the foreground.
+
 ## Modes
 
 - Use `pseudobulk_deseq2` by default for formal condition comparisons with biological replicates.

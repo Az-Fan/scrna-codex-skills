@@ -17,6 +17,8 @@ Compare only explicitly selected methods and parameters. Always retain `none` as
 6. Review method status and skipped-metric tables before interpreting scores.
 7. Report batch removal and biological conservation separately. Recommend a method only with explicit tradeoffs and intended downstream use.
 
+If execution may exceed 10 minutes, has uncertain duration, or could outlive the remote session, read [references/long-running-execution.md](references/long-running-execution.md) and launch the confirmed `--execute` command with `scripts/run_in_tmux.py`. Keep validation and dry runs in the foreground.
+
 Read [references/benchmark-criteria.md](references/benchmark-criteria.md) for method semantics, metric requirements, scoring, and output interpretation.
 
 ## Selection rules

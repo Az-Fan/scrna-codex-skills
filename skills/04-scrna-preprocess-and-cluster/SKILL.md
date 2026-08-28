@@ -55,6 +55,8 @@ Before execution, inspect metadata, assays, raw counts, existing reductions, sce
 5. After explicit confirmation, create a config from [references/config.finalize.example.json](references/config.finalize.example.json) and finalize the selected candidate column in the same output directory without recomputing preprocessing. The validated replacement object atomically replaces the scan object.
 6. When comparison mode was explicitly selected, compare scenarios using diagnostics and composition tables; do not select a winner automatically.
 
+If execution may exceed 10 minutes, has uncertain duration, or could outlive the remote session, read [references/long-running-execution.md](references/long-running-execution.md) and launch the confirmed `--execute` command with `scripts/run_in_tmux.py`. Keep dependency checks, dry runs, and guided-mode confirmation pauses in the foreground. Use a new session name for finalization after a guided scan.
+
 Read [references/preprocessing-contract.md](references/preprocessing-contract.md) when defining scenarios or interpreting outputs.
 Read [references/input-output.md](references/input-output.md) when validating inputs or handing off artifacts.
 

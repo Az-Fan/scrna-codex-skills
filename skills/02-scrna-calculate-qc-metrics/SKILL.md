@@ -28,6 +28,8 @@ Always ask where results should be saved when the user has not provided an outpu
 3. Confirm that the manifest uses the intended existing pixi environment, inputs, samples, and output directory.
 4. Run `scripts/run.py --config <config> --execute` only after confirmation.
 
+If execution may exceed 10 minutes, has uncertain duration, or could outlive the remote session, read [references/long-running-execution.md](references/long-running-execution.md) and launch the confirmed `--execute` command with `scripts/run_in_tmux.py`. Keep validation and dry runs in the foreground.
+
 The executor computes metrics and writes new files; it never filters cells or changes the pixi environment.
 
 For Seurat v5 input, let the executor join multiple raw-count layers in memory and verify that the resulting matrix covers every object cell. Do not require callers to modify or resave their source object first.

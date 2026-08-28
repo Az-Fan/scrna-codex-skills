@@ -18,5 +18,7 @@ def main():
             for path in installed.rglob("*.py"): py_compile.compile(str(path),doraise=True)
             check([sys.executable,str(installed/"scripts"/"run.py"),"--help"])
             check([sys.executable,str(installed/"scripts"/"check_dependencies.py"),"--help"])
+            tmux_runner=installed/"scripts"/"run_in_tmux.py"
+            if tmux_runner.is_file(): check([sys.executable,str(tmux_runner),"--help"])
             print(f"PASS {name}")
 if __name__=="__main__": main()

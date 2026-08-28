@@ -29,3 +29,5 @@ Read [references/annotation-review.md](references/annotation-review.md) before p
 ## Execution
 
 Create a JSON config from [references/config.example.json](references/config.example.json) and run `scripts/run.py --config <config>` before clustering. Use the manifest to record inputs and outputs, then rerun with `--execute` to generate clusters, markers, a UMAP, and the review table. Never place confirmed labels in the executor configuration before human review.
+
+If execution may exceed 10 minutes, has uncertain duration, or could outlive the remote session, read [references/long-running-execution.md](references/long-running-execution.md) and launch the confirmed `--execute` command with `scripts/run_in_tmux.py`. Keep validation, dry runs, and human-review pauses in the foreground.

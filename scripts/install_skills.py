@@ -23,6 +23,10 @@ def build_skill(name, destination):
         shutil.copy2(REPO / "toolkit" / "python" / filename, scripts / filename)
     for filename in spec.get("r", []):
         shutil.copy2(REPO / "toolkit" / "R" / filename, scripts / filename)
+    references = destination / "references"
+    references.mkdir(exist_ok=True)
+    for filename in spec.get("references", []):
+        shutil.copy2(REPO / "toolkit" / "references" / filename, references / filename)
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)

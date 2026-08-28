@@ -30,3 +30,5 @@ Read [references/marker-interpretation.md](references/marker-interpretation.md) 
 ## Execution
 
 Copy [references/config.example.json](references/config.example.json), set the input and grouping fields, and run `scripts/run.py --config <config>` to validate and write a plan manifest. Review the manifest, then rerun with `--execute`. The executor reads but does not save changes to the input object and writes full markers, ranked top markers, a per-cluster summary, a dot plot, and a run manifest.
+
+If execution may exceed 10 minutes, has uncertain duration, or could outlive the remote session, read [references/long-running-execution.md](references/long-running-execution.md) and launch the confirmed `--execute` command with `scripts/run_in_tmux.py`. Keep validation and dry runs in the foreground.
