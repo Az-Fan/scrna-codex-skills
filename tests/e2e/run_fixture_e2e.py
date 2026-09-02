@@ -21,29 +21,33 @@ from pathlib import Path
 
 
 SKILL_ENVS = {
+    "01-scrna-standardize-input": "01-scrna-qc",
     "02-scrna-calculate-qc-metrics": "01-scrna-qc",
     "03-scrna-review-qc": "01-scrna-qc",
-    "01-scrna-standardize-input": "01-scrna-qc",
-    "04-scrna-preprocess-and-cluster": "03-integration",
-    "08-scrna-analyze-subset": "02-annotation",
-    "07-scrna-annotate-cells": "02-annotation",
-    "06-scrna-find-cluster-markers": "02-annotation",
+    "04-scrna-apply-qc-filter": "01-scrna-qc",
     "05-scrna-benchmark-integration": "03-integration",
-    "09-scrna-score-programs": "05-pathway_program",
-    "10-scrna-run-differential-analysis": "06-deg-analysis",
+    "06-scrna-preprocess-and-cluster": "03-integration",
+    "07-scrna-find-cluster-markers": "02-annotation",
+    "08-scrna-annotate-cells": "02-annotation",
+    "09-scrna-export-subset": "02-annotation",
+    "10-scrna-score-programs": "05-pathway_program",
+    "11-scrna-run-differential-analysis": "06-deg-analysis",
+    "12-scrna-run-pathway-enrichment": "06-deg-analysis",
 }
 
 EXPECTED = {
+    "01-scrna-standardize-input": ["cell_metadata.tsv", "samples.tsv", "field_mapping.json", "run_manifest.json"],
     "02-scrna-calculate-qc-metrics": ["qc_metrics_object.rds", "metadata.tsv.gz", "metric_status.tsv", "run_manifest.json"],
     "03-scrna-review-qc": ["qc_summary_by_sample.tsv", "threshold_review.tsv", "qc_atlas.pdf", "run_manifest.json"],
-    "01-scrna-standardize-input": ["cell_metadata.tsv", "samples.tsv", "field_mapping.json", "run_manifest.json"],
-    "04-scrna-preprocess-and-cluster": ["preprocessed_clustered_object.qs", "cell_assignments.tsv", "standard_cluster_sizes.tsv", "standard_sample_cluster_counts.tsv", "standard_umap_diagnostics.pdf", "scenario_summary.tsv", "workflow_state.json", "session_info.txt", "run.log", "run_manifest_preprocess.json", "run_manifest_finalize.json"],
-    "08-scrna-analyze-subset": ["subset_object.qs", "subset_counts.mtx", "subset_metadata.tsv", "subset_summary.tsv", "features.tsv", "barcodes.tsv", "run_manifest.json"],
-    "07-scrna-annotate-cells": ["clustered_object.qs", "cluster_markers.tsv", "annotation_review.tsv", "cluster_umap.pdf", "run_manifest.json"],
-    "06-scrna-find-cluster-markers": ["cluster_markers.tsv", "top_cluster_markers.tsv", "cluster_marker_summary.tsv", "top_marker_dotplot.pdf", "run_manifest.json"],
+    "04-scrna-apply-qc-filter": ["filtered_object.rds", "cell_filter_decisions.tsv.gz", "filter_summary_by_sample.tsv", "filter_summary_by_condition.tsv", "filter_decision_counts.tsv", "approved_filter_record.tsv", "session_info.txt", "run_manifest.json"],
     "05-scrna-benchmark-integration": ["method_runs_r.tsv", "integration_benchmark_object.qs", "run_manifest.json"],
-    "09-scrna-score-programs": ["signature_coverage.tsv", "assay_feature_mapping.tsv", "score_summary.tsv", "task_manifest.json", "run_manifest.json"],
-    "10-scrna-run-differential-analysis": ["design_audit.tsv", "task_status.tsv", "all_comparisons.tsv", "sessionInfo.txt", "run_manifest.json"],
+    "06-scrna-preprocess-and-cluster": ["preprocessed_clustered_object.qs", "cell_assignments.tsv", "standard_cluster_sizes.tsv", "standard_sample_cluster_counts.tsv", "standard_umap_diagnostics.pdf", "scenario_summary.tsv", "workflow_state.json", "session_info.txt", "run.log", "run_manifest_preprocess.json", "run_manifest_finalize.json"],
+    "07-scrna-find-cluster-markers": ["cluster_markers.tsv", "top_cluster_markers.tsv", "cluster_marker_summary.tsv", "top_marker_dotplot.pdf", "run_manifest.json"],
+    "08-scrna-annotate-cells": ["clustered_object.qs", "cluster_markers.tsv", "annotation_review.tsv", "cluster_umap.pdf", "cluster_sample_umap.pdf", "canonical_marker_dotplot.pdf", "annotated_object.qs", "cell_annotations.tsv", "annotation_summary.tsv", "annotated_umap.pdf", "cluster_sample_condition_umap.pdf", "session_info.txt", "run_manifest.json"],
+    "09-scrna-export-subset": ["subset_object.qs", "subset_counts.mtx", "subset_metadata.tsv", "subset_summary.tsv", "features.tsv", "barcodes.tsv", "run_manifest.json"],
+    "10-scrna-score-programs": ["signature_coverage.tsv", "assay_feature_mapping.tsv", "score_summary.tsv", "task_manifest.json", "run_manifest.json"],
+    "11-scrna-run-differential-analysis": ["design_audit.tsv", "task_status.tsv", "all_comparisons.tsv", "sessionInfo.txt", "run_manifest.json"],
+    "12-scrna-run-pathway-enrichment": ["task_status.tsv", "sessionInfo.txt", "run_manifest.json"],
 }
 
 
@@ -88,9 +92,18 @@ def main() -> int:
     qc_fixture_hash = sha256(qc_fixture)
     call([sys.executable, repo / "scripts/install_skills.py", "--target", installed, "--force"], cwd=repo)
 
+    decision_table = configs / "approved_qc_decisions.tsv"
+    decision_table.parent.mkdir(parents=True, exist_ok=True)
+    with decision_table.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle, delimiter="\t")
+        writer.writerow(["cell_id", "in_scope", "passes_core_qc", "exclude_severe", "reason"])
+        for index in range(1, 81):
+            writer.writerow([f"cell_{index:03d}", "TRUE", "TRUE", "TRUE" if index == 80 else "FALSE", "approved_fixture_exclusion" if index == 80 else "retained"])
+
     qc_project = args.env_root / "01-scrna-qc"
     base = {"project": {"id": "tiny_fixture"}, "input": {"object": str(fixture)}}
     definitions = {
+        "01-scrna-standardize-input": {**base, "input": {"path": str(fixture), "format": "auto"}, "metadata": {"sample": "sample_label"}},
         "02-scrna-calculate-qc-metrics": {
             "pixi": {"executable": str(args.pixi), "project": str(qc_project), "environment": "default"},
             "input": {"type": "seurat", "object": str(qc_fixture), "starsolo_dir": None, "gtf_file": None},
@@ -106,8 +119,16 @@ def main() -> int:
             "output": {"detail_level": "compact"},
             "thresholds": {},
         },
-        "01-scrna-standardize-input": {**base, "input": {"path": str(fixture), "format": "auto"}, "metadata": {"sample": "sample_label"}},
-        "04-scrna-preprocess-and-cluster": {
+        "04-scrna-apply-qc-filter": {
+            **base,
+            "input": {"object": str(fixture), "decision_table": str(decision_table), "assay": "RNA"},
+            "metadata": {"sample": "sample_label", "condition": "condition"},
+            "decision": {"cell_id_column": "cell_id", "include_all_true": ["in_scope", "passes_core_qc"], "exclude_any_true": ["exclude_severe"], "reason_column": "reason", "expected_retained_cells": 79, "carry_columns": ["passes_core_qc", "exclude_severe"]},
+            "approval": {"status": "approved", "approved_at": "2026-09-02", "note": "deterministic E2E fixture"},
+            "output": {"object_name": "filtered_object.rds"},
+        },
+        "05-scrna-benchmark-integration": {**base, "input": {"object": str(fixture), "assay": "RNA"}, "metadata": {"sample": "sample_label", "batch_variables": ["batch_id"], "biological_labels": ["cell_type"], "condition": "condition"}, "benchmark": {"methods": [{"name": "none"}, {"name": "harmony", "parameter_grid": {"theta": [2]}}], "dims": [1, 2, 3, 4, 5], "neighbors": {"k": 10}, "seed": 1, "python_argv_prefix": [str(args.env_root / "03-integration/.pixi/envs/scvi/bin/python3.12")]}, "metrics": {"batch_removal": ["batch_asw"], "biological_conservation": ["label_asw", "nmi", "ari"]}, "plots": ["score_heatmap", "metric_tradeoff", "umap_by_batch", "umap_by_label"], "gene_programs": {}, "scoring": {"enabled": False, "batch_weight": 0.3, "biology_weight": 0.7}},
+        "06-scrna-preprocess-and-cluster": {
             **base,
             "workflow": {"mode": "guided", "action": "run"},
             "input": {"object": str(fixture), "assay": "RNA", "qc_status": "filtered"},
@@ -118,12 +139,12 @@ def main() -> int:
             "plots": {"group_by": ["sample_label", "condition", "batch_id"], "pt_size": 0.2, "preview_png": False},
             "output": {"object_format": "qs", "drop_scale_data": True},
         },
-        "08-scrna-analyze-subset": {**base, "metadata": {"sample": "sample_label", "cell_type": "cell_type"}, "subset": {"include": ["Endothelial"]}},
-        "07-scrna-annotate-cells": {**base, "metadata": {"sample": "sample_label"}, "clustering": {"dims": [1, 2, 3, 4, 5], "resolution": 0.5}, "markers": {"logfc_threshold": 0.1, "min_pct": 0.1}},
-        "06-scrna-find-cluster-markers": {**base, "metadata": {"cluster": "seurat_clusters"}, "analysis": {"assay": "RNA", "test_use": "wilcox", "only_pos": True, "logfc_threshold": 0.1, "min_pct": 0.1, "min_diff_pct": -0.1, "return_thresh": 1.0, "max_cells_per_ident": None, "random_seed": 1, "join_layers": True, "normalize_if_missing": True}, "reporting": {"top_n": 10, "dotplot_top_n": 3}},
-        "05-scrna-benchmark-integration": {**base, "input": {"object": str(fixture), "assay": "RNA"}, "metadata": {"sample": "sample_label", "batch_variables": ["batch_id"], "biological_labels": ["cell_type"], "condition": "condition"}, "benchmark": {"methods": [{"name": "none"}, {"name": "harmony", "parameter_grid": {"theta": [2]}}], "dims": [1, 2, 3, 4, 5], "neighbors": {"k": 10}, "seed": 1, "python_argv_prefix": [str(args.env_root / "03-integration/.pixi/envs/scvi/bin/python3.12")]}, "metrics": {"batch_removal": ["batch_asw"], "biological_conservation": ["label_asw", "nmi", "ari"]}, "plots": ["score_heatmap", "metric_tradeoff", "umap_by_batch", "umap_by_label"], "gene_programs": {}, "scoring": {"enabled": False, "batch_weight": 0.3, "biology_weight": 0.7}},
-        "09-scrna-score-programs": {**base, "input": {"object": str(fixture), "assay": "RNA", "layer": "counts"}, "species": "mouse", "tasks": [{"name": "vascular_program", "method": "addmodulescore", "gene_sets": {"source": "inline", "sets": {"vascular": ["Kdr", "Pecam1", "Cdh5"]}}, "coverage": {"min_genes": 3, "min_fraction": 1.0, "on_insufficient": "error"}, "parameters": {"normalize_if_missing": True, "nbin": 4, "ctrl": 2}}], "summarize_by": ["sample_label", "condition", "cell_type"], "random_seed": 1, "cores": 1, "cache": {"enabled": False}, "output": {"object_format": "rds"}},
-        "10-scrna-run-differential-analysis": {**base, "metadata": {"sample": "sample_label", "condition": "condition", "covariates": []}, "population": {"mode": "all", "include": [], "exclude": []}, "comparisons": [{"id": "stz_vs_control", "numerator": "stz", "denominator": "control"}], "analysis": {"stage": "differential", "method": "pseudobulk_deseq2", "assay": "RNA", "design": "~ condition", "min_cells_per_sample_population": 10, "min_samples_per_group": 2, "min_total_count": 1, "min_count_per_sample": 1, "min_samples_expressed": 2, "padj_threshold": 0.1, "lfc_threshold": 0.1, "lfc_shrink": False}, "plots": {"top_genes": 10}, "enrichment": {"enabled": False, "species": "mouse", "gene_id_type": "SYMBOL"}},
+        "07-scrna-find-cluster-markers": {**base, "metadata": {"cluster": "seurat_clusters"}, "analysis": {"assay": "RNA", "test_use": "wilcox", "only_pos": True, "logfc_threshold": 0.1, "min_pct": 0.1, "min_diff_pct": -0.1, "return_thresh": 1.0, "max_cells_per_ident": None, "random_seed": 1, "join_layers": True, "normalize_if_missing": True}, "reporting": {"top_n": 10, "dotplot_top_n": 3}},
+        "08-scrna-annotate-cells": {**base, "workflow": {"action": "prepare_review"}, "input": {"object": str(fixture), "markers": str(output_root / "07-scrna-find-cluster-markers/cluster_markers.tsv")}, "metadata": {"sample": "sample_label", "condition": "condition", "cluster": "seurat_clusters", "reduction": "umap"}, "clustering": {"compute_if_missing": False}, "markers": {"assay": "RNA", "canonical": {"endothelial": ["Kdr", "Pecam1", "Cdh5"], "fibroblast": ["Col1a1", "Col3a1", "Dcn"]}}},
+        "09-scrna-export-subset": {**base, "metadata": {"sample": "sample_label", "cell_type": "cell_type"}, "subset": {"include": ["Endothelial"]}},
+        "10-scrna-score-programs": {**base, "input": {"object": str(fixture), "assay": "RNA", "layer": "counts"}, "species": "mouse", "tasks": [{"name": "vascular_program", "method": "addmodulescore", "gene_sets": {"source": "inline", "sets": {"vascular": ["Kdr", "Pecam1", "Cdh5"]}}, "coverage": {"min_genes": 3, "min_fraction": 1.0, "on_insufficient": "error"}, "parameters": {"normalize_if_missing": True, "nbin": 4, "ctrl": 2}}], "summarize_by": ["sample_label", "condition", "cell_type"], "random_seed": 1, "cores": 1, "cache": {"enabled": False}, "output": {"object_format": "rds"}},
+        "11-scrna-run-differential-analysis": {**base, "metadata": {"sample": "sample_label", "condition": "condition", "covariates": []}, "population": {"mode": "all", "include": [], "exclude": []}, "comparisons": [{"id": "stz_vs_control", "numerator": "stz", "denominator": "control"}], "analysis": {"stage": "differential", "method": "pseudobulk_deseq2", "assay": "RNA", "design": "~ condition", "min_cells_per_sample_population": 10, "min_samples_per_group": 2, "min_total_count": 1, "min_count_per_sample": 1, "min_samples_expressed": 2, "padj_threshold": 0.1, "lfc_threshold": 0.1, "lfc_shrink": False}, "plots": {"top_genes": 10}, "enrichment": {"enabled": False, "species": "mouse", "gene_id_type": "SYMBOL"}},
+        "12-scrna-run-pathway-enrichment": {"project": {"id": "tiny_fixture_enrichment"}, "input": {"differential_table": str(output_root / "11-scrna-run-differential-analysis/all_comparisons.tsv")}, "analysis": {"stage": "enrichment_only", "padj_threshold": 1.0, "lfc_threshold": 0.0}, "enrichment": {"enabled": True, "species": "mouse", "gene_id_type": "SYMBOL", "databases": ["GO_BP"], "min_input_genes": 1, "min_gene_set_size": 1, "max_gene_set_size": 500, "plot_top_terms": 5, "plot_label_width": 30, "plot_terms_per_page": 8}},
     }
 
     report = {"fixture_sha256_before": fixture_hash, "skills": {}}
@@ -148,7 +169,7 @@ def main() -> int:
             env = os.environ.copy()
             env["PATH"] = str(env_dir) + os.pathsep + env.get("PATH", "")
             command = [sys.executable, launcher, "--config", config_path, "--manifest", manifest_path]
-            if skill == "04-scrna-preprocess-and-cluster":
+            if skill == "06-scrna-preprocess-and-cluster":
                 blocked_config = copy.deepcopy(config)
                 blocked_config["input"]["qc_status"] = "unfiltered"
                 blocked_config["input"].pop("allow_unfiltered", None)
@@ -163,7 +184,28 @@ def main() -> int:
                     raise RuntimeError(f"{skill}: unfiltered input was not blocked correctly: rc={blocked.returncode}; stderr={blocked.stderr}")
             call(command, env=env)
             call(command + ["--execute"], env=env)
-        if skill == "04-scrna-preprocess-and-cluster":
+        if skill == "08-scrna-annotate-cells":
+            decisions_path = configs / "confirmed_annotation_decisions.tsv"
+            with decisions_path.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle, delimiter="\t")
+                writer.writerow(["cluster", "annotation_broad", "annotation_fine", "annotation_state", "decision", "confidence", "evidence", "conflicts", "sample_bias", "qc_flag"])
+                writer.writerow(["0", "Endothelial", "Endothelial", "baseline", "confirmed", "high", "Kdr;Pecam1;Cdh5", "none", "none", "none"])
+                writer.writerow(["1", "Stromal", "Fibroblast", "baseline", "confirmed", "high", "Col1a1;Col3a1;Dcn", "none", "none", "none"])
+            apply_config = {
+                "project": {"id": "tiny_fixture"},
+                "workflow": {"action": "apply_confirmed"},
+                "input": {"object": str(fixture), "decisions": str(decisions_path)},
+                "metadata": {"sample": "sample_label", "condition": "condition", "cluster": "seurat_clusters", "reduction": "umap"},
+                "annotation": {"broad_column": "annotation_broad", "fine_column": "annotation_fine", "state_column": "annotation_state", "decision_column": "decision", "confirmed_values": ["confirmed"]},
+                "output_dir": str(out),
+            }
+            apply_path = configs / f"{skill}.apply.json"
+            apply_manifest = configs / f"{skill}.apply.manifest.json"
+            write_json(apply_path, apply_config)
+            apply_command = [sys.executable, launcher, "--config", apply_path, "--manifest", apply_manifest]
+            call(apply_command, env=env)
+            call(apply_command + ["--execute"], env=env)
+        if skill == "06-scrna-preprocess-and-cluster":
             scan_state = json.loads((out / "workflow_state.json").read_text(encoding="utf-8"))
             if scan_state.get("status") != "awaiting_resolution_confirmation":
                 raise RuntimeError(f"{skill}: guided scan did not pause for confirmation: {scan_state}")
@@ -194,7 +236,7 @@ def main() -> int:
             missing.append("standardized_object.(qs|rds)")
         if missing:
             raise RuntimeError(f"{skill}: missing/empty required artifacts: {missing}")
-        run_manifest_name = "run_manifest_finalize.json" if skill == "04-scrna-preprocess-and-cluster" else "run_manifest.json"
+        run_manifest_name = "run_manifest_finalize.json" if skill == "06-scrna-preprocess-and-cluster" else "run_manifest.json"
         manifest = json.loads((out / run_manifest_name).read_text(encoding="utf-8"))
         if manifest.get("skill") != skill:
             raise RuntimeError(f"{skill}: run manifest skill mismatch: {manifest.get('skill')!r}")
@@ -216,7 +258,7 @@ def main() -> int:
                 raise RuntimeError(f"{skill}: compact output mismatch: expected {sorted(expected_files)}, got {sorted(actual_files)}")
             if manifest.get("output_detail_level") != "compact":
                 raise RuntimeError(f"{skill}: compact detail level missing from run manifest")
-        if skill == "04-scrna-preprocess-and-cluster":
+        if skill == "06-scrna-preprocess-and-cluster":
             with (out / "scenario_summary.tsv").open(encoding="utf-8", newline="") as handle:
                 rows = list(csv.DictReader(handle, delimiter="\t"))
             if len(rows) != 1:
@@ -228,7 +270,7 @@ def main() -> int:
                 raise RuntimeError(f"{skill}: resolved/finalized parameters mismatch: {mismatched}")
             if manifest.get("input", {}).get("sha256") is None or manifest.get("config", {}).get("sha256") is None:
                 raise RuntimeError(f"{skill}: execution manifest lacks input/config SHA-256")
-        if skill == "10-scrna-run-differential-analysis":
+        if skill == "11-scrna-run-differential-analysis":
             with (out / "task_status.tsv").open(encoding="utf-8", newline="") as handle:
                 statuses = [row["status"] for row in csv.DictReader(handle, delimiter="\t")]
             if not statuses or any(status != "completed" for status in statuses):

@@ -12,7 +12,7 @@ actual={
     if p.is_dir() and p.name[:2].isdigit() and p.name[2:].startswith("-scrna-")
 }
 errors=[]
-if data.get("schema_version") != 2: errors.append(f"unsupported runtime manifest schema: {data.get('schema_version')}")
+if data.get("schema_version") != 3: errors.append(f"unsupported runtime manifest schema: {data.get('schema_version')}")
 if set(skills)!=actual: errors.append(f"skill set mismatch: manifest={sorted(skills)} source={sorted(actual)}")
 if list(skills) != sorted(skills): errors.append("skills must be declared in numeric execution order")
 for name,spec in skills.items():

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Run scRNA Pathway Enrichment"
+  short_description: "Run auditable ORA/GSEA with readable plots"
+  default_prompt: "Use $12-scrna-run-pathway-enrichment to enrich my complete differential table without rerunning differential expression."

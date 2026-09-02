@@ -66,7 +66,7 @@ read_gmt <- function(path) {
 }
 
 write_gmt <- function(sets, path) {
-  lines <- vapply(names(sets), function(nm) paste(c(nm, "generated-by-09-scrna-score-programs", sets[[nm]]), collapse = "\t"), character(1))
+  lines <- vapply(names(sets), function(nm) paste(c(nm, "generated-by-10-scrna-score-programs", sets[[nm]]), collapse = "\t"), character(1))
   writeLines(lines, path)
 }
 
@@ -383,6 +383,6 @@ writeLines(capture.output(utils::sessionInfo()), session_path)
 task_manifest_path <- file.path(out, "task_manifest.json")
 jsonlite::write_json(task_manifest, task_manifest_path, auto_unbox = TRUE, pretty = TRUE, null = "null")
 artifacts <- unique(c(artifacts, coverage_path, summary_path, mapping_path, plot_paths, object_path, session_path, task_manifest_path))
-write_run_manifest(config, "09-scrna-score-programs", out, artifacts,
+write_run_manifest(config, "10-scrna-score-programs", out, artifacts,
                    notes = c(paste0("species=", species), paste0("tasks=", paste(task_names, collapse = ",")),
                              "Scores are descriptive at cell level; use biological samples for condition-level inference"))

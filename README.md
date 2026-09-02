@@ -1,30 +1,47 @@
 # scRNA-seq Codex Skills
 
-Ten Codex/Wisp-compatible skills for auditable single-cell RNA-seq analysis. The canonical development working tree is `/home/faz_laptop/projects/scrna-codex-skills` on `ssh:xiyouyun`; GitHub is its synchronized distribution remote. Server-side analysis uses the existing pixi environments.
+Twelve Codex/Wisp-compatible skills for auditable single-cell RNA-seq analysis. The canonical development working tree is `/home/faz_laptop/projects/scrna-codex-skills` on `ssh:xiyouyun`; GitHub is its synchronized distribution remote. Server-side analysis uses the existing pixi environments.
 
 ## Released skills
 
 - `01-scrna-standardize-input`
 - `02-scrna-calculate-qc-metrics`
 - `03-scrna-review-qc`
-- `04-scrna-preprocess-and-cluster`
+- `04-scrna-apply-qc-filter`
 - `05-scrna-benchmark-integration`
-- `06-scrna-find-cluster-markers`
-- `07-scrna-annotate-cells`
-- `08-scrna-analyze-subset`
-- `09-scrna-score-programs`
-- `10-scrna-run-differential-analysis`
+- `06-scrna-preprocess-and-cluster`
+- `07-scrna-find-cluster-markers`
+- `08-scrna-annotate-cells`
+- `09-scrna-export-subset`
+- `10-scrna-score-programs`
+- `11-scrna-run-differential-analysis`
+- `12-scrna-run-pathway-enrichment`
 
 The numeric prefixes follow the primary execution flow. Integration benchmarking
-(`05`) is conditional when batch correction needs comparison, and focused subset
-reanalysis (`08`) is a downstream branch after a usable broad annotation exists.
+(`05`) is conditional when batch correction needs comparison. Subset export (`09`),
+program scoring (`10`), and dedicated enrichment (`12`) are downstream branches.
+
+## Version 3 migration
+
+Version 3 changes skill identifiers while reusing the established executors and scientific calculations:
+
+| Version 2 | Version 3 |
+|---|---|
+| `04-scrna-preprocess-and-cluster` | `06-scrna-preprocess-and-cluster` |
+| `06-scrna-find-cluster-markers` | `07-scrna-find-cluster-markers` |
+| `07-scrna-annotate-cells` | `08-scrna-annotate-cells` |
+| `08-scrna-analyze-subset` | `09-scrna-export-subset` |
+| `09-scrna-score-programs` | `10-scrna-score-programs` |
+| `10-scrna-run-differential-analysis` | `11-scrna-run-differential-analysis` |
+
+`04-scrna-apply-qc-filter` is new and is derived from the project's approved decision-table filtering workflow. `12-scrna-run-pathway-enrichment` is a dedicated entry point over the same enrichment implementation retained by differential analysis. Existing DE, marker, subset, scoring, and enrichment result tables remain part of their migrated output contracts.
 
 ## Install the fixed release
 
-Clone the fixed tag from GitHub, then assemble all ten self-contained skill directories with the bundled installer:
+Clone a fixed release tag from GitHub, then assemble all self-contained skill directories with the bundled installer:
 
 ```bash
-git clone --branch v2.1.0 --depth 1 git@github.com:Az-Fan/scrna-codex-skills.git
+git clone --branch v3.0.0 --depth 1 git@github.com:Az-Fan/scrna-codex-skills.git
 python3 scrna-codex-skills/scripts/install_skills.py --target .wisp/skills
 ```
 
@@ -34,7 +51,7 @@ To update an existing clone and replace an installed Wisp copy with this fixed r
 
 ```bash
 git -C scrna-codex-skills fetch --tags
-git -C scrna-codex-skills checkout v2.1.0
+git -C scrna-codex-skills checkout v3.0.0
 python3 scrna-codex-skills/scripts/install_skills.py --target .wisp/skills --force
 ```
 
@@ -42,7 +59,7 @@ Restart the agent session after installation or update so skill discovery is ref
 
 ## Long-running execution
 
-Skills `02`, `04`, `05`, `06`, `07`, `09`, and `10` include a shared tmux supervisor for executions that may exceed 10 minutes or outlive a remote session. Dry runs remain in the foreground. After reviewing a skill's plan, use its bundled `scripts/run_in_tmux.py` to launch only the confirmed `--execute` command. The supervisor rejects duplicate active sessions and records an independent `tmux.log` plus `tmux_status.json`; the skill manifest and required artifacts remain the authoritative completion contract.
+Skills `02`, `04`–`12` include a shared tmux supervisor for executions that may exceed 10 minutes or outlive a remote session. Dry runs remain in the foreground. After reviewing a skill's plan, use its bundled `scripts/run_in_tmux.py` to launch only the confirmed `--execute` command. The supervisor rejects duplicate active sessions and records an independent `tmux.log` plus `tmux_status.json`; the skill manifest and required artifacts remain the authoritative completion contract.
 
 ## Source architecture
 
@@ -56,7 +73,7 @@ python3 scripts/smoke_install.py
 python3 tests/test_tmux_runner.py
 ```
 
-Run the real ten-skill deterministic fixture test in the registered server environment:
+Run the real full-release deterministic fixture test in the registered server environment:
 
 ```bash
 python3 tests/e2e/run_fixture_e2e.py

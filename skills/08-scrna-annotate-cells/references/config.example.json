@@ -1,0 +1,23 @@
+{
+  "project": {"id": "project_id"},
+  "workflow": {"action": "prepare_review"},
+  "input": {
+    "object": "/path/to/clustered_object.qs",
+    "markers": "/path/to/07_markers/cluster_markers.tsv"
+  },
+  "metadata": {
+    "sample": "sample_id",
+    "condition": "condition",
+    "cluster": "confirmed_clusters",
+    "reduction": "confirmed_umap"
+  },
+  "clustering": {"compute_if_missing": false},
+  "markers": {
+    "assay": "RNA",
+    "canonical": {
+      "endothelial": ["PECAM1", "VWF", "CDH5"],
+      "immune_exclusion": ["PTPRC"]
+    }
+  },
+  "output_dir": "/path/to/results/08_annotation_review"
+}

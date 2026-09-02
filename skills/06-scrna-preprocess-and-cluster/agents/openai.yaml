@@ -1,0 +1,4 @@
+interface:
+  display_name: "04 Preprocess and Cluster scRNA"
+  short_description: "Preprocess, cluster, and select resolution on a filtered object"
+  default_prompt: "Use $06-scrna-preprocess-and-cluster to run one user-selected preprocessing scenario (optional cell-cycle regression or Harmony), fixed or scanned clustering resolution with clustree and stability review, and UMAP diagnostics without choosing a resolution automatically."

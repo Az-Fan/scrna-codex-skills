@@ -17,11 +17,15 @@ SPECS = {
         "required": ["project.id", "input.path", "input.format", "metadata.sample", "output_dir"],
         "artifacts": ["standardized_object", "samples_table", "cell_metadata", "field_mapping", "provenance"],
     },
-    "07-scrna-annotate-cells": {
-        "required": ["project.id", "input.object", "metadata.sample", "output_dir"],
-        "artifacts": ["cluster_markers", "annotation_review", "cluster_plot", "run_manifest"],
+    "04-scrna-apply-qc-filter": {
+        "required": ["project.id", "input.object", "input.decision_table", "metadata.sample", "decision.include_all_true", "decision.expected_retained_cells", "approval.status", "output_dir"],
+        "artifacts": ["filtered_object", "cell_filter_decisions", "sample_retention", "optional_condition_retention", "decision_reason_counts", "approval_record", "session_info", "run_manifest"],
     },
-    "06-scrna-find-cluster-markers": {
+    "08-scrna-annotate-cells": {
+        "required": ["project.id", "input.object", "metadata.sample", "workflow.action", "output_dir"],
+        "artifacts": ["cluster_markers_or_existing_marker_record", "annotation_review", "annotation_umaps", "optional_annotated_object", "annotation_tables", "run_manifest"],
+    },
+    "07-scrna-find-cluster-markers": {
         "required": ["project.id", "input.object", "output_dir"],
         "artifacts": ["cluster_markers", "top_cluster_markers", "cluster_marker_summary", "marker_dotplot", "run_manifest"],
     },
@@ -29,19 +33,23 @@ SPECS = {
         "required": ["project.id", "input.object", "metadata.sample", "metadata.batch_variables", "benchmark.methods", "metrics", "plots", "output_dir"],
         "artifacts": ["method_runs", "metric_results", "method_summary", "design_confounding", "selected_plots", "benchmark_object", "recommendation", "recommendation_status", "run_manifest"],
     },
-    "08-scrna-analyze-subset": {
+    "09-scrna-export-subset": {
         "required": ["project.id", "input.object", "metadata.sample", "metadata.cell_type", "subset.include", "output_dir"],
         "artifacts": ["subset_counts", "subset_metadata", "subset_summary", "provenance"],
     },
-    "10-scrna-run-differential-analysis": {
+    "11-scrna-run-differential-analysis": {
         "required": ["project.id", "output_dir"],
         "artifacts": ["design_audit", "task_status", "complete_results", "differential_plots", "optional_enrichment", "run_manifest"],
     },
-    "04-scrna-preprocess-and-cluster": {
+    "12-scrna-run-pathway-enrichment": {
+        "required": ["project.id", "output_dir"],
+        "artifacts": ["task_status", "complete_enrichment_results", "compact_enrichment_plots", "identifier_mapping", "run_manifest"],
+    },
+    "06-scrna-preprocess-and-cluster": {
         "required": ["project.id", "input.object", "output_dir"],
         "artifacts": ["preprocessed_clustered_object", "scenario_summary", "cell_assignments", "cluster_sizes", "resolution_stability", "workflow_state", "run_manifest"],
     },
-    "09-scrna-score-programs": {
+    "10-scrna-score-programs": {
         "required": ["project.id", "input.object", "tasks", "output_dir"],
         "artifacts": ["scored_object", "score_matrices", "signature_coverage", "assay_feature_mapping", "score_summaries", "diagnostic_plots", "run_manifest"],
     },
@@ -49,26 +57,30 @@ SPECS = {
 
 DRIVERS = {
     "01-scrna-standardize-input": "standardize_input.R",
-    "07-scrna-annotate-cells": "annotate_cells.R",
-    "06-scrna-find-cluster-markers": "find_cluster_markers.R",
+    "04-scrna-apply-qc-filter": "apply_qc_filter.R",
+    "08-scrna-annotate-cells": "annotate_cells.R",
+    "07-scrna-find-cluster-markers": "find_cluster_markers.R",
     "05-scrna-benchmark-integration": "integration_benchmark.R",
-    "08-scrna-analyze-subset": "analyze_subset.R",
-    "10-scrna-run-differential-analysis": "differential_analysis.R",
-    "09-scrna-score-programs": "score_programs.R",
-    "04-scrna-preprocess-and-cluster": "preprocess_cluster.R",
+    "09-scrna-export-subset": "analyze_subset.R",
+    "11-scrna-run-differential-analysis": "differential_analysis.R",
+    "12-scrna-run-pathway-enrichment": "differential_analysis.R",
+    "10-scrna-score-programs": "score_programs.R",
+    "06-scrna-preprocess-and-cluster": "preprocess_cluster.R",
 }
 
 ENV_PROFILES = {
     "02-scrna-calculate-qc-metrics": "01-scrna-qc",
     "03-scrna-review-qc": "01-scrna-qc",
     "01-scrna-standardize-input": "01-scrna-qc",
-    "07-scrna-annotate-cells": "02-annotation",
-    "06-scrna-find-cluster-markers": "02-annotation",
+    "04-scrna-apply-qc-filter": "01-scrna-qc",
+    "08-scrna-annotate-cells": "02-annotation",
+    "07-scrna-find-cluster-markers": "02-annotation",
     "05-scrna-benchmark-integration": "03-integration",
-    "08-scrna-analyze-subset": "02-annotation",
-    "10-scrna-run-differential-analysis": "06-deg-analysis",
-    "04-scrna-preprocess-and-cluster": "03-integration",
-    "09-scrna-score-programs": "05-pathway_program",
+    "09-scrna-export-subset": "02-annotation",
+    "11-scrna-run-differential-analysis": "06-deg-analysis",
+    "12-scrna-run-pathway-enrichment": "06-deg-analysis",
+    "06-scrna-preprocess-and-cluster": "03-integration",
+    "10-scrna-score-programs": "05-pathway_program",
 }
 
 
@@ -114,7 +126,7 @@ def default_argv(skill, config_path, config):
 
 
 def expected_artifacts(skill, config):
-    if skill != "04-scrna-preprocess-and-cluster":
+    if skill != "06-scrna-preprocess-and-cluster":
         return SPECS[skill]["artifacts"]
     action = nested_get(config, "workflow.action") or "run"
     if action == "finalize_resolution":
@@ -148,7 +160,9 @@ def validate(skill, config, config_path):
             errors.append(f"missing required field: {field}")
     stage = nested_get(config, "analysis.stage") or "differential"
     source = nested_get(config, "input.object") or nested_get(config, "input.differential_table") or nested_get(config, "enrichment.input_results") or nested_get(config, "input.path")
-    if skill == "10-scrna-run-differential-analysis":
+    if skill in {"11-scrna-run-differential-analysis", "12-scrna-run-pathway-enrichment"}:
+        if skill == "12-scrna-run-pathway-enrichment" and stage != "enrichment_only":
+            errors.append("12-scrna-run-pathway-enrichment requires analysis.stage=enrichment_only")
         if stage == "enrichment_only":
             tables = nested_get(config, "input.differential_tables")
             if not source and not tables:
@@ -164,7 +178,38 @@ def validate(skill, config, config_path):
             for field in ("input.object", "metadata.sample", "metadata.condition"):
                 if is_blank(nested_get(config, field)):
                     errors.append(f"missing required field: {field}")
-    if skill == "04-scrna-preprocess-and-cluster":
+    if skill == "04-scrna-apply-qc-filter":
+        if str(nested_get(config, "approval.status") or "").lower() != "approved":
+            errors.append("approval.status must be exactly 'approved'")
+        include = nested_get(config, "decision.include_all_true")
+        if not isinstance(include, list) or not include or any(is_blank(x) for x in include):
+            errors.append("decision.include_all_true must be a non-empty array")
+        exclude = nested_get(config, "decision.exclude_any_true")
+        if exclude is not None and (not isinstance(exclude, list) or any(is_blank(x) for x in exclude)):
+            errors.append("decision.exclude_any_true must be an array")
+        expected = nested_get(config, "decision.expected_retained_cells")
+        if not isinstance(expected, int) or isinstance(expected, bool) or expected < 1:
+            errors.append("decision.expected_retained_cells must be a positive integer")
+        decision_table = nested_get(config, "input.decision_table")
+        if decision_table and not Path(os.path.expandvars(os.path.expanduser(str(decision_table)))).exists():
+            errors.append(f"decision table does not exist in this execution context: {decision_table}")
+        object_name = str(nested_get(config, "output.object_name") or "filtered_object.qs")
+        if not object_name.lower().endswith((".qs", ".rds")):
+            errors.append("output.object_name must end in .qs or .rds")
+    if skill == "08-scrna-annotate-cells":
+        action = str(nested_get(config, "workflow.action") or "")
+        if action not in {"prepare_review", "apply_confirmed"}:
+            errors.append("workflow.action must be prepare_review or apply_confirmed")
+        if action == "prepare_review" and is_blank(nested_get(config, "metadata.cluster")) and nested_get(config, "clustering.compute_if_missing") is not True:
+            errors.append("prepare_review requires metadata.cluster or clustering.compute_if_missing=true")
+        if action == "apply_confirmed":
+            for field in ("input.decisions", "metadata.reduction", "annotation.broad_column", "annotation.fine_column"):
+                if is_blank(nested_get(config, field)):
+                    errors.append(f"apply_confirmed requires {field}")
+            decisions = nested_get(config, "input.decisions")
+            if decisions and not Path(os.path.expandvars(os.path.expanduser(str(decisions)))).exists():
+                errors.append(f"annotation decisions do not exist in this execution context: {decisions}")
+    if skill == "06-scrna-preprocess-and-cluster":
         action = nested_get(config, "workflow.action") or "run"
         qc_status = str(nested_get(config, "input.qc_status") or "").lower()
         if qc_status not in {"filtered", "unfiltered"}:
@@ -200,7 +245,7 @@ def validate(skill, config, config_path):
         path = Path(os.path.expandvars(os.path.expanduser(str(source))))
         if not path.exists():
             errors.append(f"input does not exist in this execution context: {path}")
-    if skill == "10-scrna-run-differential-analysis" and stage != "enrichment_only":
+    if skill == "11-scrna-run-differential-analysis" and stage != "enrichment_only":
         comparisons = config.get("comparisons")
         if comparisons is None:
             comparison = config.get("comparison")
@@ -213,7 +258,7 @@ def validate(skill, config, config_path):
                     errors.append(f"comparison {index + 1} requires numerator and denominator")
                 elif comparison["numerator"] == comparison["denominator"]:
                     errors.append(f"comparison {index + 1} numerator and denominator must differ")
-    if skill == "09-scrna-score-programs":
+    if skill == "10-scrna-score-programs":
         tasks = config.get("tasks")
         if not isinstance(tasks, list) or not tasks:
             errors.append("tasks must be a non-empty JSON array")
@@ -359,7 +404,7 @@ def main(skill):
     errors, warnings = validate(skill, config, args.config)
     manifest = make_manifest(skill, config, args.config, errors, warnings)
     action_suffix = ""
-    if skill == "04-scrna-preprocess-and-cluster":
+    if skill == "06-scrna-preprocess-and-cluster":
         action = nested_get(config, "workflow.action") or "run"
         action_suffix = ".finalize" if action == "finalize_resolution" else ".scan"
     manifest_path = args.manifest or args.config.with_name(f"{skill}{action_suffix}.manifest.json")
@@ -389,7 +434,9 @@ def main(skill):
     command = [executable] + [str(x) for x in argv[1:]]
     with log_path.open("a", encoding="utf-8") as log:
         log.write(f"[{started}] START {' '.join(command)}\n")
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+        child_env = os.environ.copy()
+        child_env["SCRNA_ACTIVE_SKILL"] = skill
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, env=child_env)
         assert process.stdout is not None
         for line in process.stdout:
             sys.stdout.write(line)

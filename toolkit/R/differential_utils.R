@@ -98,7 +98,8 @@ run_enrichment_only_workflow <- function(config) {
   artifacts <- file.path(out, "task_status.tsv")
   if (length(enriched)) { combined <- rbind_fill(enriched); write_tsv(combined, file.path(out, "enrichment_all_comparisons.tsv")); artifacts <- c(artifacts, file.path(out, "enrichment_all_comparisons.tsv")) }
   writeLines(capture.output(sessionInfo()), file.path(out, "sessionInfo.txt")); artifacts <- c(artifacts, file.path(out, "sessionInfo.txt"))
-  write_run_manifest(config, "10-scrna-run-differential-analysis", out, artifacts, c("stage=enrichment_only", "Differential input tables were not modified"))
+  active_skill <- Sys.getenv("SCRNA_ACTIVE_SKILL", unset = "11-scrna-run-differential-analysis")
+  write_run_manifest(config, active_skill, out, artifacts, c("stage=enrichment_only", "Differential input tables were not modified"))
   if (!any(status$status %in% c("completed", "partial", "empty"))) stop("No table enrichment task completed; inspect task_status.tsv")
 }
 
@@ -410,11 +411,8 @@ plot_enrichment_summary <- function(x, out, config) {
   if (!requireNamespace("ggplot2", quietly = TRUE) || !nrow(x)) return(invisible(NULL))
   padj_col <- intersect(c("p.adjust", "pvalue"), names(x))[1]; if (is.na(padj_col)) return(invisible(NULL))
   label_width <- as.integer(cfg_get(config, "enrichment.plot_label_width", 55))
-  trim_label <- function(value) {
-    value <- as.character(value)
-    ifelse(nchar(value) > label_width, paste0(substr(value, 1, label_width - 1L), "…"), value)
-  }
-  x$plot_score <- -log10(pmax(x[[padj_col]], .Machine$double.xmin)); x$label <- trim_label(x$Description)
+  wrap_label <- function(value) vapply(as.character(value), function(item) paste(strwrap(item, width = label_width), collapse = "\n"), character(1))
+  x$plot_score <- -log10(pmax(x[[padj_col]], .Machine$double.xmin)); x$label <- wrap_label(x$Description)
   split_key <- interaction(x$database, x$method, x$direction, drop = TRUE)
   top_n <- as.integer(cfg_get(config, "enrichment.plot_top_terms", 10)); keep <- unlist(lapply(split(seq_len(nrow(x)), split_key), function(i) head(i[order(x[[padj_col]][i])], top_n)))
   d <- x[unique(keep), , drop = FALSE]
@@ -429,29 +427,41 @@ plot_enrichment_summary <- function(x, out, config) {
     ggplot2::labs(title = paste0("Enrichment overview: top ", overview_n, " terms per direction"), x = "-log10 adjusted P", y = NULL)
   ggplot2::ggsave(file.path(out, "enrichment_dotplot_overview.pdf"), p, width = 13, height = 9, limitsize = FALSE)
 
+  terms_per_page <- as.integer(cfg_get(config, "enrichment.plot_terms_per_page", 20))
+  if (is.na(terms_per_page) || terms_per_page < 4L) terms_per_page <- 20L
   detail_key <- interaction(d$database, d$method, drop = TRUE)
   for (idx in split(seq_len(nrow(d)), detail_key)) {
-    z <- d[idx, , drop = FALSE]
-    database <- as.character(z$database[[1]]); method <- as.character(z$method[[1]])
-    q <- ggplot2::ggplot(z, ggplot2::aes(plot_score, stats::reorder(label, plot_score), color = direction)) +
-      ggplot2::geom_point(size = 2.2) +
-      ggplot2::facet_wrap(~direction, scales = "free_y", ncol = 2) +
-      ggplot2::theme_bw(base_size = 10) +
-      ggplot2::theme(axis.text.y = ggplot2::element_text(size = 8), legend.position = "none") +
-      ggplot2::labs(title = paste(database, method), subtitle = paste0("Top ", top_n, " terms per direction"), x = "-log10 adjusted P", y = NULL)
-    path <- file.path(out, paste0("enrichment_dotplot_", tolower(safe_name(database)), "_", tolower(safe_name(method)), ".pdf"))
-    ggplot2::ggsave(path, q, width = 9, height = min(10, max(4.5, .28 * nrow(z) + 2.5)), limitsize = FALSE)
+    full <- d[idx, , drop = FALSE]
+    database <- as.character(full$database[[1]]); method <- as.character(full$method[[1]])
+    pages <- split(seq_len(nrow(full)), ceiling(seq_len(nrow(full)) / terms_per_page))
+    for (page in seq_along(pages)) {
+      z <- full[pages[[page]], , drop = FALSE]
+      q <- ggplot2::ggplot(z, ggplot2::aes(plot_score, stats::reorder(label, plot_score), color = direction)) +
+        ggplot2::geom_point(size = 2.2) +
+        ggplot2::facet_wrap(~direction, scales = "free_y", ncol = 2) +
+        ggplot2::theme_bw(base_size = 10) +
+        ggplot2::theme(axis.text.y = ggplot2::element_text(size = 8), legend.position = "none") +
+        ggplot2::labs(title = paste(database, method), subtitle = paste0("Top ", top_n, " terms per direction; page ", page, "/", length(pages)), x = "-log10 adjusted P", y = NULL)
+      suffix <- if (length(pages) > 1L) paste0("_page", page) else ""
+      path <- file.path(out, paste0("enrichment_dotplot_", tolower(safe_name(database)), "_", tolower(safe_name(method)), suffix, ".pdf"))
+      ggplot2::ggsave(path, q, width = 9, height = min(10, max(4.5, .34 * nrow(z) + 2.5)), limitsize = FALSE)
+    }
   }
 
   gsea <- d[d$method == "GSEA" & "NES" %in% names(d), , drop = FALSE]
   if (nrow(gsea)) for (idx in split(seq_len(nrow(gsea)), gsea$database)) {
-    z <- gsea[idx, , drop = FALSE]; database <- as.character(z$database[[1]])
-    q <- ggplot2::ggplot(z, ggplot2::aes(NES, stats::reorder(label, NES), color = enrichment_direction)) +
-      ggplot2::geom_point(size = 2.2) + ggplot2::geom_vline(xintercept = 0, linetype = 2) +
-      ggplot2::theme_bw(base_size = 10) + ggplot2::theme(axis.text.y = ggplot2::element_text(size = 8), legend.position = "top") +
-      ggplot2::labs(title = paste(database, "GSEA"), y = NULL)
-    ggplot2::ggsave(file.path(out, paste0("gsea_nes_", tolower(safe_name(database)), ".pdf")), q,
-                    width = 9, height = min(10, max(4.5, .28 * nrow(z) + 2.5)), limitsize = FALSE)
+    full <- gsea[idx, , drop = FALSE]; database <- as.character(full$database[[1]])
+    pages <- split(seq_len(nrow(full)), ceiling(seq_len(nrow(full)) / terms_per_page))
+    for (page in seq_along(pages)) {
+      z <- full[pages[[page]], , drop = FALSE]
+      q <- ggplot2::ggplot(z, ggplot2::aes(NES, stats::reorder(label, NES), color = enrichment_direction)) +
+        ggplot2::geom_point(size = 2.2) + ggplot2::geom_vline(xintercept = 0, linetype = 2) +
+        ggplot2::theme_bw(base_size = 10) + ggplot2::theme(axis.text.y = ggplot2::element_text(size = 8), legend.position = "top") +
+        ggplot2::labs(title = paste(database, "GSEA"), subtitle = paste0("Page ", page, "/", length(pages)), y = NULL)
+      suffix <- if (length(pages) > 1L) paste0("_page", page) else ""
+      ggplot2::ggsave(file.path(out, paste0("gsea_nes_", tolower(safe_name(database)), suffix, ".pdf")), q,
+                      width = 9, height = min(10, max(4.5, .34 * nrow(z) + 2.5)), limitsize = FALSE)
+    }
   }
 }
 

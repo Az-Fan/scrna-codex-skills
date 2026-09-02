@@ -113,9 +113,9 @@ write_run_manifest <- function(config, skill, out, artifacts, notes = character(
     notes = unname(as.list(notes))
   )
   action <- cfg_get(config, "workflow.action")
-  manifest_name <- if (skill == "04-scrna-preprocess-and-cluster" && identical(action, "finalize_resolution")) {
+  manifest_name <- if (skill == "06-scrna-preprocess-and-cluster" && identical(action, "finalize_resolution")) {
     "run_manifest_finalize.json"
-  } else if (skill == "04-scrna-preprocess-and-cluster") {
+  } else if (skill == "06-scrna-preprocess-and-cluster") {
     "run_manifest_preprocess.json"
   } else {
     "run_manifest.json"

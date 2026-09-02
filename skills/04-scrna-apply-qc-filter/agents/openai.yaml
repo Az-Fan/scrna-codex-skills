@@ -1,0 +1,4 @@
+interface:
+  display_name: "Apply scRNA QC Filter"
+  short_description: "Apply approved cell-level QC decisions audibly"
+  default_prompt: "Use $04-scrna-apply-qc-filter to apply my approved cell-level QC decision table without inventing thresholds."

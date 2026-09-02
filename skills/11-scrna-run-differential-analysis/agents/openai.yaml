@@ -1,0 +1,4 @@
+interface:
+  display_name: "10 scRNA Differential Analysis"
+  short_description: "Run batch pseudobulk DE and enrichment"
+  default_prompt: "Use $11-scrna-run-differential-analysis to run sample-aware differential expression with complete auditable results."

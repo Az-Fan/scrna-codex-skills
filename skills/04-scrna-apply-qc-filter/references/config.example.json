@@ -1,0 +1,24 @@
+{
+  "project": {"id": "project_id"},
+  "input": {
+    "object": "/path/to/reviewed_object.qs",
+    "decision_table": "/path/to/cell_qc_decisions.tsv.gz",
+    "assay": "RNA"
+  },
+  "metadata": {"sample": "sample_id", "condition": "condition"},
+  "decision": {
+    "cell_id_column": "cell_id",
+    "include_all_true": ["is_target_scope", "passes_core_qc"],
+    "exclude_any_true": ["flag_ambient_severe"],
+    "reason_column": "candidate_qc_decision_reason",
+    "expected_retained_cells": 1000,
+    "carry_columns": ["passes_core_qc", "flag_ambient_severe"]
+  },
+  "approval": {
+    "status": "approved",
+    "approved_at": "2026-01-01",
+    "note": "Approved after sample-aware QC review"
+  },
+  "output": {"object_name": "filtered_object.qs"},
+  "output_dir": "/path/to/results/04_qc_filter"
+}

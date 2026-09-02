@@ -1,0 +1,22 @@
+{
+  "project": {"id": "project_id"},
+  "input": {"differential_table": "/path/to/all_comparisons.tsv"},
+  "analysis": {"stage": "enrichment_only", "padj_threshold": 0.05, "lfc_threshold": 0.25},
+  "enrichment": {
+    "enabled": true,
+    "species": "mouse",
+    "gene_id_type": "SYMBOL",
+    "databases": ["GO_BP", "GO_MF", "GO_CC", "KEGG", "REACTOME", "HALLMARK"],
+    "table_columns": {
+      "gene": "gene", "log2fc": "log2FoldChange", "pvalue": "pvalue",
+      "padj": "padj", "stat": "stat", "population": "population", "comparison": "comparison_id"
+    },
+    "min_input_genes": 5,
+    "min_gene_set_size": 10,
+    "max_gene_set_size": 500,
+    "plot_top_terms": 15,
+    "plot_label_width": 42,
+    "plot_terms_per_page": 20
+  },
+  "output_dir": "/path/to/results/12_enrichment"
+}

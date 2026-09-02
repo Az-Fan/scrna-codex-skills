@@ -1,0 +1,22 @@
+{
+  "project": {"id": "project_id"},
+  "workflow": {"action": "apply_confirmed"},
+  "input": {
+    "object": "/path/to/clustered_object.qs",
+    "decisions": "/path/to/confirmed_annotation_decisions.tsv"
+  },
+  "metadata": {
+    "sample": "sample_id",
+    "condition": "condition",
+    "cluster": "confirmed_clusters",
+    "reduction": "confirmed_umap"
+  },
+  "annotation": {
+    "broad_column": "annotation_broad",
+    "fine_column": "annotation_fine",
+    "state_column": "annotation_state",
+    "decision_column": "decision",
+    "confirmed_values": ["confirmed"]
+  },
+  "output_dir": "/path/to/results/08_annotation"
+}

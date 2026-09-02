@@ -143,7 +143,7 @@ if (action == "finalize_resolution") {
                 confirmed_resolution = resolution, source_column = candidate_col,
                 qc_status = qc_status, analysis_label = analysis_label)
   jsonlite::write_json(state, file.path(out, "workflow_state.json"), auto_unbox = TRUE, pretty = TRUE)
-  write_run_manifest(config, "04-scrna-preprocess-and-cluster", out,
+  write_run_manifest(config, "06-scrna-preprocess-and-cluster", out,
                      c(object_file, cell_file, cluster_artifacts, summary_file, session_file,
                        file.path(out, "workflow_state.json")),
                      notes = c(paste0("Confirmed resolution ", resolution, " for scenario ", nm),
@@ -455,7 +455,7 @@ state <- list(status = state_status, action = action, scenarios = state_scenario
               next_action = if (state_status == "awaiting_resolution_confirmation") "Review resolution plots and run finalize_resolution" else "none")
 jsonlite::write_json(state, file.path(out, "workflow_state.json"), auto_unbox = TRUE, pretty = TRUE)
 artifacts <- unique(c(artifacts, file.path(out, "workflow_state.json")))
-write_run_manifest(config, "04-scrna-preprocess-and-cluster", out, artifacts,
+write_run_manifest(config, "06-scrna-preprocess-and-cluster", out, artifacts,
                    notes = c(
                      paste0(length(scenarios), " user-selected scenario(s) executed"),
                      "No additional scenario was inserted or selected automatically",
