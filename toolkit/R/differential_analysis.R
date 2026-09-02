@@ -87,7 +87,7 @@ for (population in populations) for (comparison in comparisons) {
     }
     all_results[[task_id]] <- result
     if (!is.null(enr) && nrow(enr)) enrichment_rows[[task_id]] <- enr
-    enrichment_status <- if (is.null(enr)) "not_requested" else if (nrow(enr)) "completed" else "empty_or_failed"
+    enrichment_status <- if (is.null(enr)) "not_requested" else summarize_enrichment_status(task_dir)
     data.frame(task_id, population, comparison_id = comparison$id, status = "completed", enrichment_status, message = "", n_genes = nrow(result), stringsAsFactors = FALSE)
   }, error = function(e) {
     writeLines(conditionMessage(e), file.path(task_dir, "ERROR.txt"))

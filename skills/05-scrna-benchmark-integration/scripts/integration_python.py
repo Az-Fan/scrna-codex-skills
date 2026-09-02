@@ -251,6 +251,36 @@ def summarize(metrics, config):
     return summary, ranking
 
 
+def recommendation_status(metrics, ranking, confounding, config):
+    """Return a machine-readable decision state; never infer a winner from partial evidence."""
+    requested = list(config["metrics"].get("batch_removal", [])) + list(
+        config["metrics"].get("biological_conservation", [])
+    )
+    reasons = []
+    if requested and metrics[metrics["status"] == "completed"].empty:
+        reasons.append("no_requested_metric_completed")
+    if ranking.empty:
+        reasons.append("no_comparable_ranking")
+    if not confounding.empty and confounding["perfect_confounding"].fillna(False).any():
+        reasons.append("batch_condition_perfectly_confounded")
+    state = "resolved" if not reasons else "unresolved"
+    recommended = None
+    if state == "resolved" and not ranking.empty:
+        candidates = ranking[ranking["pareto_efficient"]]
+        if len(candidates) == 1:
+            recommended = str(candidates.iloc[0]["scenario"])
+        else:
+            state = "review_required"
+            reasons.append("multiple_pareto_efficient_scenarios")
+    return {
+        "status": state,
+        "recommended_scenario": recommended,
+        "reasons": reasons,
+        "requested_metric_count": len(requested),
+        "completed_metric_rows": int((metrics["status"] == "completed").sum()) if not metrics.empty else 0,
+    }
+
+
 def make_plots(adata, runs, metrics, summary, config, output, seed):
     import matplotlib.pyplot as plt
     import scanpy as sc
@@ -334,21 +364,27 @@ def main():
     labels = config["metadata"].get("biological_labels", []); primary_label = labels[0] if labels else None
     runs.extend(train_python_methods(adata, scenarios, primary_batch, primary_label, seed))
     pd.DataFrame(runs).to_csv(output / "method_runs.tsv", sep="\t", index=False)
-    confounding_table(adata.obs, config["metadata"]["batch_variables"], config["metadata"].get("condition")).to_csv(output / "design_confounding.tsv", sep="\t", index=False)
+    confounding = confounding_table(adata.obs, config["metadata"]["batch_variables"], config["metadata"].get("condition"))
+    confounding.to_csv(output / "design_confounding.tsv", sep="\t", index=False)
     metrics = benchmark_metrics(adata, runs, config, output)
     metrics.to_csv(output / "metric_results_long.tsv", sep="\t", index=False)
     metrics[metrics.status != "completed"].to_csv(output / "skipped_metrics.tsv", sep="\t", index=False)
     summary, ranking = summarize(metrics, config); summary.to_csv(output / "method_summary.tsv", sep="\t", index=False); ranking.to_csv(output / "method_ranking.tsv", sep="\t", index=False)
+    decision = recommendation_status(metrics, ranking, confounding, config)
+    (output / "recommendation_status.json").write_text(json.dumps(decision, indent=2) + "\n", encoding="utf-8")
     make_plots(adata, runs, metrics, summary, config, output, seed)
     adata.write_h5ad(output / "benchmark_embeddings.h5ad", compression="gzip")
     lines = ["# Integration benchmark recommendation", "", "Do not select a method from UMAP alone.", ""]
-    if not ranking.empty:
+    lines += ["Decision status: **{}**".format(decision["status"]), ""]
+    if decision["reasons"]:
+        lines += ["Reasons: " + ", ".join(decision["reasons"]), ""]
+    if decision["status"] == "resolved" and not ranking.empty:
         try:
             ranking_text = ranking.to_markdown(index=False)
         except ImportError:
             ranking_text = "```text\n" + ranking.to_csv(sep="\t", index=False) + "```"
         lines += ["Pareto-efficient scenarios: " + ", ".join(ranking.loc[ranking.pareto_efficient, "scenario"].astype(str)), "", ranking_text]
-    else: lines.append("No complete comparable metric set was available; inspect method and skipped-metric tables.")
+    else: lines.append("No integration method is recommended. Resolve the recorded dependency, metric, or design limitation before selecting a correction scenario.")
     (output / "recommendation.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 

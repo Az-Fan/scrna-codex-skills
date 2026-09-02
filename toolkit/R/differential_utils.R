@@ -90,7 +90,8 @@ run_enrichment_only_workflow <- function(config) {
       writeLines(conditionMessage(ans), file.path(task_dir, "ENRICHMENT_ERROR.txt")); statuses[[i]] <- data.frame(task_id = task$id, population = task$population, comparison_id = task$comparison$id, status = "failed", message = conditionMessage(ans), n_genes = nrow(task$result), source = task$source, stringsAsFactors = FALSE)
     } else {
       if (nrow(ans)) enriched[[task$id]] <- ans
-      statuses[[i]] <- data.frame(task_id = task$id, population = task$population, comparison_id = task$comparison$id, status = if (nrow(ans)) "completed" else "empty", message = "", n_genes = nrow(task$result), source = task$source, stringsAsFactors = FALSE)
+      enrichment_state <- summarize_enrichment_status(task_dir)
+      statuses[[i]] <- data.frame(task_id = task$id, population = task$population, comparison_id = task$comparison$id, status = enrichment_state, message = "", n_genes = nrow(task$result), source = task$source, stringsAsFactors = FALSE)
     }
   }
   status <- do.call(rbind, statuses); write_tsv(status, file.path(out, "task_status.tsv"))
@@ -98,7 +99,7 @@ run_enrichment_only_workflow <- function(config) {
   if (length(enriched)) { combined <- rbind_fill(enriched); write_tsv(combined, file.path(out, "enrichment_all_comparisons.tsv")); artifacts <- c(artifacts, file.path(out, "enrichment_all_comparisons.tsv")) }
   writeLines(capture.output(sessionInfo()), file.path(out, "sessionInfo.txt")); artifacts <- c(artifacts, file.path(out, "sessionInfo.txt"))
   write_run_manifest(config, "10-scrna-run-differential-analysis", out, artifacts, c("stage=enrichment_only", "Differential input tables were not modified"))
-  if (!any(status$status %in% c("completed", "empty"))) stop("No table enrichment task completed; inspect task_status.tsv")
+  if (!any(status$status %in% c("completed", "partial", "empty"))) stop("No table enrichment task completed; inspect task_status.tsv")
 }
 
 normalize_comparisons <- function(config) {
@@ -180,14 +181,54 @@ run_pseudobulk <- function(obj, meta, assay, sample_col, condition_col, covariat
   if (qr(mm_design)$rank < ncol(mm_design)) stop("Design matrix is rank deficient")
   dds <- DESeq2::DESeqDataSetFromMatrix(as.matrix(pb), coldata, design)
   dds <- DESeq2::DESeq(dds, quiet = TRUE)
-  res <- DESeq2::results(dds, contrast = c(condition_col, comparison$numerator, comparison$denominator), independentFiltering = TRUE)
-  if (isTRUE(cfg_get(config, "analysis.lfc_shrink", TRUE))) {
-    if (!requireNamespace("apeglm", quietly = TRUE)) warning("lfc_shrink was requested but apeglm is unavailable; retaining unshrunk DESeq2 effect sizes") else {
+  raw_res <- DESeq2::results(dds, contrast = c(condition_col, comparison$numerator, comparison$denominator), independentFiltering = TRUE)
+  res <- raw_res
+  shrink_requested <- isTRUE(cfg_get(config, "analysis.lfc_shrink", TRUE))
+  allow_unshrunk <- isTRUE(cfg_get(config, "analysis.allow_unshrunk_lfc", FALSE))
+  shrink_applied <- FALSE
+  shrink_status <- if (shrink_requested) "requested" else "not_requested"
+  shrink_reason <- ""
+  if (shrink_requested) {
+    if (!requireNamespace("apeglm", quietly = TRUE)) {
+      shrink_status <- "missing_dependency"
+      shrink_reason <- "Package 'apeglm' is unavailable"
+      if (!allow_unshrunk) {
+        stop("lfc_shrink=true requires package 'apeglm'; install it or explicitly set analysis.allow_unshrunk_lfc=true")
+      }
+      warning(shrink_reason, "; explicit analysis.allow_unshrunk_lfc=true permits unshrunk DESeq2 effect sizes")
+    } else {
       coef_name <- grep(paste0("^", condition_col, "_", comparison$numerator, "_vs_", comparison$denominator, "$"), DESeq2::resultsNames(dds), value = TRUE)
-      if (length(coef_name) == 1L) res <- DESeq2::lfcShrink(dds, coef = coef_name, type = "apeglm") else warning("Could not identify one DESeq2 coefficient for apeglm shrinkage; retaining unshrunk effect sizes")
+      if (length(coef_name) != 1L) {
+        shrink_status <- "coefficient_not_identified"
+        shrink_reason <- "Could not identify exactly one DESeq2 coefficient for apeglm shrinkage"
+        if (!allow_unshrunk) stop(shrink_reason, "; set analysis.allow_unshrunk_lfc=true only if the fallback is intentional")
+        warning(shrink_reason, "; explicit analysis.allow_unshrunk_lfc=true permits unshrunk DESeq2 effect sizes")
+      } else {
+        shrunken <- DESeq2::lfcShrink(dds, coef = coef_name, type = "apeglm")
+        res$log2FoldChange <- shrunken$log2FoldChange
+        res$lfcSE <- shrunken$lfcSE
+        shrink_applied <- TRUE
+        shrink_status <- "applied"
+      }
     }
   }
+  shrink_audit <- data.frame(
+    requested = shrink_requested,
+    applied = shrink_applied,
+    method = if (shrink_applied) "apeglm" else "none",
+    inferential_statistics_source = "unshrunk_DESeq2_Wald",
+    status = shrink_status,
+    reason = shrink_reason,
+    allow_unshrunk_lfc = allow_unshrunk,
+    stringsAsFactors = FALSE
+  )
+  write_tsv(shrink_audit, file.path(task_dir, "effect_size_audit.tsv"))
   out <- as.data.frame(res); out$gene <- rownames(out)
+  out$lfc_shrink_requested <- shrink_requested
+  out$lfc_shrink_applied <- shrink_applied
+  out$lfc_shrink_method <- if (shrink_applied) "apeglm" else "none"
+  out$lfc_shrink_status <- shrink_status
+  out$inferential_statistics_source <- "unshrunk_DESeq2_Wald"
   norm <- DESeq2::counts(dds, normalized = TRUE)
   gr <- coldata[[condition_col]]
   out$mean_numerator <- rowMeans(norm[, gr == comparison$numerator, drop = FALSE])
@@ -264,6 +305,9 @@ plot_batch_summary <- function(x, status, out) {
 run_enrichment <- function(result, out, population, comparison, config) {
   enr_dir <- file.path(out, "enrichment"); dir.create(enr_dir, recursive = TRUE, showWarnings = FALSE)
   if (!requireNamespace("clusterProfiler", quietly = TRUE)) stop("Package 'clusterProfiler' is required when enrichment is enabled")
+  if (requireNamespace("BiocParallel", quietly = TRUE)) {
+    BiocParallel::register(BiocParallel::SerialParam(), default = TRUE)
+  }
   species <- tolower(cfg_get(config, "enrichment.species", required = TRUE)); id_type <- cfg_get(config, "enrichment.gene_id_type", "SYMBOL")
   human <- species %in% c("human", "homo_sapiens", "homo sapiens")
   mouse <- species %in% c("mouse", "mus_musculus", "mus musculus")
@@ -312,14 +356,38 @@ run_enrichment <- function(result, out, population, comparison, config) {
 
   go_defs <- list(GO_BP = "BP", GO_MF = "MF", GO_CC = "CC")
   for (database in intersect(names(go_defs), requested)) run_one(database, ont = go_defs[[database]])
-  msig_defs <- list(KEGG = c("C2", "CP:KEGG"), REACTOME = c("C2", "CP:REACTOME"), HALLMARK = c("H", NA_character_))
+  msig_defs <- list(
+    KEGG = list(collection = "C2", subcollections = c("CP:KEGG_MEDICUS", "CP:KEGG_LEGACY", "CP:KEGG")),
+    REACTOME = list(collection = "C2", subcollections = "CP:REACTOME"),
+    HALLMARK = list(collection = "H", subcollections = character())
+  )
   if (length(intersect(names(msig_defs), requested)) && !requireNamespace("msigdbr", quietly = TRUE)) {
     for (database in intersect(names(msig_defs), requested)) add_status(database, "ALL", "all", "missing_dependency", 0L, 0L, "Package 'msigdbr' is unavailable")
   } else for (database in intersect(names(msig_defs), requested)) {
     def <- msig_defs[[database]]
-    msig <- tryCatch(msigdbr::msigdbr(species = msig_species, category = def[1], subcategory = if (is.na(def[2])) NULL else def[2]), error = function(e) e)
+    available <- tryCatch(msigdbr::msigdbr_collections(), error = function(e) NULL)
+    subcollections <- def$subcollections
+    if (length(subcollections) && !is.null(available)) {
+      subcollections <- intersect(subcollections, available$gs_subcollection[available$gs_collection == def$collection])
+    }
+    load_one <- function(subcollection = NULL) {
+      args <- list(species = msig_species, collection = def$collection)
+      if (!is.null(subcollection) && nzchar(subcollection)) args$subcollection <- subcollection
+      do.call(msigdbr::msigdbr, args)
+    }
+    msig <- tryCatch({
+      if (length(def$subcollections) && !length(subcollections)) {
+        stop("No supported MSigDB subcollection is available for ", database)
+      }
+      if (length(subcollections)) do.call(rbind, lapply(subcollections, load_one)) else load_one()
+    }, error = function(e) e)
     if (inherits(msig, "error")) { add_status(database, "ALL", "all", "failed", 0L, 0L, conditionMessage(msig)); next }
-    term2gene <- unique(msig[c("gs_name", "entrez_gene")]); names(term2gene) <- c("term", "gene"); term2gene$gene <- as.character(term2gene$gene)
+    gene_column <- intersect(c("ncbi_gene", "entrez_gene"), names(msig))[1]
+    if (is.na(gene_column)) {
+      add_status(database, "ALL", "all", "failed", 0L, 0L, "MSigDB result lacks an NCBI/Entrez gene column")
+      next
+    }
+    term2gene <- unique(msig[c("gs_name", gene_column)]); names(term2gene) <- c("term", "gene"); term2gene$gene <- as.character(term2gene$gene)
     if (!nrow(term2gene)) add_status(database, "ALL", "all", "empty_gene_set", 0L, 0L) else run_one(database, term2gene = term2gene)
   }
   status <- if (length(statuses)) do.call(rbind, statuses) else data.frame(); write_tsv(status, file.path(enr_dir, "enrichment_status.tsv"))
@@ -328,17 +396,63 @@ run_enrichment <- function(result, out, population, comparison, config) {
   plot_enrichment_summary(ans, enr_dir, config); ans
 }
 
+summarize_enrichment_status <- function(task_dir) {
+  path <- file.path(task_dir, "enrichment", "enrichment_status.tsv")
+  if (!file.exists(path)) return("failed")
+  status <- utils::read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
+  if (!nrow(status) || !"status" %in% names(status)) return("empty")
+  bad <- status$status %in% c("failed", "missing_dependency", "empty_gene_set")
+  usable <- status$status %in% c("completed", "empty", "skipped_too_few_genes")
+  if (any(bad) && any(usable)) "partial" else if (any(bad)) "failed" else if (any(status$status == "completed")) "completed" else "empty"
+}
+
 plot_enrichment_summary <- function(x, out, config) {
   if (!requireNamespace("ggplot2", quietly = TRUE) || !nrow(x)) return(invisible(NULL))
   padj_col <- intersect(c("p.adjust", "pvalue"), names(x))[1]; if (is.na(padj_col)) return(invisible(NULL))
-  x$plot_score <- -log10(pmax(x[[padj_col]], .Machine$double.xmin)); x$label <- x$Description
+  label_width <- as.integer(cfg_get(config, "enrichment.plot_label_width", 55))
+  trim_label <- function(value) {
+    value <- as.character(value)
+    ifelse(nchar(value) > label_width, paste0(substr(value, 1, label_width - 1L), "…"), value)
+  }
+  x$plot_score <- -log10(pmax(x[[padj_col]], .Machine$double.xmin)); x$label <- trim_label(x$Description)
   split_key <- interaction(x$database, x$method, x$direction, drop = TRUE)
   top_n <- as.integer(cfg_get(config, "enrichment.plot_top_terms", 10)); keep <- unlist(lapply(split(seq_len(nrow(x)), split_key), function(i) head(i[order(x[[padj_col]][i])], top_n)))
   d <- x[unique(keep), , drop = FALSE]
-  p <- ggplot2::ggplot(d, ggplot2::aes(plot_score, stats::reorder(label, plot_score), color = database)) + ggplot2::geom_point(size = 2) + ggplot2::facet_grid(method + direction ~ database, scales = "free_y", space = "free_y") + ggplot2::theme_bw() + ggplot2::labs(x = "-log10 adjusted P", y = NULL)
-  ggplot2::ggsave(file.path(out, "enrichment_dotplot.pdf"), p, width = 14, height = max(8, nrow(d) * .12 + 3), limitsize = FALSE)
+  overview_n <- min(3L, top_n)
+  overview_keep <- unlist(lapply(split(seq_len(nrow(x)), split_key), function(i) head(i[order(x[[padj_col]][i])], overview_n)))
+  overview <- x[unique(overview_keep), , drop = FALSE]
+  p <- ggplot2::ggplot(overview, ggplot2::aes(plot_score, stats::reorder(label, plot_score), color = direction)) +
+    ggplot2::geom_point(size = 2) +
+    ggplot2::facet_grid(method ~ database, scales = "free_y", space = "free_y") +
+    ggplot2::theme_bw(base_size = 9) +
+    ggplot2::theme(axis.text.y = ggplot2::element_text(size = 7), legend.position = "top") +
+    ggplot2::labs(title = paste0("Enrichment overview: top ", overview_n, " terms per direction"), x = "-log10 adjusted P", y = NULL)
+  ggplot2::ggsave(file.path(out, "enrichment_dotplot_overview.pdf"), p, width = 13, height = 9, limitsize = FALSE)
+
+  detail_key <- interaction(d$database, d$method, drop = TRUE)
+  for (idx in split(seq_len(nrow(d)), detail_key)) {
+    z <- d[idx, , drop = FALSE]
+    database <- as.character(z$database[[1]]); method <- as.character(z$method[[1]])
+    q <- ggplot2::ggplot(z, ggplot2::aes(plot_score, stats::reorder(label, plot_score), color = direction)) +
+      ggplot2::geom_point(size = 2.2) +
+      ggplot2::facet_wrap(~direction, scales = "free_y", ncol = 2) +
+      ggplot2::theme_bw(base_size = 10) +
+      ggplot2::theme(axis.text.y = ggplot2::element_text(size = 8), legend.position = "none") +
+      ggplot2::labs(title = paste(database, method), subtitle = paste0("Top ", top_n, " terms per direction"), x = "-log10 adjusted P", y = NULL)
+    path <- file.path(out, paste0("enrichment_dotplot_", tolower(safe_name(database)), "_", tolower(safe_name(method)), ".pdf"))
+    ggplot2::ggsave(path, q, width = 9, height = min(10, max(4.5, .28 * nrow(z) + 2.5)), limitsize = FALSE)
+  }
+
   gsea <- d[d$method == "GSEA" & "NES" %in% names(d), , drop = FALSE]
-  if (nrow(gsea)) { q <- ggplot2::ggplot(gsea, ggplot2::aes(NES, stats::reorder(label, NES), color = database)) + ggplot2::geom_point(size = 2) + ggplot2::facet_wrap(~database, scales = "free_y") + ggplot2::geom_vline(xintercept = 0, linetype = 2) + ggplot2::theme_bw() + ggplot2::labs(y = NULL); ggplot2::ggsave(file.path(out, "gsea_NES_dotplot.pdf"), q, width = 12, height = max(7, nrow(gsea) * .12 + 3), limitsize = FALSE) }
+  if (nrow(gsea)) for (idx in split(seq_len(nrow(gsea)), gsea$database)) {
+    z <- gsea[idx, , drop = FALSE]; database <- as.character(z$database[[1]])
+    q <- ggplot2::ggplot(z, ggplot2::aes(NES, stats::reorder(label, NES), color = enrichment_direction)) +
+      ggplot2::geom_point(size = 2.2) + ggplot2::geom_vline(xintercept = 0, linetype = 2) +
+      ggplot2::theme_bw(base_size = 10) + ggplot2::theme(axis.text.y = ggplot2::element_text(size = 8), legend.position = "top") +
+      ggplot2::labs(title = paste(database, "GSEA"), y = NULL)
+    ggplot2::ggsave(file.path(out, paste0("gsea_nes_", tolower(safe_name(database)), ".pdf")), q,
+                    width = 9, height = min(10, max(4.5, .28 * nrow(z) + 2.5)), limitsize = FALSE)
+  }
 }
 
 classify_failure <- function(x) {

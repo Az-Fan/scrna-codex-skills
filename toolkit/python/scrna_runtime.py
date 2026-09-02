@@ -27,7 +27,7 @@ SPECS = {
     },
     "05-scrna-benchmark-integration": {
         "required": ["project.id", "input.object", "metadata.sample", "metadata.batch_variables", "benchmark.methods", "metrics", "plots", "output_dir"],
-        "artifacts": ["method_runs", "metric_results", "method_summary", "design_confounding", "selected_plots", "benchmark_object", "recommendation", "run_manifest"],
+        "artifacts": ["method_runs", "metric_results", "method_summary", "design_confounding", "selected_plots", "benchmark_object", "recommendation", "recommendation_status", "run_manifest"],
     },
     "08-scrna-analyze-subset": {
         "required": ["project.id", "input.object", "metadata.sample", "metadata.cell_type", "subset.include", "output_dir"],

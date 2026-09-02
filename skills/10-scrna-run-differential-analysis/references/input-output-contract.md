@@ -20,12 +20,12 @@ Write root-level `design_audit.tsv`, `task_status.tsv`, `all_comparisons.tsv`, `
 
 For every `population × comparison`, write a directory below `comparisons/` containing:
 
-- `sample_cell_counts.tsv` and, for pseudobulk, `sample_design.tsv` and `pseudobulk_data.rds`.
+- `sample_cell_counts.tsv` and, for pseudobulk, `sample_design.tsv`, `effect_size_audit.tsv`, and `pseudobulk_data.rds`.
 - `all_genes.tsv`, `significant_genes.tsv`, `upregulated_genes.tsv`, and `downregulated_genes.tsv`.
 - `volcano.pdf`, optional `MA_plot.pdf`, and pseudobulk `pseudobulk_PCA.pdf` and `top_DE_heatmap.pdf`.
 - Optional `enrichment/` identifier mapping, database-level status audit, full GO-BP/MF/CC, KEGG, Reactome, and Hallmark ORA/GSEA tables, and summary plots.
 - `ERROR.txt` when that task cannot run.
 
-`task_status.tsv` uses `completed`, `skipped_low_replicates`, `invalid_design`, `missing_dependency`, or `failed`. One failed task does not stop the batch.
+DE `task_status.tsv` uses `completed`, `skipped_low_replicates`, `invalid_design`, `missing_dependency`, or `failed`; its `enrichment_status` records `completed`, `partial`, `empty`, `failed`, or `not_requested`. Enrichment-only task status also permits `partial` when at least one requested database succeeds and another fails. One failed population does not discard successful populations.
 
 The complete table includes comparison direction, raw and adjusted P values, effect size, `direction`, `significance`, `tested`, `filter_reason`, method, inference level, and cell/sample counts. `Not_tested` usually reflects independent filtering or an unavailable P value.
