@@ -8,7 +8,7 @@ read_skill_config <- function(path) {
   if (!requireNamespace("jsonlite", quietly = TRUE)) stop("Package 'jsonlite' is required")
   config <- jsonlite::fromJSON(path, simplifyVector = FALSE)
   config_path <- normalizePath(path, mustWork = TRUE)
-  input <- config$input$object %||% config$input$path
+  input <- config$input$object %||% config$input$counts_table %||% config$input$path
   attr(config, "config_path") <- config_path
   attr(config, "input_record") <- list(
     path = input,

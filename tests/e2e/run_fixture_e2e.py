@@ -33,6 +33,7 @@ SKILL_ENVS = {
     "10-scrna-score-programs": "05-pathway_program",
     "11-scrna-run-differential-analysis": "06-deg-analysis",
     "12-scrna-run-pathway-enrichment": "06-deg-analysis",
+    "13-scrna-test-cell-abundance": "07-cell-abundance",
 }
 
 EXPECTED = {
@@ -48,6 +49,7 @@ EXPECTED = {
     "10-scrna-score-programs": ["signature_coverage.tsv", "assay_feature_mapping.tsv", "score_summary.tsv", "task_manifest.json", "run_manifest.json"],
     "11-scrna-run-differential-analysis": ["design_audit.tsv", "task_status.tsv", "all_comparisons.tsv", "sessionInfo.txt", "run_manifest.json"],
     "12-scrna-run-pathway-enrichment": ["task_status.tsv", "sessionInfo.txt", "run_manifest.json"],
+    "13-scrna-test-cell-abundance": ["sample_cell_counts.tsv", "sample_cell_proportions.tsv", "design_audit.tsv", "cell_type_eligibility.tsv", "task_status.tsv", "all_method_results.tsv", "method_concordance.tsv", "sample_composition.pdf", "cell_type_proportions_by_condition.pdf", "sample_proportion_heatmap.pdf", "sessionInfo.txt", "run_manifest.json"],
 }
 
 
@@ -145,6 +147,15 @@ def main() -> int:
         "10-scrna-score-programs": {**base, "input": {"object": str(fixture), "assay": "RNA", "layer": "counts"}, "species": "mouse", "tasks": [{"name": "vascular_program", "method": "addmodulescore", "gene_sets": {"source": "inline", "sets": {"vascular": ["Kdr", "Pecam1", "Cdh5"]}}, "coverage": {"min_genes": 3, "min_fraction": 1.0, "on_insufficient": "error"}, "parameters": {"normalize_if_missing": True, "nbin": 4, "ctrl": 2}}], "summarize_by": ["sample_label", "condition", "cell_type"], "random_seed": 1, "cores": 1, "cache": {"enabled": False}, "output": {"object_format": "rds"}},
         "11-scrna-run-differential-analysis": {**base, "metadata": {"sample": "sample_label", "condition": "condition", "covariates": []}, "population": {"mode": "all", "include": [], "exclude": []}, "comparisons": [{"id": "stz_vs_control", "numerator": "stz", "denominator": "control"}], "analysis": {"stage": "differential", "method": "pseudobulk_deseq2", "assay": "RNA", "design": "~ condition", "min_cells_per_sample_population": 10, "min_samples_per_group": 2, "min_total_count": 1, "min_count_per_sample": 1, "min_samples_expressed": 2, "padj_threshold": 0.1, "lfc_threshold": 0.1, "lfc_shrink": False}, "plots": {"top_genes": 10}, "enrichment": {"enabled": False, "species": "mouse", "gene_id_type": "SYMBOL"}},
         "12-scrna-run-pathway-enrichment": {"project": {"id": "tiny_fixture_enrichment"}, "input": {"differential_table": str(output_root / "11-scrna-run-differential-analysis/all_comparisons.tsv")}, "analysis": {"stage": "enrichment_only", "padj_threshold": 1.0, "lfc_threshold": 0.0}, "enrichment": {"enabled": True, "species": "mouse", "gene_id_type": "SYMBOL", "databases": ["GO_BP"], "min_input_genes": 1, "min_gene_set_size": 1, "max_gene_set_size": 500, "plot_top_terms": 5, "plot_label_width": 30, "plot_terms_per_page": 8}},
+        "13-scrna-test-cell-abundance": {
+            "project": {"id": "tiny_fixture_abundance"},
+            "input": {"counts_table": str(repo / "tests/fixtures/cell_abundance_counts.tsv"), "count_column": "n_cells"},
+            "metadata": {"sample": "sample_label", "condition": "condition", "cell_type": "cell_type", "covariates": []},
+            "comparisons": [{"id": "case_vs_control", "numerator": "case", "denominator": "control"}],
+            "analysis": {"methods": ["propeller", "dcats"], "denominator": {"mode": "all_input_cells", "description": "All annotated fixture populations"}, "min_samples_per_group": 3, "min_cells_per_sample": 20, "fdr": 0.1, "random_seed": 13},
+            "method_options": {"propeller": {"transform": "logit", "robust": True, "trend": False}, "dcats": {"similarity_matrix": None, "reference_cell_types": []}},
+            "runtime": {"pixi_root": str(args.env_root)},
+        },
     }
 
     report = {"fixture_sha256_before": fixture_hash, "skills": {}}
@@ -275,6 +286,11 @@ def main() -> int:
                 statuses = [row["status"] for row in csv.DictReader(handle, delimiter="\t")]
             if not statuses or any(status != "completed" for status in statuses):
                 raise RuntimeError(f"{skill}: not every E2E task completed: {statuses}")
+        if skill == "13-scrna-test-cell-abundance":
+            with (out / "task_status.tsv").open(encoding="utf-8", newline="") as handle:
+                abundance_status = list(csv.DictReader(handle, delimiter="\t"))
+            if {row["method"] for row in abundance_status} != {"propeller", "dcats"} or any(row["status"] != "completed" for row in abundance_status):
+                raise RuntimeError(f"{skill}: abundance method execution mismatch: {abundance_status}")
         report["skills"][skill] = {"status": "passed", "artifacts": EXPECTED[skill]}
 
     report["fixture_sha256_after"] = sha256(fixture)

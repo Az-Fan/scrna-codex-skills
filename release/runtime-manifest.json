@@ -60,6 +60,11 @@
       "python": ["check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "validate_project.py"],
       "r": ["runtime.R", "differential_utils.R", "differential_analysis.R"],
       "references": ["compatibility.md", "enrichment-design.md", "long-running-execution.md"]
+    },
+    "13-scrna-test-cell-abundance": {
+      "python": ["check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "validate_project.py", "cell_abundance_sccoda.py"],
+      "r": ["runtime.R", "cell_abundance.R"],
+      "references": ["compatibility.md", "long-running-execution.md"]
     }
   }
 }

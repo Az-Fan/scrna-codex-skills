@@ -1,0 +1,30 @@
+{
+  "project": {"id": "project_id"},
+  "input": {"object": "path/to/annotated_object.qs", "counts_table": null, "count_column": "n_cells"},
+  "metadata": {"sample": "sample_id", "condition": "condition", "cell_type": "annotation_fine", "covariates": []},
+  "comparisons": [{"id": "pah_vs_control", "numerator": "pah", "denominator": "control"}],
+  "analysis": {
+    "methods": ["sccomp", "propeller", "sccoda"],
+    "denominator": {
+      "mode": "selected_cell_types",
+      "include": ["Arterial_EC", "Venous_EC", "Capillary_EC_general", "Capillary_EC_aerocyte"],
+      "description": "Relative abundance among confirmed vascular endothelial cells"
+    },
+    "min_samples_per_group": 3,
+    "min_cells_per_sample": 20,
+    "fdr": 0.05,
+    "random_seed": 154959
+  },
+  "method_options": {
+    "propeller": {"transform": "logit", "robust": true, "trend": false},
+    "sccomp": {"inference_method": "pathfinder", "minimum_logit_effect": 0.1, "max_sampling_iterations": 20000, "cores": 1, "save_fit": false},
+    "sccoda": {"reference_cell_types": ["automatic"], "reference_sensitivity": true, "sensitivity_reference_count": 2, "automatic_reference_absence_threshold": 0.05, "num_warmup": 1000, "num_samples": 10000, "save_posterior": false},
+    "dcats": {"similarity_matrix": null, "reference_cell_types": []},
+    "milo": {"reduction": "pca", "k": 21, "d": 30, "prop": 0.1, "fdr_weighting": "graph-overlap", "save_object": true}
+  },
+  "runtime": {
+    "pixi_root": "/home/faz_laptop/projects/scrna_envs",
+    "sccoda_python": "/home/faz_laptop/projects/scrna_envs/07-cell-abundance/.pixi/envs/sccoda/bin/python"
+  },
+  "output_dir": "results/GSE/example/13_cell_abundance"
+}

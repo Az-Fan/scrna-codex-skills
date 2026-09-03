@@ -1,0 +1,4 @@
+interface:
+  display_name: "13 scRNA Cell Abundance"
+  short_description: "Test sample-aware cell composition and local abundance changes"
+  default_prompt: "Use $13-scrna-test-cell-abundance to test sample-aware cell-type composition or Milo neighborhood abundance changes."

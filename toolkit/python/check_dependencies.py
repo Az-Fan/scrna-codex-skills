@@ -18,6 +18,7 @@ PROFILES = {
     "10-scrna-score-programs": ("05-pathway_program", ["Seurat", "Matrix", "jsonlite"], ["qs", "VISION", "AUCell", "progeny"]),
     "11-scrna-run-differential-analysis": ("06-deg-analysis", ["Seurat", "Matrix", "jsonlite", "DESeq2"], ["qs", "clusterProfiler", "msigdbr", "apeglm"]),
     "12-scrna-run-pathway-enrichment": ("06-deg-analysis", ["jsonlite", "clusterProfiler", "msigdbr"], ["Seurat", "Matrix", "qs", "DESeq2"]),
+    "13-scrna-test-cell-abundance": ("07-cell-abundance", ["Seurat", "Matrix", "jsonlite", "speckle", "miloR", "sccomp", "DCATS", "cmdstanr"], ["qs"]),
 }
 
 def main():
@@ -44,6 +45,28 @@ def main():
         if missing: report["error"]="Missing required R packages: "+", ".join(missing)
         unavailable=[x for x in optional if versions[x] is None]
         if unavailable: report["note"]="Optional branches unavailable: "+", ".join(unavailable)
+    if skill == "13-scrna-test-cell-abundance":
+        cmdstan_path = manifest.parent / ".pixi/envs/default/bin/cmdstan"
+        report["cmdstan_path"] = str(cmdstan_path)
+        if not cmdstan_path.is_dir():
+            report["compatible"] = False
+            report["error"] = "Registered CmdStan installation is missing"
+        sccoda_python = manifest.parent / ".pixi/envs/sccoda/bin/python"
+        report["sccoda_runtime"] = str(sccoda_python)
+        report["python_packages"] = {}
+        if not sccoda_python.is_file():
+            report["compatible"] = False
+            report["error"] = "Registered scCODA Python environment is missing"
+        else:
+            probe = subprocess.run(
+                [str(sccoda_python), "-c", "import json,importlib.metadata as m; print(json.dumps({p:m.version(p) for p in ['pertpy','anndata','numpyro','jax']}))"],
+                text=True, capture_output=True,
+            )
+            if probe.returncode:
+                report["compatible"] = False
+                report["error"] = probe.stderr.strip() or "scCODA Python dependency probe failed"
+            else:
+                report["python_packages"] = json.loads(probe.stdout)
     print(json.dumps(report,indent=2)); return 0 if report["compatible"] else 2
 
 if __name__=="__main__": raise SystemExit(main())

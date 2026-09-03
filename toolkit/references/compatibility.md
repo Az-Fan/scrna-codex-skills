@@ -16,5 +16,6 @@ The repository uses existing pixi projects and never creates or repairs environm
 | `10-scrna-score-programs` | `05-pathway_program` |
 | `11-scrna-run-differential-analysis` | `06-deg-analysis` |
 | `12-scrna-run-pathway-enrichment` | `06-deg-analysis` |
+| `13-scrna-test-cell-abundance` | `07-cell-abundance` (`default` for R methods; `sccoda` for pertpy/scCODA) |
 
 Use the registered probe or dependency checker to resolve the exact interpreter. A missing optional package is reported according to the skill contract; dependencies are never installed implicitly.

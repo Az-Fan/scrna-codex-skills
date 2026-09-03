@@ -45,6 +45,10 @@ SPECS = {
         "required": ["project.id", "output_dir"],
         "artifacts": ["task_status", "complete_enrichment_results", "compact_enrichment_plots", "identifier_mapping", "run_manifest"],
     },
+    "13-scrna-test-cell-abundance": {
+        "required": ["project.id", "metadata.sample", "metadata.condition", "metadata.cell_type", "analysis.methods", "analysis.denominator.mode", "comparisons", "output_dir"],
+        "artifacts": ["sample_cell_counts", "sample_cell_proportions", "design_audit", "task_status", "complete_method_results", "compact_diagnostic_plots", "method_concordance", "run_manifest"],
+    },
     "06-scrna-preprocess-and-cluster": {
         "required": ["project.id", "input.object", "output_dir"],
         "artifacts": ["preprocessed_clustered_object", "scenario_summary", "cell_assignments", "cluster_sizes", "resolution_stability", "workflow_state", "run_manifest"],
@@ -64,6 +68,7 @@ DRIVERS = {
     "09-scrna-export-subset": "analyze_subset.R",
     "11-scrna-run-differential-analysis": "differential_analysis.R",
     "12-scrna-run-pathway-enrichment": "differential_analysis.R",
+    "13-scrna-test-cell-abundance": "cell_abundance.R",
     "10-scrna-score-programs": "score_programs.R",
     "06-scrna-preprocess-and-cluster": "preprocess_cluster.R",
 }
@@ -79,6 +84,7 @@ ENV_PROFILES = {
     "09-scrna-export-subset": "02-annotation",
     "11-scrna-run-differential-analysis": "06-deg-analysis",
     "12-scrna-run-pathway-enrichment": "06-deg-analysis",
+    "13-scrna-test-cell-abundance": "07-cell-abundance",
     "06-scrna-preprocess-and-cluster": "03-integration",
     "10-scrna-score-programs": "05-pathway_program",
 }
@@ -159,7 +165,7 @@ def validate(skill, config, config_path):
         if is_blank(nested_get(config, field)):
             errors.append(f"missing required field: {field}")
     stage = nested_get(config, "analysis.stage") or "differential"
-    source = nested_get(config, "input.object") or nested_get(config, "input.differential_table") or nested_get(config, "enrichment.input_results") or nested_get(config, "input.path")
+    source = nested_get(config, "input.object") or nested_get(config, "input.counts_table") or nested_get(config, "input.differential_table") or nested_get(config, "enrichment.input_results") or nested_get(config, "input.path")
     if skill in {"11-scrna-run-differential-analysis", "12-scrna-run-pathway-enrichment"}:
         if skill == "12-scrna-run-pathway-enrichment" and stage != "enrichment_only":
             errors.append("12-scrna-run-pathway-enrichment requires analysis.stage=enrichment_only")
@@ -258,6 +264,79 @@ def validate(skill, config, config_path):
                     errors.append(f"comparison {index + 1} requires numerator and denominator")
                 elif comparison["numerator"] == comparison["denominator"]:
                     errors.append(f"comparison {index + 1} numerator and denominator must differ")
+    if skill == "13-scrna-test-cell-abundance":
+        has_object = bool(nested_get(config, "input.object"))
+        has_counts = bool(nested_get(config, "input.counts_table"))
+        if has_object == has_counts:
+            errors.append("provide exactly one of input.object or input.counts_table")
+        methods = nested_get(config, "analysis.methods")
+        supported = {"propeller", "sccomp", "sccoda", "milo", "dcats"}
+        if not isinstance(methods, list) or not methods:
+            errors.append("analysis.methods must be a non-empty array")
+        else:
+            unknown = {str(method).lower() for method in methods} - supported
+            if unknown:
+                errors.append("unsupported cell-abundance methods: " + ", ".join(sorted(unknown)))
+            if len(methods) != len({str(method).lower() for method in methods}):
+                errors.append("analysis.methods must not contain duplicates")
+        comparisons = config.get("comparisons")
+        if not isinstance(comparisons, list) or not comparisons:
+            errors.append("comparisons must be a non-empty array")
+        else:
+            comparison_ids = []
+            for index, comparison in enumerate(comparisons):
+                if not isinstance(comparison, dict) or is_blank(comparison.get("id")) or is_blank(comparison.get("numerator")) or is_blank(comparison.get("denominator")):
+                    errors.append(f"comparison {index + 1} requires id, numerator, and denominator")
+                elif comparison["numerator"] == comparison["denominator"]:
+                    errors.append(f"comparison {index + 1} numerator and denominator must differ")
+                if isinstance(comparison, dict) and not is_blank(comparison.get("id")):
+                    comparison_ids.append(str(comparison["id"]))
+            if len(comparison_ids) != len(set(comparison_ids)):
+                errors.append("comparison ids must be unique")
+        denominator_mode = nested_get(config, "analysis.denominator.mode")
+        if denominator_mode not in {"all_input_cells", "selected_cell_types"}:
+            errors.append("analysis.denominator.mode must be all_input_cells or selected_cell_types")
+        if denominator_mode == "selected_cell_types":
+            include = nested_get(config, "analysis.denominator.include")
+            if not isinstance(include, list) or not include or any(is_blank(value) for value in include):
+                errors.append("selected_cell_types denominator requires a non-empty analysis.denominator.include array")
+        if is_blank(nested_get(config, "analysis.denominator.description")):
+            errors.append("analysis.denominator.description is required so relative abundance has an explicit interpretation")
+        fdr = nested_get(config, "analysis.fdr")
+        if fdr is not None and (not isinstance(fdr, (int, float)) or isinstance(fdr, bool) or not 0 < fdr < 1):
+            errors.append("analysis.fdr must be a number between 0 and 1")
+        min_samples = nested_get(config, "analysis.min_samples_per_group")
+        if min_samples is not None and (not isinstance(min_samples, int) or isinstance(min_samples, bool) or min_samples < 2):
+            errors.append("analysis.min_samples_per_group must be an integer of at least 2")
+        min_cells = nested_get(config, "analysis.min_cells_per_sample")
+        if min_cells is not None and (not isinstance(min_cells, int) or isinstance(min_cells, bool) or min_cells < 1):
+            errors.append("analysis.min_cells_per_sample must be a positive integer")
+        method_names = {str(method).lower() for method in methods} if isinstance(methods, list) else set()
+        if "propeller" in method_names:
+            transform = nested_get(config, "method_options.propeller.transform")
+            if transform is not None and transform not in {"logit", "asin"}:
+                errors.append("method_options.propeller.transform must be logit or asin")
+        if "sccoda" in method_names:
+            references = nested_get(config, "method_options.sccoda.reference_cell_types")
+            if not isinstance(references, list) or not references or any(is_blank(value) for value in references):
+                errors.append("sccoda requires a non-empty method_options.sccoda.reference_cell_types array")
+        if isinstance(methods, list) and "milo" in {str(method).lower() for method in methods}:
+            if not nested_get(config, "input.object"):
+                errors.append("milo requires input.object; an aggregated counts table is insufficient")
+            if is_blank(nested_get(config, "method_options.milo.reduction")):
+                errors.append("milo requires method_options.milo.reduction")
+            for field in ("k", "d"):
+                value = nested_get(config, f"method_options.milo.{field}")
+                if value is not None and (not isinstance(value, int) or isinstance(value, bool) or value < 1):
+                    errors.append(f"method_options.milo.{field} must be a positive integer")
+            prop = nested_get(config, "method_options.milo.prop")
+            if prop is not None and (not isinstance(prop, (int, float)) or isinstance(prop, bool) or not 0 < prop <= 1):
+                errors.append("method_options.milo.prop must be in (0, 1]")
+        similarity = nested_get(config, "method_options.dcats.similarity_matrix")
+        if "dcats" in method_names and similarity:
+            similarity_path = Path(os.path.expandvars(os.path.expanduser(str(similarity))))
+            if not similarity_path.is_file():
+                errors.append(f"DCATS similarity matrix does not exist: {similarity_path}")
     if skill == "10-scrna-score-programs":
         tasks = config.get("tasks")
         if not isinstance(tasks, list) or not tasks:
@@ -365,7 +444,7 @@ def validate(skill, config, config_path):
 
 
 def make_manifest(skill, config, config_path, errors, warnings):
-    source = nested_get(config, "input.object") or nested_get(config, "input.differential_table") or nested_get(config, "enrichment.input_results") or nested_get(config, "input.path")
+    source = nested_get(config, "input.object") or nested_get(config, "input.counts_table") or nested_get(config, "input.differential_table") or nested_get(config, "enrichment.input_results") or nested_get(config, "input.path")
     source_path = Path(os.path.expandvars(os.path.expanduser(str(source)))) if source else None
     input_record = {"path": str(source_path) if source_path else None}
     if source_path and source_path.is_file():

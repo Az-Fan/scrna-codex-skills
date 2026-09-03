@@ -97,6 +97,39 @@ class V3WorkflowContractTests(unittest.TestCase):
             errors, _ = RUNTIME.validate("12-scrna-run-pathway-enrichment", config, config_path)
             self.assertIn("12-scrna-run-pathway-enrichment requires analysis.stage=enrichment_only", errors)
 
+    def test_cell_abundance_requires_explicit_denominator(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            table = root / "counts.tsv"
+            table.write_text("sample\tcondition\tcell_type\tn_cells\ns1\tA\tEC\t10\n", encoding="utf-8")
+            config_path = root / "config.json"; config_path.write_text("{}", encoding="utf-8")
+            config = {
+                "project": {"id": "test"}, "input": {"counts_table": str(table)},
+                "metadata": {"sample": "sample", "condition": "condition", "cell_type": "cell_type"},
+                "comparisons": [{"id": "B_vs_A", "numerator": "B", "denominator": "A"}],
+                "analysis": {"methods": ["propeller"], "denominator": {"mode": "all_input_cells"}},
+                "output_dir": str(root / "out"),
+            }
+            errors, _ = RUNTIME.validate("13-scrna-test-cell-abundance", config, config_path)
+            self.assertTrue(any("analysis.denominator.description" in error for error in errors))
+
+    def test_milo_rejects_aggregated_counts_input(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            table = root / "counts.tsv"
+            table.write_text("sample\tcondition\tcell_type\tn_cells\ns1\tA\tEC\t10\n", encoding="utf-8")
+            config_path = root / "config.json"; config_path.write_text("{}", encoding="utf-8")
+            config = {
+                "project": {"id": "test"}, "input": {"counts_table": str(table)},
+                "metadata": {"sample": "sample", "condition": "condition", "cell_type": "cell_type"},
+                "comparisons": [{"id": "B_vs_A", "numerator": "B", "denominator": "A"}],
+                "analysis": {"methods": ["milo"], "denominator": {"mode": "all_input_cells", "description": "all cells"}},
+                "method_options": {"milo": {"reduction": "pca"}},
+                "output_dir": str(root / "out"),
+            }
+            errors, _ = RUNTIME.validate("13-scrna-test-cell-abundance", config, config_path)
+            self.assertTrue(any("milo requires input.object" in error.lower() for error in errors))
+
 
 if __name__ == "__main__":
     unittest.main()

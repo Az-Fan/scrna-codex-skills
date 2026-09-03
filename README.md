@@ -1,6 +1,6 @@
 # scRNA-seq Codex Skills
 
-这是一套面向 Codex、Claude Code 和 WispScience 的可审计单细胞 RNA 测序工作流。当前发布版包含 12 个 skill，覆盖输入标准化、QC、人工批准后过滤、整合评估、预处理聚类、marker、人工注释、子集导出、基因程序评分、差异表达和通路富集。
+这是一套面向 Codex、Claude Code 和 WispScience 的可审计单细胞 RNA 测序工作流。当前发布版包含 13 个 skill，覆盖输入标准化、QC、人工批准后过滤、整合评估、预处理聚类、marker、人工注释、子集导出、基因程序评分、差异表达、通路富集和样本感知的细胞丰度变化分析。
 
 规范开发仓库位于 `/home/faz_laptop/projects/scrna-codex-skills`；GitHub 仓库 `git@github.com:Az-Fan/scrna-codex-skills.git` 是固定版本的分发来源。科学计算默认复用服务器上已经注册的 pixi 环境，不会自动创建环境、修改环境或安装缺失依赖。
 
@@ -27,9 +27,10 @@
   ↓
 09 导出目标细胞子集（按需运行）
   ├─→ 10 基因集/通路程序评分
-  └─→ 11 样本级差异表达
+  ├─→ 11 样本级差异表达
           ↓
         12 ORA/GSEA 通路富集
+  └─→ 13 细胞类型组成与局部邻域丰度变化
 ```
 
 几个重要边界：
@@ -42,13 +43,14 @@
 - `09` 只负责导出子集，不隐式完成子集 QC、整合、重聚类或注释。
 - `11` 正式推断默认使用样本级 pseudobulk DESeq2，细胞不是生物学重复。
 - `12` 读取完整差异结果表进行富集，不重新运行差异分析。
+- `13` 比较的是样本间相对组成或 Milo 邻域丰度，必须先声明分母；它不等于绝对组织细胞数量。
 
 ## 二、安装固定版本
 
 推荐从固定 release tag 安装，确保不同机器使用同一套代码：
 
 ```bash
-git clone --branch v3.0.1 --depth 1 git@github.com:Az-Fan/scrna-codex-skills.git
+git clone --branch v3.1.0 --depth 1 git@github.com:Az-Fan/scrna-codex-skills.git
 python3 scrna-codex-skills/scripts/install_skills.py --target ~/.codex/skills
 ```
 
@@ -56,7 +58,7 @@ python3 scrna-codex-skills/scripts/install_skills.py --target ~/.codex/skills
 
 ```bash
 git -C scrna-codex-skills fetch --tags
-git -C scrna-codex-skills checkout v3.0.1
+git -C scrna-codex-skills checkout v3.1.0
 python3 scrna-codex-skills/scripts/install_skills.py --target ~/.codex/skills --force
 ```
 
@@ -86,7 +88,7 @@ python3 ~/.codex/skills/<skill-name>/scripts/run.py \
 
 ### 3. 长任务使用 tmux supervisor
 
-`02`、`04`–`12` 带有统一的 tmux 监督器。dry-run 仍在前台执行；只有已经确认的 `--execute` 命令才放入 tmux：
+`02`、`04`–`13` 带有统一的 tmux 监督器。dry-run 仍在前台执行；只有已经确认的 `--execute` 命令才放入 tmux：
 
 ```bash
 python3 ~/.codex/skills/<skill-name>/scripts/run_in_tmux.py \
@@ -111,10 +113,11 @@ python3 ~/.codex/skills/<skill-name>/scripts/run_in_tmux.py \
 | `07`–`09` | `02-annotation` |
 | `10` | `05-pathway_program` |
 | `11`–`12` | `06-deg-analysis` |
+| `13` | `07-cell-abundance`（R 方法为 `default`，scCODA 为 `sccoda`） |
 
 完整兼容性说明见 [toolkit/references/compatibility.md](toolkit/references/compatibility.md)。
 
-## 四、12 个 skill 的输入、用法和输出
+## 四、13 个 skill 的输入、用法和输出
 
 ### 01-scrna-standardize-input：标准化输入和元数据
 
@@ -520,6 +523,126 @@ apeglm 只替换 log2FC 和 lfcSE；p 值、padj 和 Wald stat 仍来自未收�
 
 单个数据库失败不会删除其他数据库的成功结果。绘图只是完整 TSV 的摘要视图；默认每页最多 20 条，可通过 `enrichment.plot_terms_per_page` 调整。设计说明见 [enrichment-design.md](toolkit/references/enrichment-design.md)。
 
+### 13-scrna-test-cell-abundance：细胞组成和局部丰度变化
+
+**什么时候用**
+
+在 QC、聚类和人工确认注释完成后，比较 control、PAH 或其他条件之间的细胞类型/亚型相对比例。也可用 Milo 在连续表达空间中寻找不完全服从 cluster 边界的局部富集或减少状态。正式统计重复始终是样本或供体，不是细胞。
+
+在运行前必须先写清楚分母。例如：
+
+- 全肺对象以全部通过 QC 的细胞为分母：回答“EC 在捕获细胞中的相对比例是否变化”。
+- 内皮富集对象以全部确认的 EC 为分母：回答“动脉、静脉、毛细血管亚型在 EC 内部的相对组成是否变化”。
+- `selected_cell_types` 只保留指定父群后重新计算分母。不得把这类结果写成绝对组织细胞数、细胞生成或死亡率。
+
+**两种输入方式**
+
+1. `input.object`：带 raw counts、sample、condition 和正式 cell-type 标签的 Seurat `.rds/.qs`。Milo 必须使用这种输入，并要求对象已有明确命名的 reduction。
+2. `input.counts_table`：UTF-8 TSV，至少包含 sample、condition、cell_type 和非负整数 `n_cells`。重复的 sample×cell_type 行会求和；缺失组合会补成零。适合复用既有汇总计数，不要求复制大型对象。
+
+每个样本必须唯一对应一个 condition 和一组样本级 covariates。comparison 中正效应始终表示 numerator 相对 denominator 增加，但不同方法的效应尺度不能直接相加或平均。
+
+配置模板：[config.example.json](skills/13-scrna-test-cell-abundance/references/config.example.json)。完整契约见 [input-output-contract.md](skills/13-scrna-test-cell-abundance/references/input-output-contract.md)。
+
+**五种方法如何选择**
+
+| 方法 | 实际调用 | 回答的问题 | 优点 | 主要不足 | 推荐角色 |
+|---|---|---|---|---|---|
+| propeller | `speckle::propeller.ttest` | 每个已注释群的样本比例是否改变 | 快、透明、支持协变量和 limma 经验贝叶斯；适合作为可复核基线 | 逐群检验；零比例和稀有群受转换影响；展示的 log2 平均比例比是描述性效应 | 常规主分析或敏感性分析 |
+| sccomp | `sccomp_estimate` + `sccomp_test` | 在组成约束、过度离散和异常样本下，细胞群组成是否改变 | 稳健多元 Beta-binomial；不要求人为选参考群；可扩展到差异变异性 | 依赖 CmdStan；首次模型编译较慢；posterior FDR 不是 BH padj | 注释级组成的优先正式模型 |
+| scCODA | `pertpy.tl.Sccoda` + NUTS | 相对一个参考群，哪些细胞群有可信组成改变 | 联合贝叶斯组成模型；适合稀疏变化；输出后验纳入概率 | 结论依赖参考群；NUTS 慢；必须检查诊断；credible 不是传统 P 值 | 小样本且参考群可解释时补充 |
+| DCATS | `DCATS::dcats_GLM` | 在 Beta-binomial 模型下检验组成，可选校正注释误分类 | 可使用细胞类型相似度矩阵；支持协变量；通常较快 | 没有可信相似度矩阵时优势有限；极端零计数和小样本可能收敛不稳 | 注释不确定性/误分类敏感性分析 |
+| Milo | `miloR` 邻域计数 + edgeR | 连续低维空间中的局部细胞状态是否富集/减少 | 不依赖硬 cluster；可发现亚型内部激活态或过渡态；样本感知 | 依赖 reduction、批次校正、k、d 和邻域抽样；邻域互相关；不等价于整体细胞类型比例 | 与注释级组成并行的局部状态分析 |
+
+通常使用：
+
+- 一般注释级组成：`sccomp + propeller`。
+- 每组只有约 3–5 个独立样本且参考群可审计：再加 `sccoda`，保持参考敏感性分析开启。
+- 相近亚型可能误分：再加 `dcats`，并提供有科学依据的 similarity matrix。
+- 怀疑一个 cluster 内部存在 PAH 激活态或连续过渡：单独加 `milo`；不要拿 Milo 替代完整组成表。
+
+更细的统计解释和优缺点见 [methods-and-interpretation.md](skills/13-scrna-test-cell-abundance/references/methods-and-interpretation.md)。实现复用各方法的官方包，不重新实现其统计模型。
+
+**配置关键字段**
+
+```json
+{
+  "input": {"object": "results/GSE/08_annotation/annotated_object.qs"},
+  "metadata": {
+    "sample": "sample_id",
+    "condition": "condition",
+    "cell_type": "annotation_fine",
+    "covariates": []
+  },
+  "comparisons": [
+    {"id": "pah_vs_control", "numerator": "pah", "denominator": "control"}
+  ],
+  "analysis": {
+    "methods": ["sccomp", "propeller", "sccoda"],
+    "denominator": {
+      "mode": "selected_cell_types",
+      "include": ["Arterial_EC", "Venous_EC", "Capillary_EC_general", "Capillary_EC_aerocyte"],
+      "description": "Relative abundance among confirmed vascular endothelial cells"
+    },
+    "min_samples_per_group": 3,
+    "min_cells_per_sample": 20,
+    "fdr": 0.05,
+    "random_seed": 154959
+  }
+}
+```
+
+`all_input_cells` 不需要 `include`，但仍必须填写 `description`。Milo 还必须填写 `method_options.milo.reduction/k/d/prop`；scCODA 必须明确 reference 策略；DCATS 的 similarity matrix 必须是行列名与细胞类型一致的方阵。
+
+**运行**
+
+```bash
+python3 ~/.codex/skills/13-scrna-test-cell-abundance/scripts/check_dependencies.py \
+  --skill 13-scrna-test-cell-abundance \
+  --pixi-root /home/faz_laptop/projects/scrna_envs
+
+python3 ~/.codex/skills/13-scrna-test-cell-abundance/scripts/run.py \
+  --config config/13_cell_abundance.json
+
+python3 ~/.codex/skills/13-scrna-test-cell-abundance/scripts/run.py \
+  --config config/13_cell_abundance.json --execute
+```
+
+sccomp、scCODA 或多方法运行建议交给前述 tmux supervisor。`07-cell-abundance` 环境的首次部署命令为：
+
+```bash
+cd /home/faz_laptop/projects/scrna_envs/07-cell-abundance
+pixi install -e default
+pixi run -e default install-sccomp-runtime
+pixi install -e sccoda
+```
+
+环境文件和 `pixi.lock` 固定 R/sccomp/DCATS/Milo、CmdStan 以及 Python/pertpy/scCODA 依赖；skill 自己不会在分析运行时安装或升级包。
+
+**主要输出**
+
+根目录始终保留：
+
+- `sample_cell_counts.tsv`、`sample_cell_proportions.tsv`：完整样本×细胞类型计数和比例。
+- `design_audit.tsv`：每个样本的条件、协变量、输入细胞数、分母细胞数和最低细胞数检查。
+- `cell_type_eligibility.tsv`：每群总细胞数、存在的样本数和达到最低细胞数的样本数。
+- `task_status.tsv`：每个 comparison×method 的 completed、failed、missing_dependency、invalid_design 等状态。
+- `all_method_results.tsv`：所有成功方法的完整标准化长表；`significant_method_results.tsv` 只是筛选视图。
+- `method_concordance.tsv`：按细胞类型记录 `supported/partial/discordant/not_supported`；scCODA 多个参考敏感性运行只算一个方法证据。
+- `sample_composition.pdf`、`cell_type_proportions_by_condition.pdf`、`sample_proportion_heatmap.pdf`：自动分页、样本点带标签的描述图。
+- `sessionInfo.txt`、`run.log`、`run_manifest.json`。
+
+每个 `comparisons/<comparison>/<method>/` 还保留官方原始结果、完整标准表、显著子表和分页 `effect_summary.pdf`。scCODA 额外保存逐参考结果与 posterior diagnostics；sccomp 保存抽样/Pathfinder 产物；DCATS 保存系数和似然比；Milo 保存完整 neighborhood 表及 DA 图，可配置是否保存 Milo 对象。
+
+**如何解释跨方法结果**
+
+- `supported`：至少两种不同方法达到各自证据阈值且效应方向一致。
+- `partial`：仅一种方法达到阈值。
+- `discordant`：达到阈值的方法方向冲突，应优先审计分母、零计数、参考群、异常样本和模型诊断。
+- `not_supported`：本次方法均未达到阈值；不等同于证明“绝对无变化”。
+
+propeller/DCATS 的调整 P 值、sccomp posterior FDR、scCODA posterior inclusion/credible、Milo spatial FDR 是不同统计证据。汇总表只比较方向和是否达到各自阈值，不把数值伪装成同一尺度。
+
 ## 五、版本 2 到版本 3 的名称迁移
 
 版本 3 保留既有科学计算，同时重新划分职责并增加 QC 过滤和独立富集入口：
@@ -537,6 +660,7 @@ apeglm 只替换 log2FC 和 lfcSE；p 值、padj 和 Wald stat 仍来自未收�
 
 - `04-scrna-apply-qc-filter`：复用项目中已经验证的逐细胞决策表过滤模式。
 - `12-scrna-run-pathway-enrichment`：复用原差异分析中的富集实现，提供独立入口。
+- `13-scrna-test-cell-abundance`：新增样本感知的注释级组成与 Milo 邻域丰度分析；没有删除或替代既有差异表达、富集和可视化输出。
 
 迁移没有删减既有 DE、marker、subset、program scoring 和 enrichment 的完整计算表。旧版安装目录不应与新版并存，否则相同任务可能被重复或错误路由。
 
