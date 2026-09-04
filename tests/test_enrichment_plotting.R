@@ -27,7 +27,14 @@ selected <- select_enrichment_plot_terms(fixture, top_n = 1, ora_fdr = 0.05, gse
 gsea_selected <- selected[selected$method == "GSEA", , drop = FALSE]
 stopifnot(nrow(gsea_selected) == 2L, setequal(gsea_selected$plot_direction, c("Up", "Down")))
 stopifnot(unname(clean_enrichment_label("HALLMARK_REACTIVE_OXYGEN_SPECIES_PATHWAY", 80)) ==
-          "REACTIVE OXYGEN SPECIES PATHWAY")
+          "Reactive oxygen species pathway",
+          unname(clean_enrichment_label("HALLMARK_TNFA_SIGNALING_VIA_NFKB", 80)) ==
+          "TNFA signaling via NFKB",
+          unname(clean_enrichment_label("KEGG_CELL_ADHESION_MOLECULES_CAMS", 80)) ==
+          "Cell adhesion molecules CAMs")
+stopifnot(enrichment_detail_height(1) == 3.5,
+          enrichment_detail_height(8) < 6.0,
+          enrichment_detail_height(100) == 10)
 
 out <- tempfile("enrichment_plot_test_")
 dir.create(out)

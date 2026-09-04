@@ -417,6 +417,27 @@ clean_enrichment_label <- function(value, width = 55) {
   value <- gsub("^KEGG_(MEDICUS_REFERENCE_)?", "", value)
   value <- gsub("_+", " ", value)
   value <- trimws(gsub("[[:space:]]+", " ", value))
+  value <- vapply(value, function(item) {
+    if (grepl("[A-Z]", item) && !grepl("[a-z]", item)) {
+      item <- tolower(item)
+      item <- paste0(toupper(substr(item, 1, 1)), substr(item, 2, nchar(item)))
+    }
+    acronyms <- c(
+      dna = "DNA", rna = "RNA", mrna = "mRNA", trna = "tRNA", rrna = "rRNA",
+      mirna = "miRNA", snrnp = "snRNP", mhc = "MHC", gpcr = "GPCR", rqc = "RQC",
+      ros = "ROS", ecm = "ECM", tnf = "TNF", tnfa = "TNFA", nfkb = "NFKB",
+      tgfb = "TGFB", vegf = "VEGF", egfr = "EGFR", pi3k = "PI3K", akt = "AKT",
+      mtorc1 = "MTORC1", p53 = "P53", cd28 = "CD28", ccr5 = "CCR5", gnb = "GNB",
+      plcb = "PLCB", pkc = "PKC", eif = "EIF", eifs = "EIFS", eif2ak4 = "EIF2AK4",
+      gcn2 = "GCN2", htt = "HTT", creb = "CREB", atr = "ATR", prc2 = "PRC2",
+      cams = "CAMs", g = "G"
+    )
+    for (key in names(acronyms)) {
+      item <- gsub(paste0("\\b", key, "\\b"), acronyms[[key]], item,
+                   ignore.case = TRUE, perl = TRUE)
+    }
+    item
+  }, character(1), USE.NAMES = FALSE)
   vapply(value, function(item) paste(strwrap(item, width = width), collapse = "\n"), character(1))
 }
 
@@ -481,6 +502,10 @@ enrichment_plot_context <- function(x, config) {
   )
 }
 
+enrichment_detail_height <- function(n_terms) {
+  min(10, max(3.5, 0.42 * as.integer(n_terms) + 2.6))
+}
+
 plot_enrichment_summary <- function(x, out, config) {
   if (!requireNamespace("ggplot2", quietly = TRUE) || !nrow(x)) return(invisible(NULL))
   padj_col <- intersect(c("p.adjust", "pvalue"), names(x))[1]; if (is.na(padj_col)) return(invisible(NULL))
@@ -517,9 +542,13 @@ plot_enrichment_summary <- function(x, out, config) {
     ggplot2::theme(panel.grid.major.y = ggplot2::element_blank(), panel.grid.minor = ggplot2::element_blank(),
                    panel.grid.major.x = ggplot2::element_line(color = "grey90", linewidth = .35),
                    axis.line.x = ggplot2::element_line(color = "grey35", linewidth = .35),
-                   axis.text = ggplot2::element_text(color = "#303030"),
-                   plot.title = ggplot2::element_text(face = "bold", color = "#202020"),
-                   strip.text = ggplot2::element_text(face = "bold", color = "#303030"), legend.position = "top")
+                   axis.text.x = ggplot2::element_text(color = "#303030", size = 8.5),
+                   axis.text.y = ggplot2::element_text(color = "#303030", size = 8),
+                   plot.title = ggplot2::element_text(face = "bold", color = "#202020", size = 12),
+                   plot.subtitle = ggplot2::element_text(size = 9),
+                   strip.text = ggplot2::element_text(face = "bold", color = "#303030", size = 9),
+                   legend.text = ggplot2::element_text(size = 8.5), legend.title = ggplot2::element_text(size = 9),
+                   legend.position = "top")
 
   overview_n <- min(3L, top_n)
   overview <- select_enrichment_plot_terms(x, overview_n, ora_fdr, gsea_fdr, max_gene_overlap)
@@ -569,11 +598,11 @@ plot_enrichment_summary <- function(x, out, config) {
       q <- ggplot2::ggplot(z, ggplot2::aes(x_value, stats::reorder(label, x_value), size = Count, color = plot_fdr)) +
         ggplot2::geom_point(alpha = .9) + ggplot2::facet_wrap(~plot_direction_label, scales = "free", ncol = 2) + fdr_scale + common_theme +
         ggplot2::labs(title = paste0(database, " ORA", title_suffix),
-                      subtitle = paste0("Top ", top_n, " terms per direction; FDR <= ", format(ora_fdr), "; page ", page, "/", length(pages)),
+                      subtitle = paste0(comparison_prefix, "top ", top_n, " non-redundant terms per direction; FDR <= ", format(ora_fdr), "; page ", page, "/", length(pages)),
                       x = if ("RichFactor" %in% names(z)) "Rich factor" else "-log10 FDR", y = NULL, size = "Gene count")
       suffix <- if (length(pages) > 1L) paste0("_page", page) else ""
       ggplot2::ggsave(file.path(out, paste0("enrichment_dotplot_", tolower(safe_name(database)), "_ora", suffix, ".pdf")), q,
-                      width = 10, height = min(10, max(5, .42 * max(table(z$plot_direction)) + 3)), limitsize = FALSE)
+                      width = 9, height = enrichment_detail_height(max(table(z$plot_direction))), limitsize = FALSE)
     }
   }
 
@@ -585,18 +614,21 @@ plot_enrichment_summary <- function(x, out, config) {
     pages <- split(seq_len(nrow(full)), ceiling(seq_len(nrow(full)) / terms_per_page))
     for (page in seq_along(pages)) {
       z <- full[pages[[page]], , drop = FALSE]
+      size_breaks <- unique(as.numeric(stats::quantile(z$setSize, c(0, 0.5, 1), na.rm = TRUE)))
       q <- ggplot2::ggplot(z, ggplot2::aes(y = stats::reorder(label, NES))) +
         ggplot2::geom_segment(ggplot2::aes(x = 0, xend = NES, yend = stats::reorder(label, NES), color = plot_direction_label), linewidth = .75, alpha = .7) +
         ggplot2::geom_point(ggplot2::aes(x = NES, size = setSize, color = plot_direction_label, shape = evidence_class), stroke = 1.1) +
         ggplot2::geom_vline(xintercept = 0, color = "grey35", linewidth = .45) +
-        ggplot2::facet_wrap(~plot_direction_label, scales = "free_y", ncol = 2) + direction_scale + evidence_scale + common_theme +
+        ggplot2::scale_size_continuous(breaks = size_breaks, range = c(2, 8)) +
+        direction_scale + evidence_scale + common_theme +
         ggplot2::labs(title = paste0(database, " GSEA", title_suffix),
                       subtitle = paste0(comparison_prefix, "top ", top_n, " non-redundant terms per NES direction; FDR <= ", format(gsea_fdr), "; page ", page, "/", length(pages)),
                       x = "Normalized enrichment score (NES)", y = NULL, size = "Gene-set size", shape = NULL) +
-        ggplot2::guides(color = "none", size = ggplot2::guide_legend(order = 1), shape = ggplot2::guide_legend(order = 2))
+        ggplot2::guides(color = ggplot2::guide_legend(order = 1), size = ggplot2::guide_legend(order = 2),
+                        shape = ggplot2::guide_legend(order = 3))
       suffix <- if (length(pages) > 1L) paste0("_page", page) else ""
       ggplot2::ggsave(file.path(out, paste0("gsea_nes_", tolower(safe_name(database)), suffix, ".pdf")), q,
-                      width = 10, height = min(10, max(5, .42 * max(table(z$plot_direction)) + 3)), limitsize = FALSE)
+                      width = 10.5, height = enrichment_detail_height(nrow(z)), limitsize = FALSE)
     }
   }
   invisible(NULL)
