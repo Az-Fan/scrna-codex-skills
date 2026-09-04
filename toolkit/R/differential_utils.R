@@ -439,7 +439,8 @@ clean_enrichment_label <- function(value, width = 55) {
       mtorc1 = "MTORC1", p53 = "P53", cd28 = "CD28", ccr5 = "CCR5", gnb = "GNB",
       plcb = "PLCB", pkc = "PKC", eif = "EIF", eifs = "EIFS", eif2ak4 = "EIF2AK4",
       gcn2 = "GCN2", htt = "HTT", creb = "CREB", atr = "ATR", prc2 = "PRC2",
-      cams = "CAMs", g = "G"
+      cams = "CAMs", cxcr4 = "CXCR4", itpr = "ITPR", g = "G",
+      i = "I", ii = "II", iii = "III", iv = "IV"
     )
     for (key in names(acronyms)) {
       item <- gsub(paste0("\\b", key, "\\b"), acronyms[[key]], item,
@@ -537,7 +538,7 @@ plot_enrichment_summary <- function(x, out, config) {
   context <- enrichment_plot_context(x, config)
   d$plot_direction_label <- ifelse(d$plot_direction == "Up", context$positive, context$negative)
   d$plot_direction_label <- factor(d$plot_direction_label, levels = c(context$negative, context$positive))
-  evidence_levels <- c("FDR <= 0.05", paste0("0.05 < FDR <= ", format(gsea_fdr)))
+  evidence_levels <- c("FDR <= 0.05", paste0("FDR 0.05-", format(gsea_fdr)))
   d$evidence_class <- ifelse(d$plot_fdr <= 0.05, evidence_levels[[1]], evidence_levels[[2]])
   d$evidence_class <- factor(d$evidence_class, levels = evidence_levels)
   write_tsv(d, file.path(out, "enrichment_plot_terms_summary.tsv"))

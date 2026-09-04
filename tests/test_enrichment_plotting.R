@@ -31,7 +31,11 @@ stopifnot(unname(clean_enrichment_label("HALLMARK_REACTIVE_OXYGEN_SPECIES_PATHWA
           unname(clean_enrichment_label("HALLMARK_TNFA_SIGNALING_VIA_NFKB", 80)) ==
           "TNFA signaling via NFKB",
           unname(clean_enrichment_label("KEGG_CELL_ADHESION_MOLECULES_CAMS", 80)) ==
-          "Cell adhesion molecules CAMs")
+          "Cell adhesion molecules CAMs",
+          unname(clean_enrichment_label("REACTOME_CLASS_I_MHC_MEDIATED_ANTIGEN_PROCESSING", 80)) ==
+          "Class I MHC mediated antigen processing",
+          unname(clean_enrichment_label("KEGG_CXCR4_GNB_G_PLCB_ITPR_SIGNALING_PATHWAY", 80)) ==
+          "CXCR4 GNB G PLCB ITPR signaling pathway")
 stopifnot(enrichment_detail_height(1) == 3.5,
           enrichment_detail_height(8) < 6.0,
           enrichment_detail_height(100) == 10)
