@@ -630,7 +630,7 @@ plot_enrichment_summary <- function(x, out, config) {
       ggplot2::geom_segment(ggplot2::aes(x = 0, xend = NES, yend = stats::reorder(label, NES), color = plot_direction_label), linewidth = .65, alpha = .7) +
       ggplot2::geom_point(ggplot2::aes(x = NES, size = setSize, color = plot_direction_label, shape = evidence_class), stroke = 1.1) +
       ggplot2::geom_label(ggplot2::aes(x = NES, label = plot_fdr_label, hjust = fdr_hjust), size = 2.35,
-                          color = "#303030", fill = "white", label.size = 0,
+                          color = "#303030", fill = "white", linewidth = 0,
                           label.padding = grid::unit(.035, "lines")) +
       ggplot2::geom_vline(xintercept = 0, color = "grey35", linewidth = .45) +
       ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = c(.22, .22))) +
@@ -704,7 +704,7 @@ plot_enrichment_summary <- function(x, out, config) {
         ggplot2::geom_segment(ggplot2::aes(x = 0, xend = NES, yend = stats::reorder(label, NES), color = plot_direction_label), linewidth = .75, alpha = .7) +
         ggplot2::geom_point(ggplot2::aes(x = NES, size = setSize, color = plot_direction_label, shape = evidence_class), stroke = 1.1) +
         ggplot2::geom_label(ggplot2::aes(x = NES, label = plot_fdr_label, hjust = fdr_hjust), size = 2.7,
-                            color = "#303030", fill = "white", label.size = 0,
+                            color = "#303030", fill = "white", linewidth = 0,
                             label.padding = grid::unit(.04, "lines")) +
         ggplot2::geom_vline(xintercept = 0, color = "grey35", linewidth = .45) +
         ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = c(.22, .22))) +
