@@ -38,7 +38,9 @@ stopifnot(unname(clean_enrichment_label("HALLMARK_REACTIVE_OXYGEN_SPECIES_PATHWA
           "CXCR4 GNB G PLCB ITPR signaling pathway")
 stopifnot(enrichment_detail_height(1) == 3.5,
           enrichment_detail_height(8) < 6.0,
-          enrichment_detail_height(100) == 10)
+          enrichment_detail_height(100) == 10,
+          identical(format_enrichment_fdr(c(0.2, 0.01234, 0.0004)),
+                    c("q=0.200", "q=0.012", "q<0.001")))
 seeded <- initialize_enrichment_seed(list(random_seed = 42))
 draw_a <- runif(3)
 invisible(initialize_enrichment_seed(list(random_seed = 42)))

@@ -516,6 +516,12 @@ enrichment_detail_height <- function(n_terms) {
   min(10, max(3.5, 0.42 * as.integer(n_terms) + 2.6))
 }
 
+format_enrichment_fdr <- function(x) {
+  x <- suppressWarnings(as.numeric(x))
+  ifelse(!is.finite(x), "",
+         ifelse(x < 0.001, "q<0.001", paste0("q=", formatC(x, format = "f", digits = 3))))
+}
+
 plot_enrichment_summary <- function(x, out, config) {
   if (!requireNamespace("ggplot2", quietly = TRUE) || !nrow(x)) return(invisible(NULL))
   padj_col <- intersect(c("p.adjust", "pvalue"), names(x))[1]; if (is.na(padj_col)) return(invisible(NULL))
@@ -545,7 +551,7 @@ plot_enrichment_summary <- function(x, out, config) {
   d$label <- clean_enrichment_label(d$Description, label_width)
   title_suffix <- if (nzchar(context$population)) paste0(" | ", context$population) else ""
   comparison_prefix <- if (nzchar(context$comparison)) paste0(context$comparison, "; ") else ""
-  fdr_scale <- ggplot2::scale_color_gradient(low = "#17365D", high = "#9FBAD0", name = "FDR")
+  fdr_fill_scale <- ggplot2::scale_fill_gradient(low = "#17365D", high = "#D7E6F2", name = "FDR")
   direction_scale <- ggplot2::scale_color_manual(values = setNames(c("#B35806", "#2166AC"), c(context$negative, context$positive)), name = NULL)
   evidence_scale <- ggplot2::scale_shape_manual(values = stats::setNames(c(16, 1), evidence_levels), name = NULL, drop = FALSE)
   common_theme <- ggplot2::theme_minimal(base_size = 10) +
@@ -569,13 +575,17 @@ plot_enrichment_summary <- function(x, out, config) {
   overview$evidence_class <- factor(overview$evidence_class, levels = evidence_levels)
   gsea_overview <- overview[overview$method == "GSEA" & is.finite(overview$NES), , drop = FALSE]
   if (nrow(gsea_overview)) {
+    gsea_overview$fdr_label <- format_enrichment_fdr(gsea_overview$plot_fdr)
+    gsea_overview$fdr_hjust <- ifelse(gsea_overview$NES >= 0, -0.15, 1.15)
     p <- ggplot2::ggplot(gsea_overview, ggplot2::aes(y = stats::reorder(label, NES))) +
       ggplot2::geom_segment(ggplot2::aes(x = 0, xend = NES, yend = stats::reorder(label, NES), color = plot_direction_label), linewidth = .65, alpha = .7) +
       ggplot2::geom_point(ggplot2::aes(x = NES, size = setSize, color = plot_direction_label, shape = evidence_class), stroke = 1.1) +
+      ggplot2::geom_text(ggplot2::aes(x = NES, label = fdr_label, hjust = fdr_hjust), size = 2.35, color = "#303030") +
       ggplot2::geom_vline(xintercept = 0, color = "grey35", linewidth = .45) +
+      ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = c(.22, .22))) +
       ggplot2::facet_wrap(~database, scales = "free_y", ncol = 3) + direction_scale + evidence_scale + common_theme +
       ggplot2::labs(title = paste0("GSEA overview", title_suffix),
-                    subtitle = paste0(comparison_prefix, "top ", overview_n, " non-redundant terms per NES direction; displayed FDR <= ", format(gsea_fdr)),
+                    subtitle = paste0(comparison_prefix, "top ", overview_n, " non-redundant terms per NES direction; q labels show FDR; displayed FDR <= ", format(gsea_fdr)),
                     x = "Normalized enrichment score (NES)", y = NULL, size = "Gene-set size", shape = NULL) +
       ggplot2::guides(color = ggplot2::guide_legend(order = 1), size = ggplot2::guide_legend(order = 2),
                       shape = ggplot2::guide_legend(order = 3))
@@ -586,15 +596,21 @@ plot_enrichment_summary <- function(x, out, config) {
   ora_overview <- overview[overview$method == "ORA", , drop = FALSE]
   if (nrow(ora_overview)) {
     ora_overview$x_value <- if ("RichFactor" %in% names(ora_overview)) ora_overview$RichFactor else -log10(pmax(ora_overview$plot_fdr, .Machine$double.xmin))
-    ora_overview$panel <- paste(ora_overview$database, ora_overview$plot_direction_label, sep = " | ")
-    p <- ggplot2::ggplot(ora_overview, ggplot2::aes(x_value, stats::reorder(label, x_value), size = Count, color = plot_fdr)) +
-      ggplot2::geom_point(alpha = .9) + ggplot2::facet_wrap(~panel, scales = "free", ncol = 2) + fdr_scale + common_theme +
+    ora_overview$signed_x <- ifelse(ora_overview$plot_direction == "Up", ora_overview$x_value, -ora_overview$x_value)
+    ora_overview$label_panel <- paste(ora_overview$label, ora_overview$database, sep = "|||DB|||")
+    p <- ggplot2::ggplot(ora_overview, ggplot2::aes(y = stats::reorder(label_panel, signed_x))) +
+      ggplot2::geom_segment(ggplot2::aes(x = 0, xend = signed_x, yend = stats::reorder(label_panel, signed_x), color = plot_direction_label), linewidth = .7, alpha = .75) +
+      ggplot2::geom_point(ggplot2::aes(x = signed_x, size = Count, color = plot_direction_label, fill = plot_fdr), shape = 21, stroke = .9) +
+      ggplot2::geom_vline(xintercept = 0, color = "grey35", linewidth = .45) +
+      ggplot2::facet_wrap(~database, scales = "free_y", ncol = 3) +
+      ggplot2::scale_y_discrete(labels = function(value) sub("[|][|][|]DB[|][|][|].*$", "", value)) +
+      direction_scale + fdr_fill_scale + common_theme +
       ggplot2::labs(title = paste0("ORA overview", title_suffix),
                     subtitle = paste0(comparison_prefix, "top ", overview_n, " non-redundant terms per direction; displayed FDR <= ", format(ora_fdr)),
-                    x = if ("RichFactor" %in% names(ora)) "Rich factor" else "-log10 FDR", y = NULL, size = "Gene count")
-    n_panels <- length(unique(ora_overview$panel))
-    ggplot2::ggsave(file.path(out, "enrichment_ora_overview.pdf"), p, width = 12,
-                    height = min(18, max(8, ceiling(n_panels / 2) * 2.5 + 3)), limitsize = FALSE)
+                    x = if ("RichFactor" %in% names(ora)) "Directional rich factor" else "Directional -log10 FDR", y = NULL, size = "Gene count") +
+      ggplot2::guides(color = ggplot2::guide_legend(order = 1), fill = ggplot2::guide_colorbar(order = 2),
+                      size = ggplot2::guide_legend(order = 3))
+    ggplot2::ggsave(file.path(out, "enrichment_ora_overview.pdf"), p, width = 13.5, height = 7.8, limitsize = FALSE)
   }
   if (nrow(ora)) for (idx in split(seq_len(nrow(ora)), ora$database)) {
     full <- ora[idx, , drop = FALSE]
@@ -605,11 +621,17 @@ plot_enrichment_summary <- function(x, out, config) {
     for (page in seq_along(pages)) {
       z <- full[pages[[page]], , drop = FALSE]
       z$plot_direction_label <- factor(ifelse(z$plot_direction == "Up", context$positive, context$negative), levels = c(context$negative, context$positive))
-      q <- ggplot2::ggplot(z, ggplot2::aes(x_value, stats::reorder(label, x_value), size = Count, color = plot_fdr)) +
-        ggplot2::geom_point(alpha = .9) + ggplot2::facet_wrap(~plot_direction_label, scales = "free", ncol = 2) + fdr_scale + common_theme +
+      z$signed_x <- ifelse(z$plot_direction == "Up", z$x_value, -z$x_value)
+      q <- ggplot2::ggplot(z, ggplot2::aes(y = stats::reorder(label, signed_x))) +
+        ggplot2::geom_segment(ggplot2::aes(x = 0, xend = signed_x, yend = stats::reorder(label, signed_x), color = plot_direction_label), linewidth = .75, alpha = .75) +
+        ggplot2::geom_point(ggplot2::aes(x = signed_x, size = Count, color = plot_direction_label, fill = plot_fdr), shape = 21, stroke = .9) +
+        ggplot2::geom_vline(xintercept = 0, color = "grey35", linewidth = .45) +
+        direction_scale + fdr_fill_scale + common_theme +
         ggplot2::labs(title = paste0(database, " ORA", title_suffix),
                       subtitle = paste0(comparison_prefix, "top ", top_n, " non-redundant terms per direction; FDR <= ", format(ora_fdr), "; page ", page, "/", length(pages)),
-                      x = if ("RichFactor" %in% names(z)) "Rich factor" else "-log10 FDR", y = NULL, size = "Gene count")
+                      x = if ("RichFactor" %in% names(z)) "Directional rich factor" else "Directional -log10 FDR", y = NULL, size = "Gene count") +
+        ggplot2::guides(color = ggplot2::guide_legend(order = 1), fill = ggplot2::guide_colorbar(order = 2),
+                        size = ggplot2::guide_legend(order = 3))
       suffix <- if (length(pages) > 1L) paste0("_page", page) else ""
       ggplot2::ggsave(file.path(out, paste0("enrichment_dotplot_", tolower(safe_name(database)), "_ora", suffix, ".pdf")), q,
                       width = 9, height = enrichment_detail_height(max(table(z$plot_direction))), limitsize = FALSE)
@@ -625,14 +647,18 @@ plot_enrichment_summary <- function(x, out, config) {
     for (page in seq_along(pages)) {
       z <- full[pages[[page]], , drop = FALSE]
       size_breaks <- unique(as.numeric(stats::quantile(z$setSize, c(0, 0.5, 1), na.rm = TRUE)))
+      z$fdr_label <- format_enrichment_fdr(z$plot_fdr)
+      z$fdr_hjust <- ifelse(z$NES >= 0, -0.15, 1.15)
       q <- ggplot2::ggplot(z, ggplot2::aes(y = stats::reorder(label, NES))) +
         ggplot2::geom_segment(ggplot2::aes(x = 0, xend = NES, yend = stats::reorder(label, NES), color = plot_direction_label), linewidth = .75, alpha = .7) +
         ggplot2::geom_point(ggplot2::aes(x = NES, size = setSize, color = plot_direction_label, shape = evidence_class), stroke = 1.1) +
+        ggplot2::geom_text(ggplot2::aes(x = NES, label = fdr_label, hjust = fdr_hjust), size = 2.7, color = "#303030") +
         ggplot2::geom_vline(xintercept = 0, color = "grey35", linewidth = .45) +
+        ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = c(.22, .22))) +
         ggplot2::scale_size_continuous(breaks = size_breaks, range = c(2, 8)) +
         direction_scale + evidence_scale + common_theme +
         ggplot2::labs(title = paste0(database, " GSEA", title_suffix),
-                      subtitle = paste0(comparison_prefix, "top ", top_n, " non-redundant terms per NES direction; FDR <= ", format(gsea_fdr), "; page ", page, "/", length(pages)),
+                      subtitle = paste0(comparison_prefix, "top ", top_n, " non-redundant terms per NES direction; q labels show FDR; displayed FDR <= ", format(gsea_fdr), "; page ", page, "/", length(pages)),
                       x = "Normalized enrichment score (NES)", y = NULL, size = "Gene-set size", shape = NULL) +
         ggplot2::guides(color = ggplot2::guide_legend(order = 1), size = ggplot2::guide_legend(order = 2),
                         shape = ggplot2::guide_legend(order = 3))
