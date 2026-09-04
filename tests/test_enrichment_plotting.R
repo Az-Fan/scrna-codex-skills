@@ -37,4 +37,15 @@ expected <- c("enrichment_dotplot_overview.pdf", "enrichment_ora_overview.pdf",
               "enrichment_dotplot_go_bp_ora.pdf", "gsea_nes_hallmark.pdf")
 stopifnot(all(file.exists(file.path(out, expected))))
 unlink(out, recursive = TRUE)
+
+input <- tempfile("differential_", fileext = ".tsv")
+writeLines("gene\tlog2FoldChange\nA\t1", input)
+config_path <- tempfile("enrichment_config_", fileext = ".json")
+jsonlite::write_json(list(project = list(id = "test"), input = list(differential_table = input)),
+                     config_path, auto_unbox = TRUE)
+parsed <- read_skill_config(config_path)
+stopifnot(identical(attr(parsed, "input_record")$path, input),
+          is.finite(attr(parsed, "input_record")$bytes),
+          nzchar(attr(parsed, "input_record")$sha256))
+unlink(c(input, config_path))
 cat("PASS: enrichment plotting selection, labels, and PDF outputs\n")
