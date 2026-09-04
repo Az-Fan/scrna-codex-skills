@@ -18,7 +18,12 @@
     "plot_label_width": 42,
     "plot_terms_per_page": 20,
     "plot_ora_fdr_threshold": 0.05,
-    "plot_gsea_fdr_threshold": 0.25
+    "plot_gsea_fdr_threshold": 0.25,
+    "plot_max_gene_overlap": 0.6,
+    "plot_population_label": "target population",
+    "plot_comparison_label": "numerator vs denominator",
+    "plot_positive_label": "numerator-enriched",
+    "plot_negative_label": "denominator-enriched"
   },
   "output_dir": "/path/to/results/12_enrichment"
 }

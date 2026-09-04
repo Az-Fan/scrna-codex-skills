@@ -420,7 +420,19 @@ clean_enrichment_label <- function(value, width = 55) {
   vapply(value, function(item) paste(strwrap(item, width = width), collapse = "\n"), character(1))
 }
 
-select_enrichment_plot_terms <- function(x, top_n, ora_fdr = 0.05, gsea_fdr = 0.25) {
+enrichment_term_members <- function(x, i) {
+  column <- if (x$method[[i]] == "GSEA" && "core_enrichment" %in% names(x)) "core_enrichment" else "geneID"
+  if (!column %in% names(x) || is.na(x[[column]][[i]]) || !nzchar(x[[column]][[i]])) return(character())
+  unique(strsplit(as.character(x[[column]][[i]]), "[/;,]")[[1]])
+}
+
+enrichment_gene_overlap <- function(a, b) {
+  if (!length(a) || !length(b)) return(0)
+  length(intersect(a, b)) / length(union(a, b))
+}
+
+select_enrichment_plot_terms <- function(x, top_n, ora_fdr = 0.05, gsea_fdr = 0.25,
+                                         max_gene_overlap = 0.6) {
   padj_col <- intersect(c("p.adjust", "pvalue"), names(x))[1]
   if (!nrow(x) || is.na(padj_col)) return(x[FALSE, , drop = FALSE])
   x$plot_fdr <- suppressWarnings(as.numeric(x[[padj_col]]))
@@ -436,16 +448,37 @@ select_enrichment_plot_terms <- function(x, top_n, ora_fdr = 0.05, gsea_fdr = 0.
   split_key <- interaction(x$database, x$method, x$plot_direction, drop = TRUE)
   keep <- unlist(lapply(split(seq_len(nrow(x)), split_key), function(i) {
     secondary <- if (all(x$method[i] == "GSEA") && "NES" %in% names(x)) -abs(x$NES[i]) else seq_along(i)
-    head(i[order(x$plot_fdr[i], secondary, na.last = TRUE)], top_n)
+    candidates <- i[order(x$plot_fdr[i], secondary, na.last = TRUE)]
+    selected <- integer()
+    for (candidate in candidates) {
+      members <- enrichment_term_members(x, candidate)
+      duplicate_label <- length(selected) && x$Description[[candidate]] %in% x$Description[selected]
+      redundant <- length(selected) && length(members) && any(vapply(selected, function(previous) {
+        enrichment_gene_overlap(members, enrichment_term_members(x, previous)) > max_gene_overlap
+      }, logical(1)))
+      if (!duplicate_label && !redundant) selected <- c(selected, candidate)
+      if (length(selected) >= top_n) break
+    }
+    selected
   }), use.names = FALSE)
-  x[unique(keep), , drop = FALSE]
+  selected <- x[unique(keep), , drop = FALSE]
+  selected$plot_rank <- ave(seq_len(nrow(selected)),
+                            interaction(selected$database, selected$method, selected$plot_direction, drop = TRUE),
+                            FUN = seq_along)
+  selected
 }
 
-enrichment_plot_context <- function(x) {
+enrichment_plot_context <- function(x, config) {
   population <- unique(stats::na.omit(as.character(x$population)))
   comparison <- unique(stats::na.omit(as.character(x$comparison_id)))
-  context <- c(if (length(population)) population[[1]], if (length(comparison)) comparison[[1]])
-  paste(gsub("_+", " ", context), collapse = " · ")
+  list(
+    population = cfg_get(config, "enrichment.plot_population_label",
+                         if (length(population)) gsub("_+", " ", population[[1]]) else ""),
+    comparison = cfg_get(config, "enrichment.plot_comparison_label",
+                         if (length(comparison)) gsub("_+", " ", comparison[[1]]) else ""),
+    positive = cfg_get(config, "enrichment.plot_positive_label", "Positive NES"),
+    negative = cfg_get(config, "enrichment.plot_negative_label", "Negative NES")
+  )
 }
 
 plot_enrichment_summary <- function(x, out, config) {
@@ -455,35 +488,58 @@ plot_enrichment_summary <- function(x, out, config) {
   top_n <- as.integer(cfg_get(config, "enrichment.plot_top_terms", 10))
   ora_fdr <- as.numeric(cfg_get(config, "enrichment.plot_ora_fdr_threshold", 0.05))
   gsea_fdr <- as.numeric(cfg_get(config, "enrichment.plot_gsea_fdr_threshold", 0.25))
+  max_gene_overlap <- as.numeric(cfg_get(config, "enrichment.plot_max_gene_overlap", 0.6))
   terms_per_page <- as.integer(cfg_get(config, "enrichment.plot_terms_per_page", 20))
   if (is.na(top_n) || top_n < 1L) top_n <- 10L
   if (is.na(label_width) || label_width < 15L) label_width <- 55L
+  if (is.na(max_gene_overlap) || max_gene_overlap < 0 || max_gene_overlap > 1) max_gene_overlap <- 0.6
   if (is.na(terms_per_page) || terms_per_page < 4L) terms_per_page <- 20L
 
   old_plots <- list.files(out, pattern = "^(enrichment_|gsea_).*[.]pdf$", full.names = TRUE)
   if (length(old_plots)) unlink(old_plots)
-  x$label <- clean_enrichment_label(x$Description, label_width)
-  d <- select_enrichment_plot_terms(x, top_n, ora_fdr, gsea_fdr)
+  d <- select_enrichment_plot_terms(x, top_n, ora_fdr, gsea_fdr, max_gene_overlap)
   if (!nrow(d)) return(invisible(NULL))
+  d$label <- clean_enrichment_label(d$Description, .Machine$integer.max)
+  context <- enrichment_plot_context(x, config)
+  d$plot_direction_label <- ifelse(d$plot_direction == "Up", context$positive, context$negative)
+  d$plot_direction_label <- factor(d$plot_direction_label, levels = c(context$negative, context$positive))
+  evidence_levels <- c("FDR <= 0.05", paste0("0.05 < FDR <= ", format(gsea_fdr)))
+  d$evidence_class <- ifelse(d$plot_fdr <= 0.05, evidence_levels[[1]], evidence_levels[[2]])
+  d$evidence_class <- factor(d$evidence_class, levels = evidence_levels)
+  write_tsv(d, file.path(out, "enrichment_plot_terms_summary.tsv"))
   d$label <- clean_enrichment_label(d$Description, label_width)
-  context <- enrichment_plot_context(x)
-  context_suffix <- if (nzchar(context)) paste0(" · ", context) else ""
-  fdr_scale <- ggplot2::scale_color_gradient(low = "#B2182B", high = "#92C5DE", name = "FDR")
+  title_suffix <- if (nzchar(context$population)) paste0(" | ", context$population) else ""
+  comparison_prefix <- if (nzchar(context$comparison)) paste0(context$comparison, "; ") else ""
+  fdr_scale <- ggplot2::scale_color_gradient(low = "#17365D", high = "#9FBAD0", name = "FDR")
+  direction_scale <- ggplot2::scale_color_manual(values = setNames(c("#B35806", "#2166AC"), c(context$negative, context$positive)), name = NULL)
+  evidence_scale <- ggplot2::scale_shape_manual(values = stats::setNames(c(16, 1), evidence_levels), name = NULL, drop = FALSE)
   common_theme <- ggplot2::theme_minimal(base_size = 10) +
     ggplot2::theme(panel.grid.major.y = ggplot2::element_blank(), panel.grid.minor = ggplot2::element_blank(),
-                   strip.text = ggplot2::element_text(face = "bold"), legend.position = "top")
+                   panel.grid.major.x = ggplot2::element_line(color = "grey90", linewidth = .35),
+                   axis.line.x = ggplot2::element_line(color = "grey35", linewidth = .35),
+                   axis.text = ggplot2::element_text(color = "#303030"),
+                   plot.title = ggplot2::element_text(face = "bold", color = "#202020"),
+                   strip.text = ggplot2::element_text(face = "bold", color = "#303030"), legend.position = "top")
 
   overview_n <- min(3L, top_n)
-  overview <- select_enrichment_plot_terms(x, overview_n, ora_fdr, gsea_fdr)
+  overview <- select_enrichment_plot_terms(x, overview_n, ora_fdr, gsea_fdr, max_gene_overlap)
   overview$label <- clean_enrichment_label(overview$Description, label_width)
+  overview$plot_direction_label <- ifelse(overview$plot_direction == "Up", context$positive, context$negative)
+  overview$plot_direction_label <- factor(overview$plot_direction_label, levels = c(context$negative, context$positive))
+  overview$evidence_class <- ifelse(overview$plot_fdr <= 0.05, evidence_levels[[1]], evidence_levels[[2]])
+  overview$evidence_class <- factor(overview$evidence_class, levels = evidence_levels)
   gsea_overview <- overview[overview$method == "GSEA" & is.finite(overview$NES), , drop = FALSE]
   if (nrow(gsea_overview)) {
-    p <- ggplot2::ggplot(gsea_overview, ggplot2::aes(NES, stats::reorder(label, NES), size = setSize, color = plot_fdr)) +
-      ggplot2::geom_point(alpha = .9) + ggplot2::geom_vline(xintercept = 0, linetype = 2, color = "grey55") +
-      ggplot2::facet_wrap(~database, scales = "free_y", ncol = 3) + fdr_scale + common_theme +
-      ggplot2::labs(title = paste0("GSEA overview", context_suffix),
-                    subtitle = paste0("Top ", overview_n, " terms per NES direction; displayed FDR <= ", format(gsea_fdr)),
-                    x = "Normalized enrichment score (NES)", y = NULL, size = "Gene-set size")
+    p <- ggplot2::ggplot(gsea_overview, ggplot2::aes(y = stats::reorder(label, NES))) +
+      ggplot2::geom_segment(ggplot2::aes(x = 0, xend = NES, yend = stats::reorder(label, NES), color = plot_direction_label), linewidth = .65, alpha = .7) +
+      ggplot2::geom_point(ggplot2::aes(x = NES, size = setSize, color = plot_direction_label, shape = evidence_class), stroke = 1.1) +
+      ggplot2::geom_vline(xintercept = 0, color = "grey35", linewidth = .45) +
+      ggplot2::facet_wrap(~database, scales = "free_y", ncol = 3) + direction_scale + evidence_scale + common_theme +
+      ggplot2::labs(title = paste0("GSEA overview", title_suffix),
+                    subtitle = paste0(comparison_prefix, "top ", overview_n, " non-redundant terms per NES direction; displayed FDR <= ", format(gsea_fdr)),
+                    x = "Normalized enrichment score (NES)", y = NULL, size = "Gene-set size", shape = NULL) +
+      ggplot2::guides(color = ggplot2::guide_legend(order = 1), size = ggplot2::guide_legend(order = 2),
+                      shape = ggplot2::guide_legend(order = 3))
     ggplot2::ggsave(file.path(out, "enrichment_dotplot_overview.pdf"), p, width = 12, height = 8, limitsize = FALSE)
   }
 
@@ -491,11 +547,11 @@ plot_enrichment_summary <- function(x, out, config) {
   ora_overview <- overview[overview$method == "ORA", , drop = FALSE]
   if (nrow(ora_overview)) {
     ora_overview$x_value <- if ("RichFactor" %in% names(ora_overview)) ora_overview$RichFactor else -log10(pmax(ora_overview$plot_fdr, .Machine$double.xmin))
-    ora_overview$panel <- paste(ora_overview$database, ora_overview$plot_direction, sep = " · ")
+    ora_overview$panel <- paste(ora_overview$database, ora_overview$plot_direction_label, sep = " | ")
     p <- ggplot2::ggplot(ora_overview, ggplot2::aes(x_value, stats::reorder(label, x_value), size = Count, color = plot_fdr)) +
       ggplot2::geom_point(alpha = .9) + ggplot2::facet_wrap(~panel, scales = "free", ncol = 2) + fdr_scale + common_theme +
-      ggplot2::labs(title = paste0("ORA overview", context_suffix),
-                    subtitle = paste0("Top ", overview_n, " terms per direction; displayed FDR <= ", format(ora_fdr)),
+      ggplot2::labs(title = paste0("ORA overview", title_suffix),
+                    subtitle = paste0(comparison_prefix, "top ", overview_n, " non-redundant terms per direction; displayed FDR <= ", format(ora_fdr)),
                     x = if ("RichFactor" %in% names(ora)) "Rich factor" else "-log10 FDR", y = NULL, size = "Gene count")
     n_panels <- length(unique(ora_overview$panel))
     ggplot2::ggsave(file.path(out, "enrichment_ora_overview.pdf"), p, width = 12,
@@ -509,9 +565,10 @@ plot_enrichment_summary <- function(x, out, config) {
     pages <- split(seq_len(nrow(full)), ceiling(seq_len(nrow(full)) / terms_per_page))
     for (page in seq_along(pages)) {
       z <- full[pages[[page]], , drop = FALSE]
+      z$plot_direction_label <- factor(ifelse(z$plot_direction == "Up", context$positive, context$negative), levels = c(context$negative, context$positive))
       q <- ggplot2::ggplot(z, ggplot2::aes(x_value, stats::reorder(label, x_value), size = Count, color = plot_fdr)) +
-        ggplot2::geom_point(alpha = .9) + ggplot2::facet_wrap(~plot_direction, scales = "free", ncol = 2) + fdr_scale + common_theme +
-        ggplot2::labs(title = paste0(database, " ORA", context_suffix),
+        ggplot2::geom_point(alpha = .9) + ggplot2::facet_wrap(~plot_direction_label, scales = "free", ncol = 2) + fdr_scale + common_theme +
+        ggplot2::labs(title = paste0(database, " ORA", title_suffix),
                       subtitle = paste0("Top ", top_n, " terms per direction; FDR <= ", format(ora_fdr), "; page ", page, "/", length(pages)),
                       x = if ("RichFactor" %in% names(z)) "Rich factor" else "-log10 FDR", y = NULL, size = "Gene count")
       suffix <- if (length(pages) > 1L) paste0("_page", page) else ""
@@ -528,12 +585,15 @@ plot_enrichment_summary <- function(x, out, config) {
     pages <- split(seq_len(nrow(full)), ceiling(seq_len(nrow(full)) / terms_per_page))
     for (page in seq_along(pages)) {
       z <- full[pages[[page]], , drop = FALSE]
-      q <- ggplot2::ggplot(z, ggplot2::aes(NES, stats::reorder(label, NES), size = setSize, color = plot_fdr)) +
-        ggplot2::geom_point(alpha = .9) + ggplot2::geom_vline(xintercept = 0, linetype = 2, color = "grey55") +
-        ggplot2::facet_wrap(~plot_direction, scales = "free_y", ncol = 2) + fdr_scale + common_theme +
-        ggplot2::labs(title = paste0(database, " GSEA", context_suffix),
-                      subtitle = paste0("Top ", top_n, " terms per NES direction; FDR <= ", format(gsea_fdr), "; page ", page, "/", length(pages)),
-                      x = "Normalized enrichment score (NES)", y = NULL, size = "Gene-set size")
+      q <- ggplot2::ggplot(z, ggplot2::aes(y = stats::reorder(label, NES))) +
+        ggplot2::geom_segment(ggplot2::aes(x = 0, xend = NES, yend = stats::reorder(label, NES), color = plot_direction_label), linewidth = .75, alpha = .7) +
+        ggplot2::geom_point(ggplot2::aes(x = NES, size = setSize, color = plot_direction_label, shape = evidence_class), stroke = 1.1) +
+        ggplot2::geom_vline(xintercept = 0, color = "grey35", linewidth = .45) +
+        ggplot2::facet_wrap(~plot_direction_label, scales = "free_y", ncol = 2) + direction_scale + evidence_scale + common_theme +
+        ggplot2::labs(title = paste0(database, " GSEA", title_suffix),
+                      subtitle = paste0(comparison_prefix, "top ", top_n, " non-redundant terms per NES direction; FDR <= ", format(gsea_fdr), "; page ", page, "/", length(pages)),
+                      x = "Normalized enrichment score (NES)", y = NULL, size = "Gene-set size", shape = NULL) +
+        ggplot2::guides(color = "none", size = ggplot2::guide_legend(order = 1), shape = ggplot2::guide_legend(order = 2))
       suffix <- if (length(pages) > 1L) paste0("_page", page) else ""
       ggplot2::ggsave(file.path(out, paste0("gsea_nes_", tolower(safe_name(database)), suffix, ".pdf")), q,
                       width = 10, height = min(10, max(5, .42 * max(table(z$plot_direction)) + 3)), limitsize = FALSE)
