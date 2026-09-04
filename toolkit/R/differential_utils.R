@@ -523,7 +523,7 @@ plot_enrichment_summary <- function(x, out, config) {
 
   overview_n <- min(3L, top_n)
   overview <- select_enrichment_plot_terms(x, overview_n, ora_fdr, gsea_fdr, max_gene_overlap)
-  overview$label <- clean_enrichment_label(overview$Description, label_width)
+  overview$label <- clean_enrichment_label(overview$Description, min(label_width, 34L))
   overview$plot_direction_label <- ifelse(overview$plot_direction == "Up", context$positive, context$negative)
   overview$plot_direction_label <- factor(overview$plot_direction_label, levels = c(context$negative, context$positive))
   overview$evidence_class <- ifelse(overview$plot_fdr <= 0.05, evidence_levels[[1]], evidence_levels[[2]])
@@ -540,7 +540,7 @@ plot_enrichment_summary <- function(x, out, config) {
                     x = "Normalized enrichment score (NES)", y = NULL, size = "Gene-set size", shape = NULL) +
       ggplot2::guides(color = ggplot2::guide_legend(order = 1), size = ggplot2::guide_legend(order = 2),
                       shape = ggplot2::guide_legend(order = 3))
-    ggplot2::ggsave(file.path(out, "enrichment_dotplot_overview.pdf"), p, width = 12, height = 8, limitsize = FALSE)
+    ggplot2::ggsave(file.path(out, "enrichment_dotplot_overview.pdf"), p, width = 13.5, height = 9, limitsize = FALSE)
   }
 
   ora <- d[d$method == "ORA", , drop = FALSE]
