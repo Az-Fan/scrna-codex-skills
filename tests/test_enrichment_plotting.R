@@ -35,6 +35,11 @@ stopifnot(unname(clean_enrichment_label("HALLMARK_REACTIVE_OXYGEN_SPECIES_PATHWA
 stopifnot(enrichment_detail_height(1) == 3.5,
           enrichment_detail_height(8) < 6.0,
           enrichment_detail_height(100) == 10)
+seeded <- initialize_enrichment_seed(list(random_seed = 42))
+draw_a <- runif(3)
+invisible(initialize_enrichment_seed(list(random_seed = 42)))
+draw_b <- runif(3)
+stopifnot(identical(draw_a, draw_b), identical(attr(seeded, "resolved_random_seed"), 42L))
 
 out <- tempfile("enrichment_plot_test_")
 dir.create(out)

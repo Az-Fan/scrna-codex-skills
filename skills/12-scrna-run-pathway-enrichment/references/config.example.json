@@ -1,5 +1,6 @@
 {
   "project": {"id": "project_id"},
+  "random_seed": 1,
   "input": {"differential_table": "/path/to/all_comparisons.tsv"},
   "analysis": {"stage": "enrichment_only", "padj_threshold": 0.05, "lfc_threshold": 0.25},
   "enrichment": {

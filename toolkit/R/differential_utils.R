@@ -79,7 +79,16 @@ make_table_tasks <- function(config) {
   tasks
 }
 
+initialize_enrichment_seed <- function(config) {
+  seed <- suppressWarnings(as.integer(cfg_get(config, "random_seed", 1L)))
+  if (length(seed) != 1L || is.na(seed)) stop("random_seed must be one integer")
+  attr(config, "resolved_random_seed") <- seed
+  set.seed(seed)
+  config
+}
+
 run_enrichment_only_workflow <- function(config) {
+  config <- initialize_enrichment_seed(config)
   out <- prepare_output(config); dir.create(file.path(out, "comparisons"), recursive = TRUE, showWarnings = FALSE)
   tasks <- make_table_tasks(config); statuses <- list(); enriched <- list()
   for (i in seq_along(tasks)) {

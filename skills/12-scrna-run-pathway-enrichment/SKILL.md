@@ -9,7 +9,7 @@ This dedicated entry point reuses the enrichment implementation from differentia
 
 ## Workflow
 
-1. Confirm species, gene identifier type, effect direction, test-statistic columns, and whether the input contains all tested genes.
+1. Confirm species, gene identifier type, effect direction, test-statistic columns, whether the input contains all tested genes, and an explicit integer `random_seed`.
 2. Create a config from [references/config.example.json](references/config.example.json). Keep `analysis.stage=enrichment_only`.
 3. Dry-run `scripts/run.py --config <config>` and inspect table mappings and requested databases.
 4. Execute with `--execute` and inspect `task_status.tsv`, mapping tables, complete results, and database-level statuses.
