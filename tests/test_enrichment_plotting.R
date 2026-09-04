@@ -41,6 +41,14 @@ stopifnot(enrichment_detail_height(1) == 3.5,
           enrichment_detail_height(100) == 10,
           identical(format_enrichment_fdr(c(0.2, 0.01234, 0.0004)),
                     c("q=0.200", "q=0.012", "q<0.001")))
+mapped <- map_enrichment_plot_values(selected)
+stopifnot(all.equal(mapped$plot_fdr, mapped$p.adjust),
+          all(mapped$plot_x_value[mapped$method == "GSEA"] == mapped$NES[mapped$method == "GSEA"]),
+          all(mapped$plot_size_value[mapped$method == "GSEA"] == mapped$setSize[mapped$method == "GSEA"]),
+          mapped$plot_x_value[mapped$method == "ORA" & mapped$plot_direction == "Up"] > 0,
+          mapped$plot_x_value[mapped$method == "ORA" & mapped$plot_direction == "Down"] < 0,
+          identical(enrichment_plot_formats(list()), "png"),
+          identical(enrichment_plot_formats(list(enrichment = list(plot_format = "both"))), c("png", "pdf")))
 seeded <- initialize_enrichment_seed(list(random_seed = 42))
 draw_a <- runif(3)
 invisible(initialize_enrichment_seed(list(random_seed = 42)))
@@ -61,13 +69,15 @@ withCallingHandlers(plot_enrichment_summary(fixture, out, config), warning = fun
   plot_warnings <<- c(plot_warnings, conditionMessage(warning))
   invokeRestart("muffleWarning")
 })
-expected <- c("enrichment_dotplot_overview.pdf", "enrichment_ora_overview.pdf",
-              "enrichment_dotplot_go_bp_ora.pdf", "gsea_nes_hallmark.pdf",
+expected <- c("enrichment_dotplot_overview.png", "enrichment_ora_overview.png",
+              "enrichment_dotplot_go_bp_ora.png", "gsea_nes_hallmark.png",
               "enrichment_plot_terms_summary.tsv")
 stopifnot(all(file.exists(file.path(out, expected))))
+stopifnot(!length(list.files(out, pattern = "[.]pdf$")))
 stopifnot(!any(grepl("Removed .* rows", plot_warnings)))
 plot_terms <- read.delim(file.path(out, "enrichment_plot_terms_summary.tsv"), check.names = FALSE)
-stopifnot(all(c("plot_rank", "plot_direction_label", "evidence_class") %in% names(plot_terms)),
+stopifnot(all(c("plot_rank", "plot_direction_label", "evidence_class", "plot_fdr_label",
+                "plot_x_value", "plot_size_value", "plot_x_metric", "plot_size_metric") %in% names(plot_terms)),
           nrow(plot_terms) == 5L,
           !any(grepl("\n", plot_terms$label, fixed = TRUE)),
           !any(grepl("\r", plot_terms$label, fixed = TRUE)),
@@ -85,4 +95,4 @@ stopifnot(identical(attr(parsed, "input_record")$path, input),
           is.finite(attr(parsed, "input_record")$bytes),
           nzchar(attr(parsed, "input_record")$sha256))
 unlink(c(input, config_path))
-cat("PASS: enrichment plotting selection, labels, and PDF outputs\n")
+cat("PASS: enrichment plotting selection, mappings, and PNG outputs\n")

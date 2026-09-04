@@ -19,7 +19,7 @@ This dedicated entry point reuses the enrichment implementation from differentia
 - Preserve every complete enrichment result table and the tested-gene ORA universe.
 - Keep unmapped identifiers and resource versions auditable.
 - Record individual databases as completed, empty, skipped, or failed; retain successful databases when another fails.
-- Produce a compact overview plus separate database/direction plots using configurable top-N terms, wrapped labels, bounded dimensions, and pagination rather than one unbounded figure.
+- Produce a compact overview plus separate database/direction plots using configurable top-N terms, wrapped labels, bounded dimensions, and pagination rather than one unbounded figure. Default to 300-dpi white-background PNG; generate PDF only when explicitly configured.
 - Treat summary plots as views of the complete TSV results, never as substitutes for them.
 
 Read [references/enrichment-design.md](references/enrichment-design.md) for resource and interpretation rules. Dry-run first and use `scripts/run_in_tmux.py` for long confirmed runs.

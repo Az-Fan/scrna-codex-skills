@@ -16,6 +16,8 @@
     "min_gene_set_size": 10,
     "max_gene_set_size": 500,
     "plot_top_terms": 15,
+    "plot_format": "png",
+    "plot_dpi": 300,
     "plot_label_width": 42,
     "plot_terms_per_page": 20,
     "plot_ora_fdr_threshold": 0.05,
