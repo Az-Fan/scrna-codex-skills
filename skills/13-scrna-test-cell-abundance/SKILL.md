@@ -38,3 +38,7 @@ Use `scripts/run_in_tmux.py` for sccomp, scCODA, Milo, or multi-method runs that
 - Do not infer proliferation, death, migration, or recruitment mechanisms from relative abundance alone.
 
 Read [references/input-output-contract.md](references/input-output-contract.md) for schemas, outputs, statuses, and plotting limits.
+
+## Result organization
+
+Keep primary figures, complete scientific tables, and review decisions directly accessible. Store execution manifests, session information, logs, and workflow state under `_provenance/`; do not list them as primary results. Read [references/output-layout.md](references/output-layout.md) when configuring outputs, locating legacy records, or adding custom plots and diagnostics.

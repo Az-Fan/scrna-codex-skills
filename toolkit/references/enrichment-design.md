@@ -11,7 +11,7 @@ When enrichment is enabled and `enrichment.databases` is omitted, run all of:
 - Reactome pathways.
 - MSigDB Hallmark gene sets.
 
-Use the installed human or mouse organism annotation package for GO and identifier mapping. Use `msigdbr` gene sets for KEGG, Reactome, and Hallmark so the workflow is reproducible without live pathway API calls. Record package and database versions in `sessionInfo.txt`.
+Use the installed human or mouse organism annotation package for GO and identifier mapping. Use `msigdbr` gene sets for KEGG, Reactome, and Hallmark so the workflow is reproducible without live pathway API calls. Record package and database versions in `_provenance/session_info.txt`.
 
 ## ORA and GSEA
 

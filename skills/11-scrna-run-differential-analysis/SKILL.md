@@ -38,3 +38,7 @@ If execution may exceed 10 minutes, has uncertain duration, or could outlive the
 - Do not overwrite the input Seurat object.
 
 Read [references/input-output-contract.md](references/input-output-contract.md) for fields, outputs, task statuses, and compatibility notes.
+
+## Result organization
+
+Keep primary figures, complete scientific tables, and review decisions directly accessible. Store execution manifests, session information, logs, and workflow state under `_provenance/`; do not list them as primary results. Read [references/output-layout.md](references/output-layout.md) when configuring outputs, locating legacy records, or adding custom plots and diagnostics.

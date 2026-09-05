@@ -4,6 +4,12 @@
 
 规范开发仓库位于 `/home/faz_laptop/projects/scrna-codex-skills`；GitHub 仓库 `git@github.com:Az-Fan/scrna-codex-skills.git` 是固定版本的分发来源。科学计算默认复用服务器上已经注册的 pixi 环境，不会自动创建环境、修改环境或安装缺失依赖。
 
+## 结果目录约定
+
+阶段目录直接展示主要图片、完整科学结果表和人工审核表。运行清单、session 信息、工作流状态与日志统一写入阶段内的 `_provenance/`；共享 runner 的默认 dry-run 清单写入配置目录内的 `_provenance/`。显式指定的 `--manifest`、tmux 日志和状态路径仍予以尊重。
+
+这项调整不删除历史记录，不改变计算、对象位置或图片格式。旧结果仍按旧路径查找；后续自定义作图也遵循相同收纳规则。设计审计、失败任务、基因覆盖和审核决策等影响解释的信息不能因“精简”而隐藏。对象迁移需单独核查下游引用。详见共享的[输出布局说明](toolkit/references/output-layout.md)。
+
 ## 一、工作流总览
 
 主流程如下：
@@ -94,15 +100,15 @@ python3 ~/.codex/skills/<skill-name>/scripts/run.py \
 python3 ~/.codex/skills/<skill-name>/scripts/run_in_tmux.py \
   --session unique-session-name \
   --cwd /absolute/path/to/project \
-  --log results/<stage>/tmux.log \
-  --status results/<stage>/tmux_status.json \
+  --log results/<stage>/_provenance/tmux.log \
+  --status results/<stage>/_provenance/tmux_status.json \
   --execute \
   -- python3 ~/.codex/skills/<skill-name>/scripts/run.py \
      --config /absolute/path/to/config.json \
      --execute
 ```
 
-监督器拒绝重复的活动 session，并记录独立的日志和状态 JSON。科学完成状态仍以 skill 自己的 `run_manifest.json`、状态表和必要结果文件为准。
+监督器拒绝重复的活动 session，并记录独立的日志和状态 JSON。科学完成状态仍以 skill 自己的 `_provenance/run_manifest.json`、状态表和必要结果文件为准。
 
 ### 4. 注册环境
 
@@ -151,7 +157,7 @@ python3 ~/.codex/skills/01-scrna-standardize-input/scripts/run.py \
 - `samples.tsv`：每个生物学样本一行的样本表。
 - `field_mapping.json`：源字段到 sample/condition/batch 等角色的映射。
 - `provenance.json`：来源、格式、维度和变换记录。
-- `run_manifest.json`：本次运行配置与文件清单。
+- `_provenance/run_manifest.json`：本次运行配置与文件清单。
 
 详细对象约定见 [input-contract.md](skills/01-scrna-standardize-input/references/input-contract.md)。原始输入不会被覆盖。
 
@@ -180,7 +186,7 @@ Seurat 输入时：
 - `qc_metrics_object.rds`：添加 QC metadata 的派生对象。
 - `metadata.tsv.gz`：完整逐细胞 QC 表。
 - `qc_diagnosis.png`：基础 QC 诊断图。
-- `_provenance/`：供执行器审计的 `metric_status.tsv` 和 `run_manifest.json`；不作为主要结果展示。
+- `_provenance/`：供执行器审计的指标状态、运行清单和日志；不作为主要结果展示。
 
 STARsolo 输入时，每个样本目录只保留 `counts.mtx.gz`、`features.tsv.gz`、`metadata.tsv.gz` 和 `qc_diagnosis.png`；所有样本的指标状态合并到输出根目录的 `_provenance/metric_status.tsv`。
 
@@ -209,7 +215,7 @@ compact 模式根目录只保留：
 - `qc_atlas.pdf`：样本、分组和 UMAP 感知的 QC 图集。
 - `threshold_review.tsv`：候选阈值及待审批字段。
 - `qc_summary_by_sample.tsv`：样本级 QC 汇总。
-- `run_manifest.json`。
+- `_provenance/run_manifest.json`。
 
 `output.detail_level=full` 时，额外的指标可用性、分位数、候选保留率、绘图状态表和预览 PNG 放在 `details/`。此步骤不会生成过滤对象，也不会自动填写批准状态。
 
@@ -241,7 +247,7 @@ compact 模式根目录只保留：
 - 可选 `filter_summary_by_condition.tsv`。
 - `filter_decision_counts.tsv`：各排除/保留原因计数。
 - `approved_filter_record.tsv`：批准内容、预期细胞数和决策表 SHA-256。
-- `session_info.txt`、`run_manifest.json`。
+- `_provenance/session_info.txt`、`_provenance/run_manifest.json`。
 
 对象保存采用临时文件、回读验证和原子最终化；实际保留数与批准数不一致时立即停止。
 
@@ -272,7 +278,7 @@ compact 模式根目录只保留：
 - 用户选择的 UMAP、score heatmap、tradeoff、marker/program retention 图。
 - `integration_benchmark_object.qs` 或 embedding bundle。
 - `recommendation.md` 与 `recommendation_status.json`。
-- `run_manifest.json`。
+- `_provenance/run_manifest.json`。
 
 当 batch 与 condition 完全混杂，或请求的排名指标均不可用时，推荐状态必须为 `unresolved`。不会仅凭 UMAP “混得好”自动选方法。
 
@@ -300,8 +306,8 @@ compact 模式根目录只保留：
 - `preprocessed_clustered_object.qs`。
 - `scenario_summary.tsv`、`scenario_cluster_similarity.tsv`。
 - `<scenario>_elbow.png`。
-- `workflow_state.json`、`session_info.txt`、追加式 `run.log`。
-- `run_manifest_preprocess.json`；finalize 时另写 `run_manifest_finalize.json`。
+- `_provenance/workflow_state.json`、`_provenance/session_info.txt`、追加式 `_provenance/run.log`。
+- `_provenance/run_manifest_preprocess.json`；finalize 时另写 `_provenance/run_manifest_finalize.json`。
 
 固定或人工确认聚类还输出：
 
@@ -340,7 +346,7 @@ guided 模式只给出稳定性推荐并暂停，必须由用户确认 resolutio
 - `top_cluster_markers.tsv`：确定性排序后的展示用 top marker。
 - `cluster_marker_summary.tsv`：每簇细胞数和 marker 数，包括零 marker 的簇。
 - `top_marker_dotplot.pdf`。
-- `run_manifest.json`。
+- `_provenance/run_manifest.json`。
 
 解读时应检查 sample-specific cluster、微小簇、线粒体/核糖体/应激/细胞周期/环境 RNA 等信号，见 [marker-interpretation.md](skills/07-scrna-find-cluster-markers/references/marker-interpretation.md)。
 
@@ -364,7 +370,7 @@ guided 模式只给出稳定性推荐并暂停，必须由用户确认 resolutio
 - `clustered_object.qs`。
 - `cluster_umap.pdf`、`cluster_sample_umap.pdf`。
 - 可选 `canonical_marker_dotplot.pdf`。
-- `run_manifest.json`。
+- `_provenance/run_manifest.json`。
 
 配置模板：[config.example.json](skills/08-scrna-annotate-cells/references/config.example.json)。
 
@@ -383,7 +389,7 @@ guided 模式只给出稳定性推荐并暂停，必须由用户确认 resolutio
 - `annotation_summary.tsv`：每簇决定与细胞数。
 - `annotated_umap.pdf`。
 - `cluster_sample_condition_umap.pdf`。
-- `session_info.txt`、`run_manifest.json`。
+- `_provenance/session_info.txt`、`_provenance/run_manifest.json`。
 
 应用配置见 [config.apply.example.json](skills/08-scrna-annotate-cells/references/config.apply.example.json)，决策表要求见 [annotation-review.md](skills/08-scrna-annotate-cells/references/annotation-review.md)。部分、重复、空白或未确认的决策表会被拒绝；注释过程不删除细胞，也不覆盖 cluster ID。
 
@@ -410,7 +416,7 @@ guided 模式只给出稳定性推荐并暂停，必须由用户确认 resolutio
 - `subset_metadata.tsv`。
 - `subset_summary.tsv`：按样本等维度的保留汇总。
 - `features.tsv`、`barcodes.tsv`。
-- `run_manifest.json`。
+- `_provenance/run_manifest.json`。
 
 父对象不会被修改。导出后的 QC、整合、聚类、marker 和注释必须使用相应 skill 单独完成。
 
@@ -438,7 +444,7 @@ guided 模式只给出稳定性推荐并暂停，必须由用户确认 resolutio
 - `assay_feature_mapping.tsv`：导出 signature 名和 Seurat assay feature 名映射。
 - `score_summary.tsv`：按配置字段汇总的描述性结果。
 - `figures/<task>_group_mean_heatmap.png`。
-- `task_manifest.json`、`session_info.txt`、`run_manifest.json`。
+- `_provenance/task_manifest.json`、`_provenance/session_info.txt`、`_provenance/run_manifest.json`。
 
 不同方法的绝对分数不能直接比较。按 condition 的正式推断仍必须以独立样本为统计单位，见 [interpretation-and-inference.md](skills/10-scrna-score-programs/references/interpretation-and-inference.md)。
 
@@ -469,7 +475,7 @@ guided 模式只给出稳定性推荐并暂停，必须由用户确认 resolutio
 - `all_comparisons.tsv`：所有任务的完整基因结果。
 - `significant_all_comparisons.tsv`：展示/交接用显著结果子表。
 - `DEG_count_summary.pdf`。
-- `sessionInfo.txt`、`run_manifest.json`。
+- `_provenance/session_info.txt`、`_provenance/run_manifest.json`。
 
 每个 `comparisons/<population>__<comparison>/`：
 
@@ -507,7 +513,7 @@ apeglm 只替换 log2FC 和 lfcSE；p 值、padj 和 Wald stat 仍来自未收�
 
 - `task_status.tsv`。
 - `enrichment_all_comparisons.tsv`：所有成功任务的完整合并结果。
-- `sessionInfo.txt`、`run_manifest.json`。
+- `_provenance/session_info.txt`、`_provenance/run_manifest.json`。
 
 每个 `comparisons/<task>/`：
 
@@ -629,7 +635,7 @@ pixi install -e sccoda
 - `all_method_results.tsv`：所有成功方法的完整标准化长表；`significant_method_results.tsv` 只是筛选视图。
 - `method_concordance.tsv`：按细胞类型记录 `supported/partial/discordant/not_supported`；scCODA 多个参考敏感性运行只算一个方法证据。
 - `sample_composition.pdf`、`cell_type_proportions_by_condition.pdf`、`sample_proportion_heatmap.pdf`：自动分页、样本点带标签的描述图。
-- `sessionInfo.txt`、`run.log`、`run_manifest.json`。
+- `_provenance/session_info.txt`、`_provenance/run.log`、`_provenance/run_manifest.json`。
 
 每个 `comparisons/<comparison>/<method>/` 还保留官方原始结果、完整标准表、显著子表和分页 `effect_summary.pdf`。scCODA 额外保存逐参考结果与 posterior diagnostics；sccomp 保存抽样/Pathfinder 产物；DCATS 保存系数和似然比；Milo 保存完整 neighborhood 表及 DA 图，可配置是否保存 Milo 对象。
 

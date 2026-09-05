@@ -23,3 +23,7 @@ This dedicated entry point reuses the enrichment implementation from differentia
 - Treat summary plots as views of the complete TSV results, never as substitutes for them.
 
 Read [references/enrichment-design.md](references/enrichment-design.md) for resource and interpretation rules. Dry-run first and use `scripts/run_in_tmux.py` for long confirmed runs.
+
+## Result organization
+
+Keep primary figures, complete scientific tables, and review decisions directly accessible. Store execution manifests, session information, logs, and workflow state under `_provenance/`; do not list them as primary results. Read [references/output-layout.md](references/output-layout.md) when configuring outputs, locating legacy records, or adding custom plots and diagnostics.

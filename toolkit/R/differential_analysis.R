@@ -112,8 +112,8 @@ if (length(enrichment_rows)) {
   write_tsv(enrichment, file.path(out, "enrichment_all_comparisons.tsv"))
   artifacts <- c(artifacts, file.path(out, "enrichment_all_comparisons.tsv"))
 }
-writeLines(capture.output(sessionInfo()), file.path(out, "sessionInfo.txt"))
-artifacts <- c(artifacts, file.path(out, "sessionInfo.txt"))
+writeLines(capture.output(sessionInfo()), technical_path(out, "session_info.txt"))
+artifacts <- c(artifacts, technical_path(out, "session_info.txt"))
 active_skill <- Sys.getenv("SCRNA_ACTIVE_SKILL", unset = "11-scrna-run-differential-analysis")
 write_run_manifest(config, active_skill, out, artifacts,
                    c(paste0("method=", method), paste0("stage=", stage), "Positive log2 fold change means numerator > denominator", "Input object was not rewritten"))

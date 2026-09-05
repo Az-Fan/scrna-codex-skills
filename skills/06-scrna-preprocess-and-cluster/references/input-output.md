@@ -21,7 +21,7 @@ Every run:
 - `scenario_summary.tsv`
 - `scenario_cluster_similarity.tsv`
 - `<scenario>_elbow.png`
-- `run_manifest_preprocess.json`, `workflow_state.json`, `session_info.txt`, and append-only `run.log`; finalization adds `run_manifest_finalize.json` without overwriting the preprocessing manifest
+- `_provenance/run_manifest_preprocess.json`, `_provenance/workflow_state.json`, `_provenance/session_info.txt`, and append-only `_provenance/run.log`; finalization adds `_provenance/run_manifest_finalize.json` without overwriting the preprocessing manifest
 
 Fixed, automatically authorized, or finalized clustering adds:
 

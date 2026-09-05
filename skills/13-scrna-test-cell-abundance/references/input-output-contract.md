@@ -19,7 +19,7 @@ Every sample must map to one condition and one value for each sample-level covar
 
 ## Outputs
 
-Root outputs include complete `sample_cell_counts.tsv`, `sample_cell_proportions.tsv`, `design_audit.tsv`, `cell_type_eligibility.tsv`, `task_status.tsv`, `all_method_results.tsv`, `significant_method_results.tsv`, `method_concordance.tsv`, `sessionInfo.txt`, `run.log`, and `run_manifest.json`.
+Root outputs include complete `sample_cell_counts.tsv`, `sample_cell_proportions.tsv`, `design_audit.tsv`, `cell_type_eligibility.tsv`, `task_status.tsv`, `all_method_results.tsv`, `significant_method_results.tsv`, `method_concordance.tsv`. Technical records are `_provenance/session_info.txt`, `_provenance/run.log`, and `_provenance/run_manifest.json`.
 
 Descriptive figures are bounded multipage PDFs: `sample_composition.pdf`, `cell_type_proportions_by_condition.pdf`, and `sample_proportion_heatmap.pdf`. Every sample-level point is labelled.
 

@@ -119,8 +119,12 @@ def main():
     if workers > 1:
         for variable in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
             execution_env[variable] = "1"
-    subprocess.run(command, check=True, env=execution_env)
+    with (provenance / "run.log").open("a", encoding="utf-8") as log:
+        result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, env=execution_env)
+    plan["exit_status"] = result.returncode
     (provenance / "run_manifest.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")
+    if result.returncode:
+        fail(f"QC metrics failed (exit {result.returncode}); see {provenance / 'run.log'}")
 
 
 if __name__ == "__main__":

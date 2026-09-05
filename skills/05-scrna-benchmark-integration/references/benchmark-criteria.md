@@ -31,4 +31,4 @@ Supported plot selections are `score_barplot`, `score_heatmap`, `ranking_plot`, 
 
 ## Required outputs
 
-Write `method_runs.tsv`, `metric_results_long.tsv`, `method_summary.tsv`, `method_ranking.tsv`, `skipped_metrics.tsv`, `design_confounding.tsv`, selected figures, a derivative benchmark object or embedding bundle, `recommendation.md`, machine-readable `recommendation_status.json`, and `run_manifest.json`. The decision status must be `unresolved` when no requested metric completed or when batch and condition are perfectly confounded.
+Write `method_runs.tsv`, `metric_results_long.tsv`, `method_summary.tsv`, `method_ranking.tsv`, `skipped_metrics.tsv`, `design_confounding.tsv`, selected figures, a derivative benchmark object or embedding bundle, `recommendation.md`, machine-readable `recommendation_status.json`, and `_provenance/run_manifest.json`. The decision status must be `unresolved` when no requested metric completed or when batch and condition are perfectly confounded.

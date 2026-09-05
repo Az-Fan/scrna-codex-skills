@@ -14,7 +14,7 @@ Treat pathway analysis as explicit gene-level scoring with versioned resources a
 3. Copy [references/config.example.json](references/config.example.json), declare every requested task explicitly, and avoid adding unrequested methods for comparison.
 4. Run `scripts/run.py --config <config>` to validate the contract and write a plan manifest. Review it, then rerun with `--execute`.
 5. Inspect `signature_coverage.tsv` before interpreting scores. Resolve species or identifier problems when many signatures are skipped or have low coverage.
-6. Inspect `task_manifest.json` for methods, resources, cache keys, output assays, and cache hits.
+6. Inspect `_provenance/task_manifest.json` for methods, resources, cache keys, output assays, and cache hits.
 7. Use cell-level scores for visualization. Read [references/interpretation-and-inference.md](references/interpretation-and-inference.md) before testing conditions.
 
 If execution may exceed 10 minutes, has uncertain duration, or could outlive the remote session, read [references/long-running-execution.md](references/long-running-execution.md) and launch the confirmed `--execute` command with `scripts/run_in_tmux.py`. Keep validation and dry runs in the foreground.
@@ -33,3 +33,7 @@ If execution may exceed 10 minutes, has uncertain duration, or could outlive the
 ## Outputs
 
 Write a derivative Seurat object, per-task matrices, coverage and grouped-summary tables, grouped heatmaps, task and run manifests, and session information. Attach each score matrix as a namespaced Seurat assay with programs as features and cells as columns. Use `assay_feature_mapping.tsv` because Seurat assay feature names replace underscores with hyphens while exported matrices preserve original signature names.
+
+## Result organization
+
+Keep primary figures, complete scientific tables, and review decisions directly accessible. Store execution manifests, session information, logs, and workflow state under `_provenance/`; do not list them as primary results. Read [references/output-layout.md](references/output-layout.md) when configuring outputs, locating legacy records, or adding custom plots and diagnostics.

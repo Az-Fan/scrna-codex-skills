@@ -159,7 +159,9 @@ def main() -> int:
         "diagnostics_status": diagnostics_status,
         "versions": {name: version(name) for name in ["pertpy", "anndata", "mudata", "numpyro", "jax"]},
     }
-    (args.output_dir / "model_record.json").write_text(
+    provenance = args.output_dir / "_provenance"
+    provenance.mkdir(parents=True, exist_ok=True)
+    (provenance / "model_record.json").write_text(
         json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
     return 0

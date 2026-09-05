@@ -89,10 +89,21 @@ get_raw_counts <- function(obj, assay = NULL) {
   }
 }
 
+technical_path <- function(out, name) {
+  directory <- file.path(out, "_provenance")
+  if (!dir.exists(directory)) dir.create(directory, recursive = TRUE)
+  file.path(directory, name)
+}
+
 write_run_manifest <- function(config, skill, out, artifacts, notes = character()) {
+  # A rerun must not include an older copy of its own manifest as an artifact.
+  artifacts <- artifacts[!grepl("^run_manifest.*\\.json$", basename(artifacts))]
   artifact_records <- lapply(unique(artifacts), function(path) {
     info <- file.info(path)
-    list(path = path, bytes = if (isTRUE(info$isdir)) NA_real_ else unname(info$size), sha256 = .scrna_sha256(path))
+    # The supervising runner appends its exit record after this function returns.
+    mutable <- grepl("\\.log$", path)
+    list(path = path, bytes = if (isTRUE(info$isdir) || mutable) NA_real_ else unname(info$size),
+         sha256 = if (mutable) NA_character_ else .scrna_sha256(path), mutable = mutable)
   })
   config_path <- attr(config, "config_path")
   input_record <- attr(config, "input_record")
@@ -121,5 +132,5 @@ write_run_manifest <- function(config, skill, out, artifacts, notes = character(
   } else {
     "run_manifest.json"
   }
-  jsonlite::write_json(manifest, file.path(out, manifest_name), auto_unbox = TRUE, pretty = TRUE)
+  jsonlite::write_json(manifest, technical_path(out, manifest_name), auto_unbox = TRUE, pretty = TRUE)
 }

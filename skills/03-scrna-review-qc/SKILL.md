@@ -40,4 +40,8 @@ Read `references/qc-review.md` only when interpreting the threshold table or cha
 
 ## Outputs
 
-The result root contains only `qc_atlas.pdf`, `threshold_review.tsv`, `qc_summary_by_sample.tsv`, and `run_manifest.json`. Set `output.detail_level` to `full` only when machine-readable availability, quantile, retention, plot-status tables, and individual PNG files are needed; place those supplements under `details/`.
+The result root contains only `qc_atlas.pdf`, `threshold_review.tsv`, and `qc_summary_by_sample.tsv`. Technical records are stored under `_provenance/`. Set `output.detail_level` to `full` only when machine-readable availability, quantile, retention, plot-status tables, and individual PNG files are needed; place those supplements under `details/`.
+
+## Result organization
+
+Keep primary figures, complete scientific tables, and review decisions directly accessible. Store execution manifests, session information, logs, and workflow state under `_provenance/`; do not list them as primary results. Read [references/output-layout.md](references/output-layout.md) when configuring outputs, locating legacy records, or adding custom plots and diagnostics.

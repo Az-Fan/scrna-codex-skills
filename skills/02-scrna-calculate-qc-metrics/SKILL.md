@@ -47,3 +47,7 @@ Set `ambient_rna.method` to `skip` for a fast run that records DecontX as delibe
 - Do not infer sample batches from sample names.
 
 Read [references/input-output.md](references/input-output.md) when preparing or reviewing a run.
+
+## Result organization
+
+Keep primary figures, complete scientific tables, and review decisions directly accessible. Store execution manifests, session information, logs, and workflow state under `_provenance/`; do not list them as primary results. Read [references/output-layout.md](references/output-layout.md) when configuring outputs, locating legacy records, or adding custom plots and diagnostics.

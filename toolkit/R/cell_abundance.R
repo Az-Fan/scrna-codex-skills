@@ -371,7 +371,7 @@ run_sccoda <- function(comparison, task_dir) {
       "--output-dir", ref_dir
     )
     if (bool_value(cfg_get(config, "method_options.sccoda.save_posterior", FALSE), FALSE)) argv <- c(argv, "--save-posterior")
-    log_file <- file.path(ref_dir, "run.log")
+    log_file <- technical_path(ref_dir, "run.log")
     status <- system2(python, args = shQuote(argv), stdout = log_file, stderr = log_file)
     output_file <- file.path(ref_dir, "all_results.tsv")
     if (identical(status, 0L) && file.exists(output_file)) {
@@ -583,7 +583,7 @@ if (length(all_results)) {
   }
 }
 
-writeLines(capture.output(sessionInfo()), file.path(out, "sessionInfo.txt"))
+writeLines(capture.output(sessionInfo()), technical_path(out, "session_info.txt"))
 artifacts <- list.files(out, recursive = TRUE, full.names = TRUE)
 artifacts <- artifacts[file.info(artifacts)$isdir %in% FALSE]
 write_run_manifest(config, "13-scrna-test-cell-abundance", out, artifacts,

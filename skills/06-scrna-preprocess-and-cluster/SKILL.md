@@ -51,7 +51,7 @@ Before execution, inspect metadata, assays, raw counts, existing reductions, sce
 1. Create a project-local config from [references/config.example.json](references/config.example.json) for batch mode or [references/config.guided.example.json](references/config.guided.example.json) for guided scanning.
 2. Run `python3 scripts/check_dependencies.py --pixi-root <registered-root>`, then dry-run `python3 scripts/run.py --config <config>` and verify that the manifest resolves the same exact pixi `Rscript`.
 3. Execute only after confirmation with `python3 scripts/run.py --config <config> --execute`.
-4. In guided mode, inspect `workflow_state.json`. When it reports `awaiting_resolution_confirmation`, present the resolution UMAP grid, clustree availability, stability table, and recommended value, then wait.
+4. In guided mode, inspect `_provenance/workflow_state.json`. When it reports `awaiting_resolution_confirmation`, present the resolution UMAP grid, clustree availability, stability table, and recommended value, then wait.
 5. After explicit confirmation, create a config from [references/config.finalize.example.json](references/config.finalize.example.json) and finalize the selected candidate column in the same output directory without recomputing preprocessing. The validated replacement object atomically replaces the scan object.
 6. When comparison mode was explicitly selected, compare scenarios using diagnostics and composition tables; do not select a winner automatically.
 
@@ -71,3 +71,7 @@ Read [references/input-output.md](references/input-output.md) when validating in
 - Permit a resolution scan, but never silently promote its recommendation in guided mode.
 - Do not compute markers, annotate cells, delete clusters, or filter cells.
 - Do not treat regression as a substitute for QC filtering or UMAP mixing as proof of successful integration.
+
+## Result organization
+
+Keep primary figures, complete scientific tables, and review decisions directly accessible. Store execution manifests, session information, logs, and workflow state under `_provenance/`; do not list them as primary results. Read [references/output-layout.md](references/output-layout.md) when configuring outputs, locating legacy records, or adding custom plots and diagnostics.

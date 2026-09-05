@@ -30,6 +30,6 @@ Use `output.detail_level: compact` by default. It writes four decision-facing ar
 - `qc_atlas.pdf`: all supported plots in one multipage document;
 - `threshold_review.tsv`: candidate bounds and blank approval fields;
 - `qc_summary_by_sample.tsv`: compact per-sample medians and 5th/95th percentiles;
-- `run_manifest.json`: resolved execution record.
+- `_provenance/run_manifest.json`: resolved execution record.
 
 Use `full` only for debugging, downstream machine processing, or figure-by-figure export. Full mode additionally writes metric availability, long-form quantiles, sample/group retention, plot status, and every supported plot as an individual PNG under `details/`; it does not clutter the result root. When coordinates exist, include one UMAP for every available QC metric in the atlas in both modes. Auto-detect `seurat_clusters`/`cluster` and common annotation columns for grouped violin plots.

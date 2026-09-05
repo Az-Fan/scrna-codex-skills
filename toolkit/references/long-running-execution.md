@@ -8,8 +8,8 @@ Use the bundled supervisor instead of assembling shell redirection manually:
 python3 scripts/run_in_tmux.py \
   --session <project>-<skill-number>-<stage> \
   --cwd <project-root> \
-  --log <stage-output>/tmux.log \
-  --status <stage-output>/tmux_status.json \
+  --log <stage-output>/_provenance/tmux.log \
+  --status <stage-output>/_provenance/tmux_status.json \
   -- \
   python3 <installed-skill>/scripts/run.py --config <config> --execute
 ```
@@ -21,11 +21,11 @@ The supervisor refuses an active duplicate session. If it reports a duplicate, i
 ```bash
 tmux ls
 tmux capture-pane -pt <session>
-tail -f <stage-output>/tmux.log
-cat <stage-output>/tmux_status.json
+tail -f <stage-output>/_provenance/tmux.log
+cat <stage-output>/_provenance/tmux_status.json
 tmux attach -t <session>
 ```
 
-`tmux.log` is the supervisor stream and is separate from a skill's own `run.log`. `tmux_status.json` moves from `running` to `completed` or `failed` and records the exit code. Treat the skill run manifest and required artifacts as the final completion contract; a disappearing tmux session alone does not prove success.
+`tmux.log` is the supervisor stream and is separate from a skill's own `_provenance/run.log`. `tmux_status.json` moves from `running` to `completed` or `failed` and records the exit code. Treat the skill run manifest and required artifacts as the final completion contract; a disappearing tmux session alone does not prove success.
 
 Do not terminate a running session unless the user explicitly requests cancellation or continuing would be unsafe. On Wisp-managed projects, use the registered Wisp execution context to run these commands; do not create an independent SSH connection.

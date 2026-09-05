@@ -18,4 +18,4 @@
 - `top_cluster_markers.tsv`: the first `reporting.top_n` markers per cluster using adjusted P value, effect size, and gene as deterministic tie breakers.
 - `cluster_marker_summary.tsv`: cell and passing-marker counts for every input cluster, including clusters with zero markers.
 - `top_marker_dotplot.pdf`: expression and detection overview for unique top genes.
-- `run_manifest.json`: configuration provenance and artifact paths.
+- `_provenance/run_manifest.json`: configuration provenance and artifact paths.

@@ -37,19 +37,19 @@ SKILL_ENVS = {
 }
 
 EXPECTED = {
-    "01-scrna-standardize-input": ["cell_metadata.tsv", "samples.tsv", "field_mapping.json", "run_manifest.json"],
+    "01-scrna-standardize-input": ["cell_metadata.tsv", "samples.tsv", "field_mapping.json", "_provenance/run_manifest.json"],
     "02-scrna-calculate-qc-metrics": ["qc_metrics_object.rds", "metadata.tsv.gz", "qc_diagnosis.png", "_provenance/metric_status.tsv", "_provenance/run_manifest.json"],
-    "03-scrna-review-qc": ["qc_summary_by_sample.tsv", "threshold_review.tsv", "qc_atlas.pdf", "run_manifest.json"],
-    "04-scrna-apply-qc-filter": ["filtered_object.rds", "cell_filter_decisions.tsv.gz", "filter_summary_by_sample.tsv", "filter_summary_by_condition.tsv", "filter_decision_counts.tsv", "approved_filter_record.tsv", "session_info.txt", "run_manifest.json"],
-    "05-scrna-benchmark-integration": ["method_runs_r.tsv", "integration_benchmark_object.qs", "run_manifest.json"],
-    "06-scrna-preprocess-and-cluster": ["preprocessed_clustered_object.qs", "cell_assignments.tsv", "standard_cluster_sizes.tsv", "standard_sample_cluster_counts.tsv", "standard_umap_diagnostics.pdf", "scenario_summary.tsv", "workflow_state.json", "session_info.txt", "run.log", "run_manifest_preprocess.json", "run_manifest_finalize.json"],
-    "07-scrna-find-cluster-markers": ["cluster_markers.tsv", "top_cluster_markers.tsv", "cluster_marker_summary.tsv", "top_marker_dotplot.pdf", "run_manifest.json"],
-    "08-scrna-annotate-cells": ["clustered_object.qs", "cluster_markers.tsv", "annotation_review.tsv", "cluster_umap.pdf", "cluster_sample_umap.pdf", "canonical_marker_dotplot.pdf", "annotated_object.qs", "cell_annotations.tsv", "annotation_summary.tsv", "annotated_umap.pdf", "cluster_sample_condition_umap.pdf", "session_info.txt", "run_manifest.json"],
-    "09-scrna-export-subset": ["subset_object.qs", "subset_counts.mtx", "subset_metadata.tsv", "subset_summary.tsv", "features.tsv", "barcodes.tsv", "run_manifest.json"],
-    "10-scrna-score-programs": ["signature_coverage.tsv", "assay_feature_mapping.tsv", "score_summary.tsv", "task_manifest.json", "run_manifest.json"],
-    "11-scrna-run-differential-analysis": ["design_audit.tsv", "task_status.tsv", "all_comparisons.tsv", "sessionInfo.txt", "run_manifest.json"],
-    "12-scrna-run-pathway-enrichment": ["task_status.tsv", "sessionInfo.txt", "run_manifest.json"],
-    "13-scrna-test-cell-abundance": ["sample_cell_counts.tsv", "sample_cell_proportions.tsv", "design_audit.tsv", "cell_type_eligibility.tsv", "task_status.tsv", "all_method_results.tsv", "method_concordance.tsv", "sample_composition.pdf", "cell_type_proportions_by_condition.pdf", "sample_proportion_heatmap.pdf", "sessionInfo.txt", "run_manifest.json"],
+    "03-scrna-review-qc": ["qc_summary_by_sample.tsv", "threshold_review.tsv", "qc_atlas.pdf", "_provenance/run_manifest.json"],
+    "04-scrna-apply-qc-filter": ["filtered_object.rds", "cell_filter_decisions.tsv.gz", "filter_summary_by_sample.tsv", "filter_summary_by_condition.tsv", "filter_decision_counts.tsv", "approved_filter_record.tsv", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
+    "05-scrna-benchmark-integration": ["method_runs_r.tsv", "integration_benchmark_object.qs", "_provenance/run_manifest.json"],
+    "06-scrna-preprocess-and-cluster": ["preprocessed_clustered_object.qs", "cell_assignments.tsv", "standard_cluster_sizes.tsv", "standard_sample_cluster_counts.tsv", "standard_umap_diagnostics.pdf", "scenario_summary.tsv", "_provenance/workflow_state.json", "_provenance/session_info.txt", "_provenance/run.log", "_provenance/run_manifest_preprocess.json", "_provenance/run_manifest_finalize.json"],
+    "07-scrna-find-cluster-markers": ["cluster_markers.tsv", "top_cluster_markers.tsv", "cluster_marker_summary.tsv", "top_marker_dotplot.pdf", "_provenance/run_manifest.json"],
+    "08-scrna-annotate-cells": ["clustered_object.qs", "cluster_markers.tsv", "annotation_review.tsv", "cluster_umap.pdf", "cluster_sample_umap.pdf", "canonical_marker_dotplot.pdf", "annotated_object.qs", "cell_annotations.tsv", "annotation_summary.tsv", "annotated_umap.pdf", "cluster_sample_condition_umap.pdf", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
+    "09-scrna-export-subset": ["subset_object.qs", "subset_counts.mtx", "subset_metadata.tsv", "subset_summary.tsv", "features.tsv", "barcodes.tsv", "_provenance/run_manifest.json"],
+    "10-scrna-score-programs": ["signature_coverage.tsv", "assay_feature_mapping.tsv", "score_summary.tsv", "_provenance/task_manifest.json", "_provenance/run_manifest.json"],
+    "11-scrna-run-differential-analysis": ["design_audit.tsv", "task_status.tsv", "all_comparisons.tsv", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
+    "12-scrna-run-pathway-enrichment": ["task_status.tsv", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
+    "13-scrna-test-cell-abundance": ["sample_cell_counts.tsv", "sample_cell_proportions.tsv", "design_audit.tsv", "cell_type_eligibility.tsv", "task_status.tsv", "all_method_results.tsv", "method_concordance.tsv", "sample_composition.pdf", "cell_type_proportions_by_condition.pdf", "sample_proportion_heatmap.pdf", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
 }
 
 
@@ -217,12 +217,12 @@ def main() -> int:
             call(apply_command, env=env)
             call(apply_command + ["--execute"], env=env)
         if skill == "06-scrna-preprocess-and-cluster":
-            scan_state = json.loads((out / "workflow_state.json").read_text(encoding="utf-8"))
+            scan_state = json.loads((out / "_provenance/workflow_state.json").read_text(encoding="utf-8"))
             if scan_state.get("status") != "awaiting_resolution_confirmation":
                 raise RuntimeError(f"{skill}: guided scan did not pause for confirmation: {scan_state}")
             if (out / "cell_assignments.tsv").exists():
                 raise RuntimeError(f"{skill}: review scan wrote a meaningless final cell_assignments.tsv")
-            scan_required = ["preprocessed_clustered_object.qs", "standard_resolution_stability.tsv", "standard_umap_clusters_by_resolution.png", "run_manifest_preprocess.json"]
+            scan_required = ["preprocessed_clustered_object.qs", "standard_resolution_stability.tsv", "standard_umap_clusters_by_resolution.png", "_provenance/run_manifest_preprocess.json"]
             scan_missing = [name for name in scan_required if not (out / name).is_file() or not (out / name).stat().st_size]
             if scan_missing:
                 raise RuntimeError(f"{skill}: scan artifacts missing/empty: {scan_missing}")
@@ -242,15 +242,26 @@ def main() -> int:
             finalize_command = [sys.executable, launcher, "--config", finalize_config, "--manifest", finalize_manifest]
             call(finalize_command, env=env)
             call(finalize_command + ["--execute"], env=env)
+        technical_names = {"run_manifest.json", "run_manifest_preprocess.json", "run_manifest_finalize.json", "session_info.txt", "sessionInfo.txt", "workflow_state.json", "task_manifest.json", "run.log", "provenance.json"}
+        leaked = technical_names.intersection(path.name for path in out.iterdir())
+        if leaked:
+            raise RuntimeError(f"{skill}: technical files leaked into result root: {sorted(leaked)}")
         missing = [name for name in EXPECTED[skill] if not (out / name).is_file() or (out / name).stat().st_size == 0]
         if skill == "01-scrna-standardize-input" and not any(path.is_file() and path.stat().st_size for path in out.glob("standardized_object.*")):
             missing.append("standardized_object.(qs|rds)")
         if missing:
             raise RuntimeError(f"{skill}: missing/empty required artifacts: {missing}")
-        run_manifest_name = "run_manifest_finalize.json" if skill == "06-scrna-preprocess-and-cluster" else "run_manifest.json"
+        run_manifest_name = "_provenance/run_manifest_finalize.json" if skill == "06-scrna-preprocess-and-cluster" else "_provenance/run_manifest.json"
         if skill == "02-scrna-calculate-qc-metrics":
             run_manifest_name = "_provenance/run_manifest.json"
         manifest = json.loads((out / run_manifest_name).read_text(encoding="utf-8"))
+        for artifact in manifest.get("artifacts", []):
+            if isinstance(artifact, dict) and artifact.get("path"):
+                artifact_path = Path(artifact["path"])
+                if not artifact_path.is_file():
+                    raise RuntimeError(f"{skill}: manifest references missing artifact: {artifact_path}")
+                if artifact.get("sha256") and sha256(artifact_path) != artifact["sha256"]:
+                    raise RuntimeError(f"{skill}: artifact checksum mismatch: {artifact_path}")
         if manifest.get("skill") != skill:
             raise RuntimeError(f"{skill}: run manifest skill mismatch: {manifest.get('skill')!r}")
         if skill == "02-scrna-calculate-qc-metrics":
@@ -269,7 +280,7 @@ def main() -> int:
                 raise RuntimeError(f"{skill}: execution controls missing from run manifest")
         if skill == "03-scrna-review-qc":
             actual_files = {path.name for path in out.iterdir() if path.is_file()}
-            expected_files = set(EXPECTED[skill])
+            expected_files = {name for name in EXPECTED[skill] if "/" not in name}
             if actual_files != expected_files:
                 raise RuntimeError(f"{skill}: compact output mismatch: expected {sorted(expected_files)}, got {sorted(actual_files)}")
             if manifest.get("output_detail_level") != "compact":

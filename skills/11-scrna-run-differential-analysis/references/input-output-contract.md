@@ -16,7 +16,7 @@ If imported tables contain `population`/`celltype`/`cluster` and `comparison_id`
 
 ## Outputs
 
-Write root-level `design_audit.tsv`, `task_status.tsv`, `all_comparisons.tsv`, `significant_all_comparisons.tsv`, an optional `enrichment_all_comparisons.tsv`, `DEG_count_summary.pdf`, `sessionInfo.txt`, and `run_manifest.json`.
+Write root-level `design_audit.tsv`, `task_status.tsv`, `all_comparisons.tsv`, `significant_all_comparisons.tsv`, an optional `enrichment_all_comparisons.tsv`, `DEG_count_summary.pdf`. Technical records are `_provenance/session_info.txt` and `_provenance/run_manifest.json`.
 
 For every `population × comparison`, write a directory below `comparisons/` containing:
 

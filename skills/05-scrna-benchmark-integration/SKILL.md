@@ -38,3 +38,7 @@ Read [references/benchmark-criteria.md](references/benchmark-criteria.md) for me
 - Do not compare a graph-only representation as if it were an ordinary latent embedding; flag BBKNN and similar methods accordingly.
 - Do not declare a winner from one aggregate score. Show component metrics and a batch-versus-biology tradeoff view.
 - Preserve raw counts, the input object, the uncorrected representation, configuration, seeds, package versions, and method failures.
+
+## Result organization
+
+Keep primary figures, complete scientific tables, and review decisions directly accessible. Store execution manifests, session information, logs, and workflow state under `_provenance/`; do not list them as primary results. Read [references/output-layout.md](references/output-layout.md) when configuring outputs, locating legacy records, or adding custom plots and diagnostics.

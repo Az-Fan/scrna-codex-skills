@@ -486,7 +486,7 @@ def main(skill):
     if skill == "06-scrna-preprocess-and-cluster":
         action = nested_get(config, "workflow.action") or "run"
         action_suffix = ".finalize" if action == "finalize_resolution" else ".scan"
-    manifest_path = args.manifest or args.config.with_name(f"{skill}{action_suffix}.manifest.json")
+    manifest_path = args.manifest or args.config.parent / "_provenance" / f"{skill}{action_suffix}.manifest.json"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     for message in warnings:
@@ -508,7 +508,9 @@ def main(skill):
         return 2
     output_dir = Path(os.path.expandvars(os.path.expanduser(str(config["output_dir"]))))
     output_dir.mkdir(parents=True, exist_ok=True)
-    log_path = output_dir / "run.log"
+    technical_dir = output_dir / "_provenance"
+    technical_dir.mkdir(parents=True, exist_ok=True)
+    log_path = technical_dir / "run.log"
     started = dt.datetime.now(dt.timezone.utc).isoformat()
     command = [executable] + [str(x) for x in argv[1:]]
     with log_path.open("a", encoding="utf-8") as log:
@@ -523,6 +525,7 @@ def main(skill):
             log.write(line)
             log.flush()
         returncode = process.wait()
+        process.stdout.close()
         finished = dt.datetime.now(dt.timezone.utc).isoformat()
         log.write(f"[{finished}] EXIT {returncode}\n")
     return returncode

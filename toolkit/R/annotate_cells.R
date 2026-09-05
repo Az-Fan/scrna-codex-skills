@@ -155,7 +155,7 @@ audit_plot_file <- file.path(out, "cluster_sample_condition_umap.pdf")
 grDevices::pdf(audit_plot_file, width = 13, height = max(7, ceiling(length(audit_groups) / 2) * 6))
 print(Seurat::DimPlot(obj, reduction = reduction, group.by = audit_groups, label = TRUE, repel = TRUE, ncol = 2))
 grDevices::dev.off()
-session_file <- file.path(out, "session_info.txt"); writeLines(capture.output(utils::sessionInfo()), session_file)
+session_file <- technical_path(out, "session_info.txt"); writeLines(capture.output(utils::sessionInfo()), session_file)
 write_run_manifest(config, "08-scrna-annotate-cells", out,
   c(object_file, cell_file, summary_file, annotation_plot_file, audit_plot_file, session_file),
   c("action=apply_confirmed", paste0("decisions=", decision_path), "Cluster IDs remain separate from biological labels"))

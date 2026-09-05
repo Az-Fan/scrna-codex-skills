@@ -111,6 +111,6 @@ utils::write.table(reason_counts, reason_file, sep = "\t", quote = FALSE, row.na
 approval_file <- file.path(out, "approved_filter_record.tsv")
 approval <- data.frame(status = approval_status, approved_at = cfg_get(config, "approval.approved_at", ""), note = cfg_get(config, "approval.note", ""), expected_retained_cells = expected_retained, decision_table = decision_path, decision_table_sha256 = .scrna_sha256(decision_path), stringsAsFactors = FALSE)
 utils::write.table(approval, approval_file, sep = "\t", quote = FALSE, row.names = FALSE)
-session_file <- file.path(out, "session_info.txt"); writeLines(capture.output(utils::sessionInfo()), session_file)
+session_file <- technical_path(out, "session_info.txt"); writeLines(capture.output(utils::sessionInfo()), session_file)
 artifacts <- c(object_out, file.path(out, "cell_filter_decisions.tsv.gz"), sample_file, condition_file %||% character(), reason_file, approval_file, session_file)
 write_run_manifest(config, "04-scrna-apply-qc-filter", out, artifacts, c("Scientific decisions were read from the approved decision table", paste0("retained_cells=", expected_retained), "Output object contains raw counts and retained metadata only"))

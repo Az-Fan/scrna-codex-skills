@@ -133,7 +133,7 @@ if (action == "finalize_resolution") {
     )
   }
   utils::write.table(summary, summary_file, sep = "\t", quote = FALSE, row.names = FALSE)
-  session_file <- file.path(out, "session_info.txt")
+  session_file <- technical_path(out, "session_info.txt")
   writeLines(capture.output(utils::sessionInfo()), session_file)
   if (isTRUE(cfg_get(config, "output.drop_scale_data", TRUE))) {
     if ("scale.data" %in% SeuratObject::Layers(obj[[assay]])) obj[[assay]]@layers[["scale.data"]] <- NULL
@@ -142,10 +142,10 @@ if (action == "finalize_resolution") {
   state <- list(status = "complete", action = action, scenario = nm,
                 confirmed_resolution = resolution, source_column = candidate_col,
                 qc_status = qc_status, analysis_label = analysis_label)
-  jsonlite::write_json(state, file.path(out, "workflow_state.json"), auto_unbox = TRUE, pretty = TRUE)
+  jsonlite::write_json(state, technical_path(out, "workflow_state.json"), auto_unbox = TRUE, pretty = TRUE)
   write_run_manifest(config, "06-scrna-preprocess-and-cluster", out,
                      c(object_file, cell_file, cluster_artifacts, summary_file, session_file,
-                       file.path(out, "workflow_state.json")),
+                       technical_path(out, "workflow_state.json")),
                      notes = c(paste0("Confirmed resolution ", resolution, " for scenario ", nm),
                                paste0("qc_status=", qc_status), paste0("analysis_label=", analysis_label)))
   quit(save = "no", status = 0)
@@ -370,9 +370,9 @@ for (i in seq_along(scenarios)) {
         NULL
       }, error = function(e) conditionMessage(e))
       if (is.null(tree_error)) artifacts <- c(artifacts, tree_file)
-      else writeLines(tree_error, file.path(out, paste0(nm, "_clustree_error.txt")))
+      else writeLines(tree_error, technical_path(out, paste0(nm, "_clustree_error.txt")))
     } else {
-      writeLines("Package 'clustree' is unavailable", file.path(out, paste0(nm, "_clustree_error.txt")))
+      writeLines("Package 'clustree' is unavailable", technical_path(out, paste0(nm, "_clustree_error.txt")))
     }
     selection <- cfg_get(scenario, "clustering.selection", "review")
     if (selection == "recommended") selected_resolution <- recommended_resolution
@@ -445,16 +445,16 @@ if (length(cluster_cols)) {
 } else {
   cell_file <- character()
 }
-writeLines(capture.output(utils::sessionInfo()), file.path(out, "session_info.txt"))
+writeLines(capture.output(utils::sessionInfo()), technical_path(out, "session_info.txt"))
 
-artifacts <- unique(c(artifacts, summary_file, similarity_file, elbow_file, object_file, cell_file, file.path(out, "session_info.txt")))
+artifacts <- unique(c(artifacts, summary_file, similarity_file, elbow_file, object_file, cell_file, technical_path(out, "session_info.txt")))
 state_status <- if (any(summary$status == "awaiting_resolution_confirmation")) "awaiting_resolution_confirmation" else "complete"
 state_scenarios <- lapply(seq_len(nrow(summary)), function(index) as.list(summary[index, , drop = FALSE]))
 state <- list(status = state_status, action = action, scenarios = state_scenarios,
               qc_status = qc_status, analysis_label = analysis_label,
               next_action = if (state_status == "awaiting_resolution_confirmation") "Review resolution plots and run finalize_resolution" else "none")
-jsonlite::write_json(state, file.path(out, "workflow_state.json"), auto_unbox = TRUE, pretty = TRUE)
-artifacts <- unique(c(artifacts, file.path(out, "workflow_state.json")))
+jsonlite::write_json(state, technical_path(out, "workflow_state.json"), auto_unbox = TRUE, pretty = TRUE)
+artifacts <- unique(c(artifacts, technical_path(out, "workflow_state.json")))
 write_run_manifest(config, "06-scrna-preprocess-and-cluster", out, artifacts,
                    notes = c(
                      paste0(length(scenarios), " user-selected scenario(s) executed"),

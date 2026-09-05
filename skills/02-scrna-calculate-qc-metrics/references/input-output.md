@@ -70,6 +70,7 @@ For Seurat, write under `<output_dir>/`:
 Keep executor-facing audit files together under `<output_dir>/_provenance/`:
 
 - `metric_status.tsv`: one combined status table across all samples;
-- `run_manifest.json`: resolved execution record.
+- `run_manifest.json`: resolved execution record;
+- `run.log`: executor diagnostics, including failures.
 
 Do not scatter per-sample status files or manifests through the result tree. Never remove cells.

@@ -63,8 +63,14 @@ def main():
     if not args.execute:
         return
     output.mkdir(parents=True, exist_ok=True)
-    subprocess.run(command, check=True)
-    (output / "run_manifest.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")
+    provenance = output / "_provenance"
+    provenance.mkdir(parents=True, exist_ok=True)
+    with (provenance / "run.log").open("a", encoding="utf-8") as log:
+        result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT)
+    plan["exit_status"] = result.returncode
+    (provenance / "run_manifest.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")
+    if result.returncode:
+        fail(f"QC review failed (exit {result.returncode}); see {provenance / 'run.log'}")
 
 
 if __name__ == "__main__":

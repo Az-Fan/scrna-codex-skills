@@ -19,7 +19,7 @@ If export may exceed 10 minutes or outlive the remote session, read [references/
 
 ## Outputs
 
-Preserve the existing complete output contract: `subset_object.qs`, `subset_counts.mtx`, `subset_metadata.tsv`, `subset_summary.tsv`, `features.tsv`, `barcodes.tsv`, and `run_manifest.json`.
+Preserve the existing complete output contract: `subset_object.qs`, `subset_counts.mtx`, `subset_metadata.tsv`, `subset_summary.tsv`, `features.tsv`, `barcodes.tsv`, and `_provenance/run_manifest.json`.
 
 ## Guardrails
 
@@ -28,3 +28,7 @@ Preserve the existing complete output contract: `subset_object.qs`, `subset_coun
 - Do not write labels back to the parent object.
 - Do not claim that export alone performed reanalysis.
 - Avoid additional full-object copies outside the one derivative handoff object.
+
+## Result organization
+
+Keep primary figures, complete scientific tables, and review decisions directly accessible. Store execution manifests, session information, logs, and workflow state under `_provenance/`; do not list them as primary results. Read [references/output-layout.md](references/output-layout.md) when configuring outputs, locating legacy records, or adding custom plots and diagnostics.

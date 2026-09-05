@@ -108,7 +108,7 @@ run_enrichment_only_workflow <- function(config) {
   status <- do.call(rbind, statuses); write_tsv(status, file.path(out, "task_status.tsv"))
   artifacts <- file.path(out, "task_status.tsv")
   if (length(enriched)) { combined <- rbind_fill(enriched); write_tsv(combined, file.path(out, "enrichment_all_comparisons.tsv")); artifacts <- c(artifacts, file.path(out, "enrichment_all_comparisons.tsv")) }
-  writeLines(capture.output(sessionInfo()), file.path(out, "sessionInfo.txt")); artifacts <- c(artifacts, file.path(out, "sessionInfo.txt"))
+  writeLines(capture.output(sessionInfo()), technical_path(out, "session_info.txt")); artifacts <- c(artifacts, technical_path(out, "session_info.txt"))
   comparison_artifacts <- list.files(file.path(out, "comparisons"), recursive = TRUE, full.names = TRUE)
   artifacts <- c(artifacts, comparison_artifacts[file.info(comparison_artifacts)$isdir %in% FALSE])
   active_skill <- Sys.getenv("SCRNA_ACTIVE_SKILL", unset = "11-scrna-run-differential-analysis")

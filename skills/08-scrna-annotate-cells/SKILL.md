@@ -29,3 +29,7 @@ Set `workflow.action=apply_confirmed` and provide the reviewed TSV using [refere
 Read [references/annotation-review.md](references/annotation-review.md) before preparing or applying decisions. Dry-run `scripts/run.py --config <config>` first, then execute only the reviewed action with `--execute`.
 
 If execution may exceed 10 minutes, read [references/long-running-execution.md](references/long-running-execution.md) and use `scripts/run_in_tmux.py` for the confirmed execution.
+
+## Result organization
+
+Keep primary figures, complete scientific tables, and review decisions directly accessible. Store execution manifests, session information, logs, and workflow state under `_provenance/`; do not list them as primary results. Read [references/output-layout.md](references/output-layout.md) when configuring outputs, locating legacy records, or adding custom plots and diagnostics.

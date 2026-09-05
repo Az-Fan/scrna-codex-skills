@@ -36,3 +36,7 @@ If writing the filtered object may exceed 10 minutes or outlive the remote sessi
 - Atomically save and reread the object before finalizing it.
 - Preserve the complete per-cell decision table and write sample, condition, and reason summaries.
 - Stop when the retained count differs from the explicitly approved expected count.
+
+## Result organization
+
+Keep primary figures, complete scientific tables, and review decisions directly accessible. Store execution manifests, session information, logs, and workflow state under `_provenance/`; do not list them as primary results. Read [references/output-layout.md](references/output-layout.md) when configuring outputs, locating legacy records, or adding custom plots and diagnostics.
