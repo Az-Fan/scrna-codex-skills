@@ -4,67 +4,67 @@
     "01-scrna-standardize-input": {
       "python": ["check_dependencies.py", "runner_bootstrap.py", "scrna_runtime.py", "validate_project.py"],
       "r": ["runtime.R", "standardize_input.R"],
-      "references": ["output-layout.md", "compatibility.md"]
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md"]
     },
     "02-scrna-calculate-qc-metrics": {
       "python": ["check_dependencies.py", "run_in_tmux.py", "scrna_runtime.py"],
       "r": ["calculate_metrics.R", "doublet_finder.R"],
-      "references": ["output-layout.md", "compatibility.md", "long-running-execution.md"]
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "long-running-execution.md"]
     },
     "03-scrna-review-qc": {
       "python": ["check_dependencies.py", "scrna_runtime.py"],
       "r": ["review_qc.R"],
-      "references": ["output-layout.md", "compatibility.md"]
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md"]
     },
     "04-scrna-apply-qc-filter": {
       "python": ["check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "validate_project.py"],
       "r": ["runtime.R", "apply_qc_filter.R"],
-      "references": ["output-layout.md", "compatibility.md", "long-running-execution.md"]
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "long-running-execution.md"]
     },
     "05-scrna-benchmark-integration": {
       "python": ["check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "validate_project.py"],
       "r": ["runtime.R", "integration_benchmark.R"],
-      "references": ["output-layout.md", "compatibility.md", "long-running-execution.md"]
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "long-running-execution.md"]
     },
     "06-scrna-preprocess-and-cluster": {
       "python": ["check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "validate_project.py"],
-      "r": ["runtime.R", "preprocess_cluster.R"],
-      "references": ["output-layout.md", "compatibility.md", "long-running-execution.md"]
+      "r": ["runtime.R", "figure_style.R", "preprocess_cluster.R"],
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "long-running-execution.md", "figure-style.md"]
     },
     "07-scrna-find-cluster-markers": {
       "python": ["check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "validate_project.py"],
-      "r": ["runtime.R", "find_cluster_markers.R"],
-      "references": ["output-layout.md", "compatibility.md", "long-running-execution.md"]
+      "r": ["runtime.R", "figure_style.R", "find_cluster_markers.R"],
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "long-running-execution.md", "figure-style.md"]
     },
     "08-scrna-annotate-cells": {
       "python": ["check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "validate_project.py"],
-      "r": ["runtime.R", "annotate_cells.R"],
-      "references": ["output-layout.md", "compatibility.md", "long-running-execution.md"]
+      "r": ["runtime.R", "figure_style.R", "annotate_cells.R"],
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "long-running-execution.md", "figure-style.md"]
     },
     "09-scrna-export-subset": {
       "python": ["check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "validate_project.py"],
       "r": ["runtime.R", "analyze_subset.R"],
-      "references": ["output-layout.md", "compatibility.md", "long-running-execution.md"]
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "long-running-execution.md"]
     },
     "10-scrna-score-programs": {
       "python": ["check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "validate_project.py"],
       "r": ["runtime.R", "score_programs.R"],
-      "references": ["output-layout.md", "compatibility.md", "long-running-execution.md"]
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "long-running-execution.md"]
     },
     "11-scrna-run-differential-analysis": {
       "python": ["check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "validate_project.py"],
       "r": ["runtime.R", "differential_utils.R", "differential_analysis.R"],
-      "references": ["output-layout.md", "compatibility.md", "enrichment-design.md", "long-running-execution.md"]
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "enrichment-design.md", "long-running-execution.md"]
     },
     "12-scrna-run-pathway-enrichment": {
       "python": ["check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "validate_project.py"],
       "r": ["runtime.R", "differential_utils.R", "differential_analysis.R"],
-      "references": ["output-layout.md", "compatibility.md", "enrichment-design.md", "long-running-execution.md"]
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "enrichment-design.md", "long-running-execution.md"]
     },
     "13-scrna-test-cell-abundance": {
       "python": ["check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "validate_project.py", "cell_abundance_sccoda.py"],
       "r": ["runtime.R", "cell_abundance.R"],
-      "references": ["output-layout.md", "compatibility.md", "long-running-execution.md"]
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "long-running-execution.md"]
     }
   }
 }

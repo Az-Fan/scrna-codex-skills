@@ -3,6 +3,7 @@ if (length(args) != 1L) stop("Usage: preprocess_cluster.R CONFIG.json")
 script_arg <- grep("^--file=", commandArgs(FALSE), value = TRUE)
 script_dir <- if (length(script_arg)) dirname(normalizePath(sub("^--file=", "", script_arg[[1]]))) else getwd()
 source(file.path(script_dir, "runtime.R"))
+source(file.path(script_dir, "figure_style.R"))
 
 for (pkg in c("Seurat", "SeuratObject", "jsonlite", "ggplot2")) {
   if (!requireNamespace(pkg, quietly = TRUE)) stop("Package '", pkg, "' is required")
@@ -78,16 +79,9 @@ write_cluster_artifacts <- function(object, scenario, cluster_col, output_dir) {
   if (!reduction %in% names(object@reductions)) stop("Final UMAP reduction not found: ", reduction)
   groups <- unique(c(cluster_col, intersect(unlist(cfg_get(config, "plots.group_by", list(sample_col))), colnames(object[[]]))))
   point_size <- as_num(cfg_get(config, "plots.pt_size"), 0.03)
-  plot <- Seurat::DimPlot(object, reduction = reduction, group.by = groups, ncol = 1, pt.size = point_size)
-  pdf_file <- file.path(output_dir, paste0(scenario, "_umap_diagnostics.pdf"))
-  ggplot2::ggsave(pdf_file, plot, width = 7, height = max(5, 4 * length(groups)), units = "in", bg = "white")
-  files <- c(size_file, comp_file, pdf_file)
-  if (isTRUE(cfg_get(config, "plots.preview_png", FALSE))) {
-    png_file <- file.path(output_dir, paste0(scenario, "_umap_diagnostics.png"))
-    ggplot2::ggsave(png_file, plot, width = 7, height = max(5, 4 * length(groups)), units = "in", dpi = 200, bg = "white")
-    files <- c(files, png_file)
-  }
-  files
+  plots <- paper_dimplot(object, reduction, groups, file.path(output_dir, paste0(scenario, "_umap_diagnostics")),
+                         config, output_dir, point_size = point_size)
+  c(size_file, comp_file, plots)
 }
 
 action <- cfg_get(config, "workflow.action", "run")
@@ -353,20 +347,18 @@ for (i in seq_along(scenarios)) {
     p_stability <- ggplot2::ggplot(stability, ggplot2::aes(x = resolution, y = stability_mean)) +
       ggplot2::geom_line() + ggplot2::geom_point() +
       ggplot2::geom_errorbar(ggplot2::aes(ymin = stability_mean - stability_sd, ymax = stability_mean + stability_sd), width = 0.02) +
-      ggplot2::geom_vline(xintercept = recommended_resolution, linetype = 2, colour = "red") + ggplot2::theme_linedraw()
+      ggplot2::geom_vline(xintercept = recommended_resolution, linetype = 2, colour = "#D55E00") + paper_theme() + ggplot2::labs(title = "Clustering stability", subtitle = "Dashed line: candidate recommendation; not a confirmed resolution")
     stability_plot <- file.path(out, paste0(nm, "_resolution_stability.png"))
-    ggplot2::ggsave(stability_plot, p_stability, width = 7, height = 4, dpi = 300, bg = "white")
-    p_grid <- Seurat::DimPlot(obj, reduction = umap_name, group.by = candidate_cols,
-                              ncol = min(5, length(candidate_cols)), label = TRUE, pt.size = pt_size) & Seurat::NoLegend()
-    grid_file <- file.path(out, paste0(nm, "_umap_clusters_by_resolution.png"))
-    ggplot2::ggsave(grid_file, p_grid, width = 20, height = ceiling(length(candidate_cols) / 5) * 4, dpi = 300, bg = "white")
+    stability_plot <- paper_save(p_stability, sub("\\.png$", "", stability_plot), 7, 4, config, out)
+    grid_file <- paper_dimplot(obj, umap_name, candidate_cols, file.path(out, paste0(nm, "_umap_clusters_by_resolution")),
+                               config, out, point_size = pt_size, legends = FALSE)
     artifacts <- c(artifacts, stability_file, stability_plot, grid_file)
     if (requireNamespace("clustree", quietly = TRUE)) {
       p_tree <- clustree::clustree(obj[[]], prefix = paste0(nm, "_res.")) +
         ggplot2::guides(edge_colour = "none", edge_alpha = "none")
       tree_file <- file.path(out, paste0(nm, "_clustree_resolution.png"))
       tree_error <- tryCatch({
-        ggplot2::ggsave(tree_file, p_tree, width = 13, height = 11, dpi = 300, bg = "white")
+        tree_file <- paper_save(p_tree + paper_theme(), sub("\\.png$", "", tree_file), 13, 11, config, out)
         NULL
       }, error = function(e) conditionMessage(e))
       if (is.null(tree_error)) artifacts <- c(artifacts, tree_file)
@@ -424,7 +416,7 @@ utils::write.table(similarity, similarity_file, sep = "\t", quote = FALSE, row.n
 first_scenario <- sanitize_name(scenarios[[1]]$name)
 elbow <- Seurat::ElbowPlot(obj, reduction = paste0(first_scenario, "_pca"), ndims = npcs)
 elbow_file <- file.path(out, paste0(first_scenario, "_elbow.png"))
-ggplot2::ggsave(elbow_file, elbow, width = 4, height = 4, units = "in", dpi = 300, bg = "white")
+elbow_file <- paper_save(elbow + paper_theme(), file.path(out, paste0(first_scenario, "_elbow")), 5, 4, config, out)
 
 format <- tolower(cfg_get(config, "output.object_format", "qs"))
 if (!format %in% c("qs", "rds")) stop("output.object_format must be qs or rds")

@@ -2,6 +2,7 @@ args <- commandArgs(trailingOnly = TRUE)
 if (length(args) != 1L) stop("Usage: Rscript find_cluster_markers.R config.json")
 script_file <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE)[1])
 source(file.path(dirname(normalizePath(script_file)), "runtime.R"))
+source(file.path(dirname(normalizePath(script_file)), "figure_style.R"))
 config <- read_skill_config(args[[1]])
 if (!requireNamespace("Seurat", quietly = TRUE)) stop("Package 'Seurat' is required")
 
@@ -83,7 +84,7 @@ out <- prepare_output(config)
 marker_path <- file.path(out, "cluster_markers.tsv")
 top_path <- file.path(out, "top_cluster_markers.tsv")
 summary_path <- file.path(out, "cluster_marker_summary.tsv")
-plot_path <- file.path(out, "top_marker_dotplot.pdf")
+plot_path <- character()
 utils::write.table(markers, marker_path, sep = "\t", quote = FALSE, row.names = FALSE)
 utils::write.table(top_markers, top_path, sep = "\t", quote = FALSE, row.names = FALSE)
 utils::write.table(summary, summary_path, sep = "\t", quote = FALSE, row.names = FALSE)
@@ -91,9 +92,7 @@ utils::write.table(summary, summary_path, sep = "\t", quote = FALSE, row.names =
 dot_n <- as.integer(cfg_get(config, "reporting.dotplot_top_n", 5))
 if (is.na(dot_n) || dot_n < 1L) stop("reporting.dotplot_top_n must be a positive integer")
 dot_genes <- unique(top_markers$gene[top_markers$rank_within_cluster <= dot_n])
-grDevices::pdf(plot_path, width = max(8, min(20, length(dot_genes) * 0.22 + 4)), height = max(5, nrow(cluster_counts) * 0.28 + 3))
-print(Seurat::DotPlot(obj, features = dot_genes, assay = assay) + Seurat::RotatedAxis())
-grDevices::dev.off()
+plot_path <- paper_dotplot(obj, dot_genes, assay, cluster_col, file.path(out, "top_marker_dotplot"), config, out)
 
 write_run_manifest(
   config, "07-scrna-find-cluster-markers", out,

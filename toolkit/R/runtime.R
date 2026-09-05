@@ -96,6 +96,8 @@ technical_path <- function(out, name) {
 }
 
 write_run_manifest <- function(config, skill, out, artifacts, notes = character()) {
+  figure_records <- file.path(out, "_provenance", c("figure_status.tsv", "figure_colors.tsv"))
+  artifacts <- c(artifacts, figure_records[file.exists(figure_records)])
   # A rerun must not include an older copy of its own manifest as an artifact.
   artifacts <- artifacts[!grepl("^run_manifest.*\\.json$", basename(artifacts))]
   artifact_records <- lapply(unique(artifacts), function(path) {

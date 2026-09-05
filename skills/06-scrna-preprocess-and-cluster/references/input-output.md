@@ -28,7 +28,7 @@ Fixed, automatically authorized, or finalized clustering adds:
 - `cell_assignments.tsv`
 - `<scenario>_cluster_sizes.tsv`
 - `<scenario>_sample_cluster_counts.tsv`
-- `<scenario>_umap_diagnostics.pdf`; an additional PNG is written only with `plots.preview_png = true`
+- `<scenario>_umap_diagnostics.png`; up to four grouping panels per page, `_pageNN` when paginated. PDF is opt-in via `output.figure_format`
 
 Resolution scan adds:
 

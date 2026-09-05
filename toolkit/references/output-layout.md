@@ -1,5 +1,7 @@
 # Result layout
 
+For figure families and rollout status, read [figure-catalog.md](figure-catalog.md). Its baseline list includes conditional and optional plots; only explicitly marked skills currently use the new paper style.
+
 The stage output directory is the browsing surface for scientific results. Keep primary figures, complete scientific tables, summaries, and human review decisions accessible there. Do not create empty category directories or duplicate every table and figure in a second format.
 
 ## Technical records

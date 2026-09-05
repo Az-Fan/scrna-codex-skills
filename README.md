@@ -10,6 +10,8 @@
 
 这项调整不删除历史记录，不改变计算、对象位置或图片格式。旧结果仍按旧路径查找；后续自定义作图也遵循相同收纳规则。设计审计、失败任务、基因覆盖和审核决策等影响解释的信息不能因“精简”而隐藏。对象迁移需单独核查下游引用。详见共享的[输出布局说明](toolkit/references/output-layout.md)。
 
+06/07/08 已接入固定 `paper_v1` 绘图：PNG 300 dpi、按标签固定颜色、UMAP/dotplot/FeaturePlot 分页。其他图族仍保留原有绘图实现，详见[图谱及分批状态](toolkit/references/figure-catalog.md)。
+
 ## 一、工作流总览
 
 主流程如下：
@@ -314,7 +316,7 @@ compact 模式根目录只保留：
 - `cell_assignments.tsv`。
 - `<scenario>_cluster_sizes.tsv`。
 - `<scenario>_sample_cluster_counts.tsv`。
-- `<scenario>_umap_diagnostics.pdf`。
+- `<scenario>_umap_diagnostics.png`（超过四个分组面板时分页）。
 
 resolution scan 还输出：
 
@@ -345,7 +347,7 @@ guided 模式只给出稳定性推荐并暂停，必须由用户确认 resolutio
 - `cluster_markers.tsv`：Seurat 返回的完整 marker 表，加每簇 rank。
 - `top_cluster_markers.tsv`：确定性排序后的展示用 top marker。
 - `cluster_marker_summary.tsv`：每簇细胞数和 marker 数，包括零 marker 的簇。
-- `top_marker_dotplot.pdf`。
+- `top_marker_dotplot.png`。
 - `_provenance/run_manifest.json`。
 
 解读时应检查 sample-specific cluster、微小簇、线粒体/核糖体/应激/细胞周期/环境 RNA 等信号，见 [marker-interpretation.md](skills/07-scrna-find-cluster-markers/references/marker-interpretation.md)。
@@ -368,8 +370,8 @@ guided 模式只给出稳定性推荐并暂停，必须由用户确认 resolutio
 - `cluster_markers.tsv`：复用或显式回退计算的完整 marker 表。
 - `annotation_review.tsv`：待人工填写的候选 broad/fine/state、证据、冲突、sample bias、QC flag、confidence 和 decision。
 - `clustered_object.qs`。
-- `cluster_umap.pdf`、`cluster_sample_umap.pdf`。
-- 可选 `canonical_marker_dotplot.pdf`。
+- `cluster_umap.png`、`cluster_sample_umap.png`。
+- 可选 `canonical_marker_dotplot.png`。
 - `_provenance/run_manifest.json`。
 
 配置模板：[config.example.json](skills/08-scrna-annotate-cells/references/config.example.json)。
@@ -387,8 +389,8 @@ guided 模式只给出稳定性推荐并暂停，必须由用户确认 resolutio
 - `annotated_object.qs`：写入 broad/fine/可选 state 的派生对象。
 - `cell_annotations.tsv`：完整逐细胞标签。
 - `annotation_summary.tsv`：每簇决定与细胞数。
-- `annotated_umap.pdf`。
-- `cluster_sample_condition_umap.pdf`。
+- `annotated_umap.png`。
+- `cluster_sample_condition_umap.png`。
 - `_provenance/session_info.txt`、`_provenance/run_manifest.json`。
 
 应用配置见 [config.apply.example.json](skills/08-scrna-annotate-cells/references/config.apply.example.json)，决策表要求见 [annotation-review.md](skills/08-scrna-annotate-cells/references/annotation-review.md)。部分、重复、空白或未确认的决策表会被拒绝；注释过程不删除细胞，也不覆盖 cluster ID。

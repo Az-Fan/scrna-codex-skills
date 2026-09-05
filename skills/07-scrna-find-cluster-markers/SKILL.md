@@ -36,3 +36,7 @@ If execution may exceed 10 minutes, has uncertain duration, or could outlive the
 ## Result organization
 
 Keep primary figures, complete scientific tables, and review decisions directly accessible. Store execution manifests, session information, logs, and workflow state under `_provenance/`; do not list them as primary results. Read [references/output-layout.md](references/output-layout.md) when configuring outputs, locating legacy records, or adding custom plots and diagnostics.
+
+## Fixed figures
+
+Read [references/figure-style.md](references/figure-style.md) before plotting or configuring figure outputs. Use the bundled paper_v1 templates with PNG 300 dpi by default and deterministic pagination/colours. Preserve the existing figure families listed in [references/figure-catalog.md](references/figure-catalog.md); do not choose new chart styles on each run.

@@ -2,6 +2,7 @@ args <- commandArgs(trailingOnly = TRUE)
 if (length(args) != 1L) stop("Usage: Rscript annotate_cells.R config.json")
 script_file <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE)[1])
 source(file.path(dirname(normalizePath(script_file)), "runtime.R"))
+source(file.path(dirname(normalizePath(script_file)), "figure_style.R"))
 config <- read_skill_config(args[[1]])
 if (!requireNamespace("Seurat", quietly = TRUE)) stop("Package 'Seurat' is required")
 
@@ -74,28 +75,20 @@ if (identical(action, "prepare_review")) {
   review_file <- file.path(out, "annotation_review.tsv"); write_tsv(review, review_file)
   object_file <- file.path(out, "clustered_object.qs"); save_scrna_object(obj, object_file)
 
-  plot_file <- file.path(out, "cluster_umap.pdf")
-  grDevices::pdf(plot_file, width = 8, height = 7)
-  print(Seurat::DimPlot(obj, reduction = reduction, group.by = cluster_col, label = TRUE, repel = TRUE))
-  grDevices::dev.off()
-  sample_plot_file <- file.path(out, "cluster_sample_umap.pdf")
-  grDevices::pdf(sample_plot_file, width = 13, height = 7)
-  print(Seurat::DimPlot(obj, reduction = reduction, group.by = c(cluster_col, sample_col), label = TRUE, repel = TRUE, ncol = 2))
-  grDevices::dev.off()
+  plot_file <- paper_dimplot(obj, reduction, cluster_col, file.path(out, "cluster_umap"), config, out)
+  sample_plot_file <- paper_dimplot(obj, reduction, c(cluster_col, sample_col), file.path(out, "cluster_sample_umap"), config, out)
+  feature_files <- paper_features(obj, reduction, config, out)
 
   canonical <- cfg_get(config, "markers.canonical", list())
   canonical_file <- NULL
   if (length(canonical)) {
     genes <- unique(unlist(canonical, use.names = FALSE)); genes <- genes[genes %in% rownames(obj)]
     if (length(genes)) {
-      canonical_file <- file.path(out, "canonical_marker_dotplot.pdf")
-      grDevices::pdf(canonical_file, width = max(8, min(20, length(genes) * 0.25 + 4)), height = max(5, length(cluster_ids) * 0.3 + 3))
-      print(Seurat::DotPlot(obj, features = genes, assay = assay, group.by = cluster_col) + Seurat::RotatedAxis())
-      grDevices::dev.off()
+      canonical_file <- paper_dotplot(obj, genes, assay, cluster_col, file.path(out, "canonical_marker_dotplot"), config, out)
     }
   }
   write_run_manifest(config, "08-scrna-annotate-cells", out,
-    c(marker_file, review_file, object_file, plot_file, sample_plot_file, canonical_file %||% character()),
+    c(marker_file, review_file, object_file, plot_file, sample_plot_file, canonical_file %||% character(), feature_files),
     c("action=prepare_review", marker_note, "Formal labels were not written"))
   quit(save = "no", status = 0L)
 }
@@ -146,16 +139,11 @@ summary$n_cells <- as.integer(table(factor(clusters, levels = object_clusters)))
 summary_file <- file.path(out, "annotation_summary.tsv"); write_tsv(summary, summary_file)
 object_file <- file.path(out, "annotated_object.qs"); save_scrna_object(obj, object_file)
 
-annotation_plot_file <- file.path(out, "annotated_umap.pdf")
-grDevices::pdf(annotation_plot_file, width = 13, height = 7)
-print(Seurat::DimPlot(obj, reduction = reduction, group.by = c(broad_out, fine_out), label = TRUE, repel = TRUE, ncol = 2))
-grDevices::dev.off()
+annotation_plot_file <- paper_dimplot(obj, reduction, c(broad_out, fine_out), file.path(out, "annotated_umap"), config, out)
 audit_groups <- c(cluster_col, sample_col, condition_col %||% character())
-audit_plot_file <- file.path(out, "cluster_sample_condition_umap.pdf")
-grDevices::pdf(audit_plot_file, width = 13, height = max(7, ceiling(length(audit_groups) / 2) * 6))
-print(Seurat::DimPlot(obj, reduction = reduction, group.by = audit_groups, label = TRUE, repel = TRUE, ncol = 2))
-grDevices::dev.off()
+audit_plot_file <- paper_dimplot(obj, reduction, audit_groups, file.path(out, "cluster_sample_condition_umap"), config, out)
+feature_files <- paper_features(obj, reduction, config, out)
 session_file <- technical_path(out, "session_info.txt"); writeLines(capture.output(utils::sessionInfo()), session_file)
 write_run_manifest(config, "08-scrna-annotate-cells", out,
-  c(object_file, cell_file, summary_file, annotation_plot_file, audit_plot_file, session_file),
+  c(object_file, cell_file, summary_file, annotation_plot_file, audit_plot_file, feature_files, session_file),
   c("action=apply_confirmed", paste0("decisions=", decision_path), "Cluster IDs remain separate from biological labels"))
