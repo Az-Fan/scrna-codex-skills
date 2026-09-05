@@ -38,7 +38,7 @@ SKILL_ENVS = {
 
 EXPECTED = {
     "01-scrna-standardize-input": ["cell_metadata.tsv", "samples.tsv", "field_mapping.json", "run_manifest.json"],
-    "02-scrna-calculate-qc-metrics": ["qc_metrics_object.rds", "metadata.tsv.gz", "metric_status.tsv", "run_manifest.json"],
+    "02-scrna-calculate-qc-metrics": ["qc_metrics_object.rds", "metadata.tsv.gz", "qc_diagnosis.png", "_provenance/metric_status.tsv", "_provenance/run_manifest.json"],
     "03-scrna-review-qc": ["qc_summary_by_sample.tsv", "threshold_review.tsv", "qc_atlas.pdf", "run_manifest.json"],
     "04-scrna-apply-qc-filter": ["filtered_object.rds", "cell_filter_decisions.tsv.gz", "filter_summary_by_sample.tsv", "filter_summary_by_condition.tsv", "filter_decision_counts.tsv", "approved_filter_record.tsv", "session_info.txt", "run_manifest.json"],
     "05-scrna-benchmark-integration": ["method_runs_r.tsv", "integration_benchmark_object.qs", "run_manifest.json"],
@@ -248,6 +248,8 @@ def main() -> int:
         if missing:
             raise RuntimeError(f"{skill}: missing/empty required artifacts: {missing}")
         run_manifest_name = "run_manifest_finalize.json" if skill == "06-scrna-preprocess-and-cluster" else "run_manifest.json"
+        if skill == "02-scrna-calculate-qc-metrics":
+            run_manifest_name = "_provenance/run_manifest.json"
         manifest = json.loads((out / run_manifest_name).read_text(encoding="utf-8"))
         if manifest.get("skill") != skill:
             raise RuntimeError(f"{skill}: run manifest skill mismatch: {manifest.get('skill')!r}")
@@ -256,7 +258,10 @@ def main() -> int:
                 metadata_rows = list(csv.DictReader(handle, delimiter="\t"))
             if len(metadata_rows) != 80:
                 raise RuntimeError(f"{skill}: multi-layer input produced {len(metadata_rows)} cells instead of 80")
-            with (out / "metric_status.tsv").open(encoding="utf-8", newline="") as handle:
+            root_technical_files = {"metric_status.tsv", "run_manifest.json"}.intersection(path.name for path in out.iterdir())
+            if root_technical_files:
+                raise RuntimeError(f"{skill}: executor-only files leaked into the result root: {sorted(root_technical_files)}")
+            with (out / "_provenance/metric_status.tsv").open(encoding="utf-8", newline="") as handle:
                 ambient_rows = [row for row in csv.DictReader(handle, delimiter="\t") if row["metric"] == "ambient_frac_decontx"]
             if len(ambient_rows) != 4 or any(row["status"] != "skipped" or row["reason"] != "disabled_by_config" for row in ambient_rows):
                 raise RuntimeError(f"{skill}: configured DecontX skip was not recorded correctly: {ambient_rows}")

@@ -84,6 +84,7 @@ def main():
     if cluster_column is not None and (not isinstance(cluster_column, str) or not cluster_column.strip()):
         fail("ambient_rna.cluster_column must be null or a non-empty metadata column name")
     output = Path(output_value).expanduser().resolve()
+    provenance = output / "_provenance"
     script = Path(__file__).resolve()
     driver_candidates = [script.with_name("calculate_metrics.R")]
     driver_candidates.extend(parent / "toolkit" / "R" / "calculate_metrics.R" for parent in script.parents)
@@ -105,6 +106,7 @@ def main():
         "ambient_rna_method": ambient_method,
         "ambient_rna_cluster_column": cluster_column,
         "output_dir": str(output),
+        "provenance_dir": str(provenance),
         "command": command,
         "note": "Unavailable optional metrics are recorded as skipped; no cells or environments are changed.",
     }
@@ -112,12 +114,13 @@ def main():
     if not args.execute:
         return
     output.mkdir(parents=True, exist_ok=True)
+    provenance.mkdir(parents=True, exist_ok=True)
     execution_env = os.environ.copy()
     if workers > 1:
         for variable in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
             execution_env[variable] = "1"
     subprocess.run(command, check=True, env=execution_env)
-    (output / "run_manifest.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")
+    (provenance / "run_manifest.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 if __name__ == "__main__":

@@ -31,6 +31,7 @@ Always ask where results should be saved when the user has not provided an outpu
 If execution may exceed 10 minutes, has uncertain duration, or could outlive the remote session, read [references/long-running-execution.md](references/long-running-execution.md) and launch the confirmed `--execute` command with `scripts/run_in_tmux.py`. Keep validation and dry runs in the foreground.
 
 The executor computes metrics and writes new files; it never filters cells or changes the pixi environment.
+Keep user-facing data and figures at the result root. Put executor-only status and provenance records under `_provenance/`; inspect them when auditing a run, but do not present them as primary results.
 
 For Seurat v5 input, let the executor join multiple raw-count layers in memory and verify that the resulting matrix covers every object cell. Do not require callers to modify or resave their source object first.
 

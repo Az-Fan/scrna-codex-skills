@@ -43,7 +43,7 @@ Require an existing pixi executable and pixi project. Never create or change the
 - `phase`, `s_score`, `g2m_score`
 - `hbb_score`, `is_HQ`
 
-Write `metric_status.tsv` with `computed` or `skipped` and a reason for every optional metric. A configured DecontX skip uses the reason `disabled_by_config`; runtime failures retain their error message.
+Write `_provenance/metric_status.tsv` with `computed` or `skipped` and a reason for every optional metric. A configured DecontX skip uses the reason `disabled_by_config`; runtime failures retain their error message. This is an audit artifact for the executor, not a primary result.
 
 Interpretation limits:
 
@@ -60,13 +60,16 @@ For STARsolo, write under `<output_dir>/<sample_id>/`:
 - `features.tsv.gz`
 - `metadata.tsv.gz`
 - `qc_diagnosis.png`
-- `metric_status.tsv`
 
 For Seurat, write under `<output_dir>/`:
 
 - `qc_metrics_object.rds`
 - `metadata.tsv.gz`
 - `qc_diagnosis.png`
-- `metric_status.tsv`
 
-Write `run_manifest.json` at the output root. Never remove cells.
+Keep executor-facing audit files together under `<output_dir>/_provenance/`:
+
+- `metric_status.tsv`: one combined status table across all samples;
+- `run_manifest.json`: resolved execution record.
+
+Do not scatter per-sample status files or manifests through the result tree. Never remove cells.

@@ -179,11 +179,10 @@ Seurat 输入时：
 
 - `qc_metrics_object.rds`：添加 QC metadata 的派生对象。
 - `metadata.tsv.gz`：完整逐细胞 QC 表。
-- `metric_status.tsv`：每项指标的 `computed/skipped` 状态和原因。
 - `qc_diagnosis.png`：基础 QC 诊断图。
-- `run_manifest.json`。
+- `_provenance/`：供执行器审计的 `metric_status.tsv` 和 `run_manifest.json`；不作为主要结果展示。
 
-STARsolo 输入时，每个样本目录包含 `counts.mtx.gz`、`features.tsv.gz`、`metadata.tsv.gz`、`qc_diagnosis.png` 和 `metric_status.tsv`。
+STARsolo 输入时，每个样本目录只保留 `counts.mtx.gz`、`features.tsv.gz`、`metadata.tsv.gz` 和 `qc_diagnosis.png`；所有样本的指标状态合并到输出根目录的 `_provenance/metric_status.tsv`。
 
 可能计算的字段包括 `n_genes`、`n_UMIs`、`mito_frac`、`chrY_frac`、`nuclear_frac`、`ambient_frac_decontx`、`doublet_score`、细胞周期和血红蛋白评分。具体定义见 [input-output.md](skills/02-scrna-calculate-qc-metrics/references/input-output.md)。本 skill 不过滤细胞。
 

@@ -18,6 +18,8 @@ if (input_type == "auto") input_type <- if (!is.null(getv("input.object"))) "seu
 out_root <- getv("output_dir")
 if (is.null(out_root) || !nzchar(out_root)) stop("output_dir is required")
 dir.create(out_root, recursive = TRUE, showWarnings = FALSE)
+provenance_dir <- file.path(out_root, "_provenance")
+dir.create(provenance_dir, recursive = TRUE, showWarnings = FALSE)
 species <- tolower(getv("parameters.species", "mouse"))
 if (!species %in% c("mouse", "human")) stop("parameters.species must be mouse or human")
 min_genes_hq <- as.integer(getv("parameters.min_genes_hq", 500))
@@ -237,11 +239,12 @@ if (input_type == "starsolo") {
     Matrix::writeMM(raw$counts, file.path(out, "counts.mtx")); system2("gzip", c("-f", file.path(out, "counts.mtx")))
     gz <- gzfile(file.path(out, "features.tsv.gz"), "wt"); write.table(raw$features, gz, sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE); close(gz)
     gz <- gzfile(file.path(out, "metadata.tsv.gz"), "wt"); write.table(result$metadata, gz, sep = "\t", quote = FALSE); close(gz)
-    write.table(result$status, file.path(out, "metric_status.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
     plot_qc(result$metadata, file.path(out, "qc_diagnosis.png"), sample_id)
     list(sample_id = sample_id, status = result$status)
   }
-  invisible(run_sample_jobs(getv("samples"), process_star_sample))
+  sample_results <- run_sample_jobs(getv("samples"), process_star_sample)
+  all_status <- lapply(sample_results, `[[`, "status")
+  write.table(do.call(rbind, all_status), file.path(provenance_dir, "metric_status.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
 } else {
   object_path <- normalizePath(getv("input.object"), mustWork = TRUE)
   ext <- tolower(tools::file_ext(object_path))
@@ -288,6 +291,6 @@ if (input_type == "starsolo") {
   }
   saveRDS(obj, file.path(out_root, "qc_metrics_object.rds"))
   gz <- gzfile(file.path(out_root, "metadata.tsv.gz"), "wt"); write.table(combined_meta, gz, sep = "\t", quote = FALSE); close(gz)
-  write.table(do.call(rbind, all_status), file.path(out_root, "metric_status.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
+  write.table(do.call(rbind, all_status), file.path(provenance_dir, "metric_status.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
   plot_qc(combined_meta, file.path(out_root, "qc_diagnosis.png"), basename(object_path))
 }
