@@ -1,4 +1,5 @@
 source("toolkit/R/runtime.R")
+source("toolkit/R/figure_style.R")
 source("toolkit/R/differential_utils.R")
 
 fixture <- data.frame(

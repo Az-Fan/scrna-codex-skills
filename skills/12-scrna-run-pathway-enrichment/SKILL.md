@@ -27,3 +27,5 @@ Read [references/enrichment-design.md](references/enrichment-design.md) for reso
 ## Result organization
 
 Keep primary figures, complete scientific tables, and review decisions directly accessible. Store execution manifests, session information, logs, and workflow state under `_provenance/`; do not list them as primary results. Read [references/output-layout.md](references/output-layout.md) when configuring outputs, locating legacy records, or adding custom plots and diagnostics.
+
+The FigureYa-informed design keeps signed, paginated lollipop/dot summaries for ORA and GSEA rather than substituting a dense network plot. This preserves effect direction, FDR, and gene-set size in a publication-ready layout. Read [references/figure-style.md](references/figure-style.md) for the shared `paper_v1` contract.

@@ -10,7 +10,7 @@
 
 这项调整不删除历史记录，不改变计算、对象位置或图片格式。旧结果仍按旧路径查找；后续自定义作图也遵循相同收纳规则。设计审计、失败任务、基因覆盖和审核决策等影响解释的信息不能因“精简”而隐藏。对象迁移需单独核查下游引用。详见共享的[输出布局说明](toolkit/references/output-layout.md)。
 
-06/07/08 已接入固定 `paper_v1` 绘图：PNG 300 dpi、按标签固定颜色、UMAP/dotplot/FeaturePlot 分页。其他图族仍保留原有绘图实现，详见[图谱及分批状态](toolkit/references/figure-catalog.md)。
+06/07/08/11/12 已接入固定 `paper_v1` 绘图：PNG 300 dpi、按标签固定颜色、UMAP/dotplot/FeaturePlot 分页，以及差异与富集的论文式摘要图。其他图族仍保留原有绘图实现，详见[图谱及分批状态](toolkit/references/figure-catalog.md)。
 
 ## 一、工作流总览
 

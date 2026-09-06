@@ -70,6 +70,23 @@ paper_save <- function(plot, stem, width, height, config, out, family = basename
   files
 }
 
+# Save base-R graphics under the same format and provenance contract as ggplot figures.
+paper_base_save <- function(draw, stem, width, height, config, out, family = basename(stem)) {
+  files <- character()
+  for (format in paper_formats(config)) {
+    file <- paste0(stem, ".", format)
+    if (format == "png") {
+      grDevices::png(file, width = width, height = height, units = "in", res = 300, bg = "white")
+    } else {
+      grDevices::pdf(file, width = width, height = height, bg = "white")
+    }
+    tryCatch(draw(), finally = grDevices::dev.off())
+    paper_record(out, family, file)
+    files <- c(files, file)
+  }
+  files
+}
+
 paper_dimplot <- function(obj, reduction, groups, stem, config, out, point_size = .1, label = TRUE, legends = TRUE) {
   groups <- unique(groups)
   audit_fields <- unlist(cfg_get(config, "metadata", list())[c("sample", "condition", "batch")], use.names = FALSE)

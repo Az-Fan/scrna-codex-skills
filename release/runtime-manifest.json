@@ -53,13 +53,13 @@
     },
     "11-scrna-run-differential-analysis": {
       "python": ["check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "validate_project.py"],
-      "r": ["runtime.R", "differential_utils.R", "differential_analysis.R"],
-      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "enrichment-design.md", "long-running-execution.md"]
+      "r": ["runtime.R", "figure_style.R", "differential_utils.R", "differential_analysis.R"],
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "enrichment-design.md", "long-running-execution.md", "figure-style.md"]
     },
     "12-scrna-run-pathway-enrichment": {
       "python": ["check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "validate_project.py"],
-      "r": ["runtime.R", "differential_utils.R", "differential_analysis.R"],
-      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "enrichment-design.md", "long-running-execution.md"]
+      "r": ["runtime.R", "figure_style.R", "differential_utils.R", "differential_analysis.R"],
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "enrichment-design.md", "long-running-execution.md", "figure-style.md"]
     },
     "13-scrna-test-cell-abundance": {
       "python": ["check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "validate_project.py", "cell_abundance_sccoda.py"],

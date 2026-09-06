@@ -1,6 +1,6 @@
 # Fixed figure catalog — baseline inventory and rollout
 
-Rollout: skills 06/07/08 now use `paper_v1`, default PNG 300 dpi, with fixed pagination; their baseline PDF filenames below identify the retained families, not the new default extension. Skill 08 additionally supports explicitly configured target-gene FeaturePlots. All other families retain their existing renderer pending the next rollout. See figure-style.md in the three updated skills for their implemented contract.
+Rollout: skills 06/07/08 and 11/12 now use `paper_v1`, default PNG 300 dpi, with fixed pagination where a figure can grow. Baseline PDF filenames below identify retained families, not the new default extension. Skill 08 additionally supports explicitly configured target-gene FeaturePlots. All other families retain their existing renderer pending the next rollout. See figure-style.md in the updated skills for their implemented contract.
 
 This catalog records existing plot families before visual redesign. A family may produce multiple files or pages by sample, scenario, comparison, database, or metric. All listed families are retained. Conditions below describe current behavior, not permission to run additional analyses. No-figure stages are intentional.
 
@@ -43,15 +43,15 @@ This catalog records existing plot families before visual redesign. A family may
 | 08 | cluster_sample_condition_umap.pdf | apply_confirmed; available audit grouping fields | Preserve |
 | 09 | No figure | Subset export produces object/matrix/tables | Preserve |
 | 10 | <task>_group_mean_heatmap.png | Configured summary groups; at least two signatures and groups | Preserve |
-| 11 | volcano.pdf | Each successful population-by-comparison task | Preserve |
-| 11 | MA_plot.pdf | Result includes baseMean | Preserve |
-| 11 | pseudobulk_PCA.pdf | Sample-level normalized pseudobulk data | Preserve |
-| 11 | top_DE_heatmap.pdf | At least two selected genes in pseudobulk data | Preserve |
-| 11 | DEG_count_summary.pdf | Significant DE genes across tasks | Preserve |
-| 11/12 | enrichment_dotplot_overview.<format> | GSEA terms pass display selection; overview by database and direction | Preserve |
-| 11/12 | enrichment_ora_overview.<format> | ORA terms pass display selection | Preserve |
-| 11/12 | enrichment_dotplot_<database>_ora[_pageN].<format> | Eligible ORA terms; configured terms-per-page | Preserve every page |
-| 11/12 | gsea_nes_<database>[_pageN].<format> | Eligible GSEA terms; configured terms-per-page | Preserve every page |
+| 11 | volcano.png | Each successful population-by-comparison task | Preserve; `paper_v1` |
+| 11 | MA_plot.png | Result includes baseMean | Preserve; `paper_v1` |
+| 11 | pseudobulk_PCA.png | Sample-level normalized pseudobulk data | Preserve; `paper_v1` |
+| 11 | top_DE_heatmap.png | At least two selected genes in pseudobulk data | Preserve; `paper_v1` |
+| 11 | DEG_count_summary.png | Significant DE genes across tasks | Preserve; `paper_v1` |
+| 11/12 | enrichment_dotplot_overview.png | GSEA terms pass display selection; overview by database and direction | Preserve; `paper_v1` |
+| 11/12 | enrichment_ora_overview.png | ORA terms pass display selection | Preserve; `paper_v1` |
+| 11/12 | enrichment_dotplot_<database>_ora[_pageN].png | Eligible ORA terms; configured terms-per-page | Preserve every page; `paper_v1` |
+| 11/12 | gsea_nes_<database>[_pageN].png | Eligible GSEA terms; configured terms-per-page | Preserve every page; `paper_v1` |
 | 13 | sample_composition.pdf | Sample counts; currently 24 samples per page | Preserve every sample |
 | 13 | cell_type_proportions_by_condition.pdf | Sample proportions; currently 12 cell types per page | Preserve every cell type |
 | 13 | sample_proportion_heatmap.pdf | Sample proportions; currently 25 cell types per page | Preserve every cell type |

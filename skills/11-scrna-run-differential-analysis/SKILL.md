@@ -42,3 +42,7 @@ Read [references/input-output-contract.md](references/input-output-contract.md) 
 ## Result organization
 
 Keep primary figures, complete scientific tables, and review decisions directly accessible. Store execution manifests, session information, logs, and workflow state under `_provenance/`; do not list them as primary results. Read [references/output-layout.md](references/output-layout.md) when configuring outputs, locating legacy records, or adding custom plots and diagnostics.
+
+## Fixed figures
+
+Volcano, MA, pseudobulk PCA, top-DE heatmap, and batch DEG-summary figures use the fixed `paper_v1` theme: white background, stable condition colours, readable subtitles, and PNG at 300 dpi by default. Read [references/figure-style.md](references/figure-style.md) for the output-format and colour-map contract.

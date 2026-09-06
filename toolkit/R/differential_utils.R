@@ -288,11 +288,12 @@ plot_de_results <- function(x, out, population, comparison, config) {
   x$plot_p <- -log10(pmax(x$padj, .Machine$double.xmin)); x$plot_p[!is.finite(x$plot_p)] <- 0
   p <- ggplot2::ggplot(x, ggplot2::aes(log2FoldChange, plot_p, color = significance)) + ggplot2::geom_point(alpha = .65, size = .9) +
     ggplot2::scale_color_manual(values = c(Up = "#D73027", Down = "#4575B4", NS = "grey70", Not_tested = "grey90"), drop = FALSE) +
-    ggplot2::labs(title = paste(population, comparison$id), x = paste0("log2FC (", comparison$numerator, " vs ", comparison$denominator, ")"), y = "-log10 adjusted P") + ggplot2::theme_bw()
-  ggplot2::ggsave(file.path(out, "volcano.pdf"), p, width = 7, height = 6)
+    ggplot2::geom_vline(xintercept = 0, linewidth = .3, colour = "grey55") +
+    ggplot2::labs(title = gsub("_+", " ", paste(population, comparison$id)), subtitle = "Point colour: adjusted-significance class", x = paste0("log2FC (", comparison$numerator, " vs ", comparison$denominator, ")"), y = "-log10 adjusted P") + paper_theme()
+  paper_save(p, file.path(out, "volcano"), 7, 6, config, out, "volcano")
   if ("baseMean" %in% names(x)) {
-    ma <- ggplot2::ggplot(x, ggplot2::aes(log10(baseMean + 1), log2FoldChange, color = significance)) + ggplot2::geom_point(alpha = .6, size = .8) + ggplot2::scale_color_manual(values = c(Up = "#D73027", Down = "#4575B4", NS = "grey70", Not_tested = "grey90"), drop = FALSE) + ggplot2::theme_bw() + ggplot2::labs(x = "log10(baseMean + 1)", y = "log2FC")
-    ggplot2::ggsave(file.path(out, "MA_plot.pdf"), ma, width = 7, height = 6)
+    ma <- ggplot2::ggplot(x, ggplot2::aes(log10(baseMean + 1), log2FoldChange, color = significance)) + ggplot2::geom_point(alpha = .6, size = .8) + ggplot2::geom_hline(yintercept = 0, linewidth = .3, colour = "grey55") + ggplot2::scale_color_manual(values = c(Up = "#D73027", Down = "#4575B4", NS = "grey70", Not_tested = "grey90"), drop = FALSE) + paper_theme() + ggplot2::labs(title = "MA plot", subtitle = "Point colour: adjusted-significance class", x = "log10(baseMean + 1)", y = "log2FC")
+    paper_save(ma, file.path(out, "MA_plot"), 7, 6, config, out, "MA_plot")
   }
 }
 
@@ -300,20 +301,22 @@ plot_pseudobulk <- function(norm, coldata, condition_col, result, out, config) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) return(invisible(NULL))
   vst <- log2(norm + 1); pc <- stats::prcomp(t(vst), scale. = FALSE); pct <- round(100 * pc$sdev^2 / sum(pc$sdev^2), 1)
   d <- data.frame(sample = rownames(pc$x), PC1 = pc$x[,1], PC2 = pc$x[,2], condition = coldata[rownames(pc$x), condition_col])
-  p <- ggplot2::ggplot(d, ggplot2::aes(PC1, PC2, color = condition, label = sample)) + ggplot2::geom_point(size = 3) + ggplot2::geom_text(vjust = -0.7, size = 3) + ggplot2::theme_bw() + ggplot2::labs(x = paste0("PC1 (", pct[1], "%)"), y = paste0("PC2 (", pct[2], "%)"))
-  ggplot2::ggsave(file.path(out, "pseudobulk_PCA.pdf"), p, width = 7, height = 6)
+  colors <- paper_colors(d$condition, "condition", config, out)
+  p <- ggplot2::ggplot(d, ggplot2::aes(PC1, PC2, color = condition, label = sample)) + ggplot2::geom_point(size = 3) + ggplot2::geom_text(vjust = -0.7, size = 3) + ggplot2::scale_color_manual(values = colors) + paper_theme() + ggplot2::labs(title = "Pseudobulk PCA", subtitle = "Each point is one biological sample", x = paste0("PC1 (", pct[1], "%)"), y = paste0("PC2 (", pct[2], "%)"))
+  paper_save(p, file.path(out, "pseudobulk_PCA"), 7, 6, config, out, "pseudobulk_PCA")
   top_n <- as.integer(cfg_get(config, "plots.top_genes", 30)); ord <- order(result$padj, -abs(result$log2FoldChange), na.last = NA); genes <- head(result$gene[ord], top_n)
   if (length(genes) >= 2L) {
-    z <- t(scale(t(vst[genes, , drop = FALSE]))); grDevices::pdf(file.path(out, "top_DE_heatmap.pdf"), width = 8, height = max(5, length(genes) * .16 + 2)); stats::heatmap(z, Colv = NA, scale = "none", margins = c(8, 8)); grDevices::dev.off()
+    z <- t(scale(t(vst[genes, , drop = FALSE])))
+    paper_base_save(function() stats::heatmap(z, Colv = NA, scale = "none", margins = c(8, 8), col = grDevices::colorRampPalette(c("#2166AC", "#F7F7F7", "#B2182B"))(101)), file.path(out, "top_DE_heatmap"), 8, max(5, length(genes) * .16 + 2), config, out, "top_DE_heatmap")
   }
 }
 
-plot_batch_summary <- function(x, status, out) {
+plot_batch_summary <- function(x, status, out, config) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) return(invisible(NULL))
   sig <- x[x$significance %in% c("Up", "Down"), , drop = FALSE]
   if (!nrow(sig)) return(invisible(NULL))
   z <- aggregate(gene ~ population + comparison_id + significance, sig, length); names(z)[4] <- "n_genes"
-  if (nrow(z)) { p <- ggplot2::ggplot(z, ggplot2::aes(population, n_genes, fill = significance)) + ggplot2::geom_col(position = "dodge") + ggplot2::facet_wrap(~comparison_id, scales = "free_x") + ggplot2::scale_fill_manual(values = c(Up = "#D73027", Down = "#4575B4")) + ggplot2::theme_bw() + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 60, hjust = 1)); ggplot2::ggsave(file.path(out, "DEG_count_summary.pdf"), p, width = max(8, length(unique(z$population)) * .45 + 4), height = 6) }
+  if (nrow(z)) { p <- ggplot2::ggplot(z, ggplot2::aes(population, n_genes, fill = significance)) + ggplot2::geom_col(position = "dodge") + ggplot2::facet_wrap(~comparison_id, scales = "free_x") + ggplot2::scale_fill_manual(values = c(Up = "#D73027", Down = "#4575B4")) + paper_theme() + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 60, hjust = 1)) + ggplot2::labs(title = "Differentially expressed genes", subtitle = "Counts passing the configured effect-size and adjusted-P thresholds", x = NULL, y = "Number of genes"); paper_save(p, file.path(out, "DEG_count_summary"), max(8, length(unique(z$population)) * .45 + 4), 6, config, out, "DEG_count_summary") }
 }
 
 run_enrichment <- function(result, out, population, comparison, config) {
@@ -558,8 +561,10 @@ enrichment_plot_formats <- function(config) {
 
 save_enrichment_plot <- function(stem, plot, width, height, formats, dpi = 300) {
   for (format in formats) {
-    ggplot2::ggsave(paste0(stem, ".", format), plot, width = width, height = height,
-                    units = "in", dpi = dpi, bg = "white", limitsize = FALSE)
+    file <- paste0(stem, ".", format)
+    withr::with_seed(1, ggplot2::ggsave(file, plot, width = width, height = height,
+                    units = "in", dpi = dpi, bg = "white", limitsize = FALSE))
+    paper_record(dirname(stem), basename(stem), file)
   }
   invisible(NULL)
 }
@@ -603,7 +608,7 @@ plot_enrichment_summary <- function(x, out, config) {
     values = stats::setNames(c(16, 1), evidence_levels), name = "FDR",
     labels = c("<=0.05", paste0("0.05-", format(gsea_fdr))), drop = FALSE
   )
-  common_theme <- ggplot2::theme_minimal(base_size = 10) +
+  common_theme <- paper_theme() +
     ggplot2::theme(panel.grid.major.y = ggplot2::element_blank(), panel.grid.minor = ggplot2::element_blank(),
                    panel.grid.major.x = ggplot2::element_line(color = "grey90", linewidth = .35),
                    axis.line.x = ggplot2::element_line(color = "grey35", linewidth = .35),

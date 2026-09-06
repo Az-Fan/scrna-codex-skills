@@ -2,6 +2,7 @@ args <- commandArgs(trailingOnly = TRUE)
 if (length(args) != 1L) stop("Usage: Rscript differential_analysis.R config.json")
 script_file <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE)[1])
 source(file.path(dirname(normalizePath(script_file)), "runtime.R"))
+source(file.path(dirname(normalizePath(script_file)), "figure_style.R"))
 source(file.path(dirname(normalizePath(script_file)), "differential_utils.R"))
 
 config <- read_skill_config(args[[1]])
@@ -104,7 +105,7 @@ if (length(all_results)) {
   combined <- do.call(rbind, all_results)
   write_tsv(combined, file.path(out, "all_comparisons.tsv"))
   write_tsv(combined[combined$significance %in% c("Up", "Down"), , drop = FALSE], file.path(out, "significant_all_comparisons.tsv"))
-  plot_batch_summary(combined, status, out)
+  plot_batch_summary(combined, status, out, config)
   artifacts <- c(artifacts, file.path(out, "all_comparisons.tsv"), file.path(out, "significant_all_comparisons.tsv"))
 }
 if (length(enrichment_rows)) {
