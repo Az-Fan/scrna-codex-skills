@@ -58,6 +58,11 @@ This catalog records existing plot families before visual redesign. A family may
 | 13 | effect_summary.pdf | Each nonempty method result; currently 30 features per page | Preserve every feature |
 | 13 | milo_da_beeswarm.pdf | Milo method succeeds and plotting is available | Preserve; failure must be surfaced |
 | 13 | milo_da_graph.pdf | Milo neighborhood graph can be built and plotted | Preserve; failure must be surfaced |
+| 14 | composition_overview_<variable>.png/pdf | One sample-level 100% stacked composition view per configured variable | New; `paper_v1` |
+| 14 | composition_dotplot_<variable>.png/pdf | Sample-level proportion points with descriptive group summaries | New; `paper_v1` |
+| 14 | composition_heatmap_<variable>.png/pdf | Sample-by-category proportion heatmap | New; `paper_v1` |
+| 14 | composition_counts_<variable>.png/pdf | Sample-level count companion view | New; `paper_v1` |
+| 14 | embedding_diagnostics_<variable>.png/pdf | Available sample, condition, batch and composition UMAP panels | New; `paper_v1`; optional |
 
 ## Project supplements requiring a home
 

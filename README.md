@@ -38,7 +38,8 @@
   ├─→ 11 样本级差异表达
           ↓
         12 ORA/GSEA 通路富集
-  └─→ 13 细胞类型组成与局部邻域丰度变化
+  ├─→ 13 细胞类型组成与局部邻域丰度变化
+  └─→ 14 细胞组成、比例与批次诊断可视化
 ```
 
 几个重要边界：
@@ -52,6 +53,7 @@
 - `11` 正式推断默认使用样本级 pseudobulk DESeq2，细胞不是生物学重复。
 - `12` 读取完整差异结果表进行富集，不重新运行差异分析。
 - `13` 比较的是样本间相对组成或 Milo 邻域丰度，必须先声明分母；它不等于绝对组织细胞数量。
+- `14` 用于 cluster、注释、状态或任意分类元数据的样本级组成展示和批次诊断；它不执行正式丰度推断，也不把 cluster 自动转换为注释。
 
 ## 二、安装固定版本
 
@@ -650,6 +652,14 @@ pixi install -e sccoda
 
 propeller/DCATS 的调整 P 值、sccomp posterior FDR、scCODA posterior inclusion/credible、Milo spatial FDR 是不同统计证据。汇总表只比较方向和是否达到各自阈值，不把数值伪装成同一尺度。
 
+### 14-scrna-visualize-cell-composition：组成、比例与批次诊断可视化
+
+用于把任意分类元数据列（cluster、人工确认注释、cell state 或其他字段）按样本、condition 和 batch 展示。默认生成样本级 100% stacked bar、比例 dot plot、sample-by-category heatmap、细胞计数伴随图和可选 UMAP 诊断图。每个样本保留为一个观察单位，并记录分母、覆盖率和不可评估的 batch 字段。
+
+该 skill 只做描述性展示和批次诊断，不执行正式丰度推断、不自动注释 cluster，也不把相对比例解释为绝对组织细胞数。正式组成检验使用 `13-scrna-test-cell-abundance`；整合方法比较使用 `05-scrna-benchmark-integration`。
+
+配置模板：[config.example.json](skills/14-scrna-visualize-cell-composition/references/config.example.json)。
+
 ## 五、版本 2 到版本 3 的名称迁移
 
 版本 3 保留既有科学计算，同时重新划分职责并增加 QC 过滤和独立富集入口：
@@ -668,6 +678,7 @@ propeller/DCATS 的调整 P 值、sccomp posterior FDR、scCODA posterior inclus
 - `04-scrna-apply-qc-filter`：复用项目中已经验证的逐细胞决策表过滤模式。
 - `12-scrna-run-pathway-enrichment`：复用原差异分析中的富集实现，提供独立入口。
 - `13-scrna-test-cell-abundance`：新增样本感知的注释级组成与 Milo 邻域丰度分析；没有删除或替代既有差异表达、富集和可视化输出。
+- `14-scrna-visualize-cell-composition`：新增 cluster/注释/状态组成展示和 sample、condition、batch 诊断图。
 
 迁移没有删减既有 DE、marker、subset、program scoring 和 enrichment 的完整计算表。旧版安装目录不应与新版并存，否则相同任务可能被重复或错误路由。
 

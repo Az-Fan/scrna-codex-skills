@@ -34,6 +34,7 @@ SKILL_ENVS = {
     "11-scrna-run-differential-analysis": "06-deg-analysis",
     "12-scrna-run-pathway-enrichment": "06-deg-analysis",
     "13-scrna-test-cell-abundance": "07-cell-abundance",
+    "14-scrna-visualize-cell-composition": "02-annotation",
 }
 
 EXPECTED = {
@@ -50,6 +51,7 @@ EXPECTED = {
     "11-scrna-run-differential-analysis": ["design_audit.tsv", "task_status.tsv", "all_comparisons.tsv", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
     "12-scrna-run-pathway-enrichment": ["task_status.tsv", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
     "13-scrna-test-cell-abundance": ["sample_cell_counts.tsv", "sample_cell_proportions.tsv", "design_audit.tsv", "cell_type_eligibility.tsv", "task_status.tsv", "all_method_results.tsv", "method_concordance.tsv", "sample_composition.pdf", "cell_type_proportions_by_condition.pdf", "sample_proportion_heatmap.pdf", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
+    "14-scrna-visualize-cell-composition": ["composition_counts.tsv", "composition_proportions.tsv", "sample_coverage.tsv", "composition_audit.tsv", "plot_status.tsv", "composition_overview_seurat_clusters.png", "composition_dotplot_seurat_clusters.png", "composition_heatmap_seurat_clusters.png", "composition_counts_seurat_clusters.png", "embedding_diagnostics_seurat_clusters.png", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
 }
 
 
@@ -154,6 +156,16 @@ def main() -> int:
             "comparisons": [{"id": "case_vs_control", "numerator": "case", "denominator": "control"}],
             "analysis": {"methods": ["propeller", "dcats"], "denominator": {"mode": "all_input_cells", "description": "All annotated fixture populations"}, "min_samples_per_group": 3, "min_cells_per_sample": 20, "fdr": 0.1, "random_seed": 13},
             "method_options": {"propeller": {"transform": "logit", "robust": True, "trend": False}, "dcats": {"similarity_matrix": None, "reference_cell_types": []}},
+            "runtime": {"pixi_root": str(args.env_root)},
+        },
+        "14-scrna-visualize-cell-composition": {
+            "project": {"id": "tiny_fixture_composition"},
+            "input": {"object": str(fixture), "counts_table": None, "count_column": "n_cells"},
+            "metadata": {"sample": "sample_label", "condition": "condition", "batch": "batch_id", "reduction": "umap"},
+            "composition": {"variables": [{"column": "seurat_clusters", "label": "Clusters", "kind": "cluster"}, {"column": "cell_type", "label": "Cell type", "kind": "annotation"}], "parent_column": None, "denominator": {"mode": "all_input_cells", "include": [], "description": "All retained fixture cells per sample"}},
+            "modes": ["composition_summary", "batch_diagnostic"],
+            "plots": {"umap": True, "figure_format": "png", "dpi": 300},
+            "quality": {"min_cells_per_sample": 1},
             "runtime": {"pixi_root": str(args.env_root)},
         },
     }

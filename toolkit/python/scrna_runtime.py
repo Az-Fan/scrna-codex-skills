@@ -49,6 +49,10 @@ SPECS = {
         "required": ["project.id", "metadata.sample", "metadata.condition", "metadata.cell_type", "analysis.methods", "analysis.denominator.mode", "comparisons", "output_dir"],
         "artifacts": ["sample_cell_counts", "sample_cell_proportions", "design_audit", "task_status", "complete_method_results", "compact_diagnostic_plots", "method_concordance", "run_manifest"],
     },
+    "14-scrna-visualize-cell-composition": {
+        "required": ["project.id", "output_dir", "metadata.sample", "composition.variables", "composition.denominator.description"],
+        "artifacts": ["composition_counts", "composition_proportions", "sample_coverage", "composition_audit", "plot_status", "figures", "run_manifest"],
+    },
     "06-scrna-preprocess-and-cluster": {
         "required": ["project.id", "input.object", "output_dir"],
         "artifacts": ["preprocessed_clustered_object", "scenario_summary", "cell_assignments", "cluster_sizes", "resolution_stability", "workflow_state", "run_manifest"],
@@ -69,6 +73,7 @@ DRIVERS = {
     "11-scrna-run-differential-analysis": "differential_analysis.R",
     "12-scrna-run-pathway-enrichment": "differential_analysis.R",
     "13-scrna-test-cell-abundance": "cell_abundance.R",
+    "14-scrna-visualize-cell-composition": "visualize_cell_composition.R",
     "10-scrna-score-programs": "score_programs.R",
     "06-scrna-preprocess-and-cluster": "preprocess_cluster.R",
 }
@@ -85,6 +90,7 @@ ENV_PROFILES = {
     "11-scrna-run-differential-analysis": "06-deg-analysis",
     "12-scrna-run-pathway-enrichment": "06-deg-analysis",
     "13-scrna-test-cell-abundance": "07-cell-abundance",
+    "14-scrna-visualize-cell-composition": "02-annotation",
     "06-scrna-preprocess-and-cluster": "03-integration",
     "10-scrna-score-programs": "05-pathway_program",
 }
@@ -337,6 +343,35 @@ def validate(skill, config, config_path):
             similarity_path = Path(os.path.expandvars(os.path.expanduser(str(similarity))))
             if not similarity_path.is_file():
                 errors.append(f"DCATS similarity matrix does not exist: {similarity_path}")
+    if skill == "14-scrna-visualize-cell-composition":
+        has_object = bool(nested_get(config, "input.object"))
+        has_counts = bool(nested_get(config, "input.counts_table"))
+        if has_object == has_counts:
+            errors.append("provide exactly one of input.object or input.counts_table")
+        variables = nested_get(config, "composition.variables")
+        if not isinstance(variables, list) or not variables:
+            errors.append("composition.variables must be a non-empty array")
+        else:
+            seen = set()
+            for index, variable in enumerate(variables):
+                if not isinstance(variable, dict) or is_blank(variable.get("column")):
+                    errors.append(f"composition variable {index + 1} requires column")
+                elif variable["column"] in seen:
+                    errors.append("composition.variables must not contain duplicate columns")
+                else:
+                    seen.add(variable["column"])
+                kind = str(variable.get("kind", "metadata")).lower() if isinstance(variable, dict) else ""
+                if kind not in {"cluster", "annotation", "state", "metadata"}:
+                    errors.append(f"composition variable {index + 1} kind must be cluster, annotation, state, or metadata")
+        mode = nested_get(config, "composition.denominator.mode") or "all_input_cells"
+        if mode not in {"all_input_cells", "selected_parent", "selected_cell_types"}:
+            errors.append("composition.denominator.mode must be all_input_cells, selected_parent, or selected_cell_types")
+        modes = config.get("modes", ["composition_summary"])
+        if not isinstance(modes, list) or not modes or any(str(x) not in {"composition_summary", "batch_diagnostic", "hierarchical_composition"} for x in modes):
+            errors.append("modes must contain composition_summary, batch_diagnostic, or hierarchical_composition")
+        figure_format = nested_get(config, "plots.figure_format") or "png"
+        if figure_format not in {"png", "pdf", "both"}:
+            errors.append("plots.figure_format must be png, pdf, or both")
     if skill == "10-scrna-score-programs":
         tasks = config.get("tasks")
         if not isinstance(tasks, list) or not tasks:

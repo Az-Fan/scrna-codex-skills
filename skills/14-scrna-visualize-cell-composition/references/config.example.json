@@ -1,0 +1,18 @@
+{
+  "project": {"id": "project_id"},
+  "input": {"object": "path/to/annotated_object.qs", "counts_table": null, "count_column": "n_cells"},
+  "metadata": {"sample": "sample_id", "condition": "condition", "batch": "batch_id", "reduction": "umap"},
+  "composition": {
+    "variables": [
+      {"column": "seurat_clusters", "label": "Clusters", "kind": "cluster"},
+      {"column": "annotation_fine", "label": "Fine annotation", "kind": "annotation"}
+    ],
+    "parent_column": null,
+    "denominator": {"mode": "all_input_cells", "include": [], "description": "All retained cells per sample"}
+  },
+  "modes": ["composition_summary", "batch_diagnostic"],
+  "plots": {"umap": true, "figure_format": "png", "dpi": 300, "max_categories_per_page": 20},
+  "figure_style": {"colors": {"condition": {"control": "#4477AA", "case": "#D55E00"}}},
+  "runtime": {"pixi_root": "/home/faz_laptop/projects/scrna_envs"},
+  "output_dir": "results/09_cell_composition"
+}

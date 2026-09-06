@@ -65,6 +65,11 @@
       "python": ["check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "validate_project.py", "cell_abundance_sccoda.py"],
       "r": ["runtime.R", "cell_abundance.R"],
       "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "long-running-execution.md"]
+    },
+    "14-scrna-visualize-cell-composition": {
+      "python": ["runner_bootstrap.py", "scrna_runtime.py"],
+      "r": ["visualize_cell_composition.R"],
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md"]
     }
   }
 }
