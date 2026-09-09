@@ -37,12 +37,27 @@ Run only the selected workflow by default. Never turn one selected workflow into
 
 Then ask for the execution mode:
 
-- **Guided**: confirm regression, PCA dimensions, Harmony, resolution scan, and UMAP choices in sequence. Run the scan with `clustering.selection: review`, show the generated resolution UMAP grid, clustree, and stability recommendation, and stop. After the user confirms a resolution, run `workflow.action: finalize_resolution` against the scan object.
-- **Batch**: collect all parameters once and run through with fixed resolution or `clustering.selection: recommended` when the user explicitly authorizes automatic use of the stability recommendation.
+- **1. Guided**: present one consolidated parameter sheet, obtain one confirmation, then run the scan with `clustering.selection: review`. Show the generated resolution UMAP grid, clustree, and stability recommendation, and stop. After the user confirms a resolution, run `workflow.action: finalize_resolution` against the scan object.
+- **2. Batch**: collect all parameters once and run through with fixed resolution or `clustering.selection: recommended` when the user explicitly authorizes automatic use of the stability recommendation.
+
+Accept `1` as Guided and `2` as Batch when numbered choices were shown. Do not ask the user to restate an already unambiguous selection.
 
 Do not describe the stability recommendation as a biologically optimal resolution. Keep `recommended_resolution` and `confirmed_resolution` distinct.
 
-In guided mode, collect parameters in dependency order: normalization/HVG; cell-cycle scoring and regression; PCA count and downstream dimensions; optional Harmony fields and theta; neighbor `k.param`; resolution strategy; then UMAP `n.neighbors`, `min.dist`, metric, method, and seed. Explain that all resolution panels share one UMAP and that UMAP parameters do not determine graph clusters.
+### Guided confirmation contract
+
+Guided means reviewable, not one-question-at-a-time. Inspect the object first, resolve safe defaults from the selected workflow and object size, then present all parameters in one compact numbered block:
+
+1. normalization and HVGs;
+2. cell-cycle scoring, regression, and Harmony settings;
+3. PCA count and downstream dimensions;
+4. neighbor `k.param`;
+5. resolution scan or fixed-resolution strategy;
+6. UMAP settings and seed.
+
+Ask once: `确认以上全部参数即可运行；如需修改，请一次列出项目和新值。` One confirmation authorizes config creation, dependency check, dry-run, and execution of the already selected workflow. Do not pause between parameters. Do not repeat the parameter confirmation after input inspection unless inspection reveals a concrete incompatibility that changes a value or requires new user authority. If a value must change, report only the affected value, reason, and proposed replacement in one follow-up.
+
+Explain in the consolidated block that all resolution panels share one UMAP and that UMAP parameters do not determine graph clusters.
 
 Before execution, inspect metadata, assays, raw counts, existing reductions, scenario names, and condition-batch confounding. Warn when regression may remove the biology under study or Harmony's batch field is confounded with condition.
 
