@@ -303,6 +303,15 @@ compact 模式根目录只保留：
 
 固定分辨率配置见 [config.example.json](skills/06-scrna-preprocess-and-cluster/references/config.example.json)；guided 扫描见 [config.guided.example.json](skills/06-scrna-preprocess-and-cluster/references/config.guided.example.json)；确认分辨率后使用 [config.finalize.example.json](skills/06-scrna-preprocess-and-cluster/references/config.finalize.example.json)。
 
+**交互方式**
+
+- 首先只选择一次 workflow：标准流程、细胞周期回归、Harmony、回归后 Harmony，或多方案比较。
+- 执行模式支持 `1 = Guided`、`2 = Batch`；输入编号即可，不要求重复表述。
+- Guided 会先检查对象，再把 normalization/HVG、细胞周期与校正、PCA、邻居图、resolution 扫描、UMAP 和随机种子汇总成一张参数清单。
+- 用户对整张清单确认一次后，连续完成配置生成、依赖检查、dry-run 和扫描执行；不会逐项暂停，也不会在输入检查后重复询问已经确认的参数。
+- 只有对象检查发现参数不兼容或需要改变已选 workflow 时，才针对受影响项目追加一次确认。
+- 扫描完成后仍需单独确认最终 resolution；这是科学决策门，而不是运行参数的重复确认。
+
 **主要输出**
 
 每次运行：
