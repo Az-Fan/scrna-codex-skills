@@ -1,4 +1,4 @@
 interface:
-  display_name: "Visualize scRNA Cell Composition"
+  display_name: "14 Visualize scRNA Cell Composition"
   short_description: "Plot sample-aware cluster, annotation, and batch composition"
   default_prompt: "Visualize scRNA-seq cell composition across samples, conditions, and batches with auditable sample-level plots."
