@@ -35,6 +35,7 @@ SKILL_ENVS = {
     "12-scrna-run-pathway-enrichment": "06-deg-analysis",
     "13-scrna-test-cell-abundance": "07-cell-abundance",
     "14-scrna-visualize-cell-composition": "02-annotation",
+    "15-scrna-visualize-gene": "02-annotation",
 }
 
 EXPECTED = {
@@ -52,6 +53,7 @@ EXPECTED = {
     "12-scrna-run-pathway-enrichment": ["task_status.tsv", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
     "13-scrna-test-cell-abundance": ["sample_cell_counts.tsv", "sample_cell_proportions.tsv", "design_audit.tsv", "cell_type_eligibility.tsv", "task_status.tsv", "all_method_results.tsv", "method_concordance.tsv", "sample_composition.pdf", "cell_type_proportions_by_condition.pdf", "sample_proportion_heatmap.pdf", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
     "14-scrna-visualize-cell-composition": ["composition_counts.tsv", "composition_proportions.tsv", "sample_coverage.tsv", "composition_audit.tsv", "plot_status.tsv", "composition_overview_seurat_clusters.png", "composition_dotplot_seurat_clusters.png", "composition_heatmap_seurat_clusters.png", "composition_counts_seurat_clusters.png", "embedding_diagnostics_seurat_clusters.png", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
+    "15-scrna-visualize-gene": ["gene_status.tsv", "target_gene_cell_expression_summary.tsv", "target_gene_sample_expression.tsv", "target_gene_summary.tsv", "plot_status.tsv", "target_gene_featureplots.png", "target_gene_dotplot.png", "target_gene_violinplot.png", "target_gene_sample_expression.png", "target_gene_sample_heatmap.png", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
 }
 
 
@@ -166,6 +168,15 @@ def main() -> int:
             "modes": ["composition_summary", "batch_diagnostic"],
             "plots": {"umap": True, "figure_format": "png", "dpi": 300},
             "quality": {"min_cells_per_sample": 1},
+            "runtime": {"pixi_root": str(args.env_root)},
+        },
+        "15-scrna-visualize-gene": {
+            "project": {"id": "tiny_fixture_target_genes"},
+            "input": {"object": str(output_root / "06-scrna-preprocess-and-cluster/preprocessed_clustered_object.qs"), "differential_table": None, "pseudobulk_data": None},
+            "genes": [{"symbol": "Kdr", "label": "Kdr"}, {"symbol": "Pecam1", "label": "Pecam1"}, {"symbol": "Cdh5", "label": "Cdh5"}],
+            "metadata": {"sample": "sample_label", "condition": "condition", "population": "cell_type", "reduction": "umap"},
+            "expression": {"assay": "RNA"},
+            "plots": {"featureplot": True, "dotplot": True, "violin": True, "sample_expression": True, "sample_heatmap": True, "de_effect": True, "volcano_highlight": True, "figure_format": "png"},
             "runtime": {"pixi_root": str(args.env_root)},
         },
     }

@@ -67,9 +67,14 @@
       "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "long-running-execution.md"]
     },
     "14-scrna-visualize-cell-composition": {
-      "python": ["runner_bootstrap.py", "scrna_runtime.py"],
+      "python": ["check_dependencies.py", "runner_bootstrap.py", "scrna_runtime.py", "validate_project.py"],
       "r": ["visualize_cell_composition.R"],
       "references": ["output-layout.md", "figure-catalog.md", "compatibility.md"]
+    },
+    "15-scrna-visualize-gene": {
+      "python": ["check_dependencies.py", "runner_bootstrap.py", "scrna_runtime.py", "validate_project.py"],
+      "r": ["runtime.R", "figure_style.R", "visualize_gene.R"],
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "figure-style.md"]
     }
   }
 }

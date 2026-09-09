@@ -1,0 +1,5 @@
+interface:
+  display_name: "15 Visualize scRNA Target Genes"
+  short_description: "Fixed FeaturePlot and sample-aware target-gene figures"
+  default_prompt: "Visualize selected scRNA-seq genes with the fixed paper-style FeaturePlot, grouped expression, sample-level, heatmap, and optional DE panels."
+

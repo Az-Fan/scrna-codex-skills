@@ -660,6 +660,14 @@ propeller/DCATS 的调整 P 值、sccomp posterior FDR、scCODA posterior inclus
 
 配置模板：[config.example.json](skills/14-scrna-visualize-cell-composition/references/config.example.json)。
 
+### 15-scrna-visualize-gene：目标基因固定风格可视化
+
+用于展示一个或多个感兴趣基因。固定输出包括灰到深红的 FeaturePlot、按 cluster/注释分组的 dot plot、condition violin、每个生物学样本一个点的表达图、样本热图，以及在提供完整差异表时的目标基因效应图和 volcano 高亮图。输入不足时会在 `plot_status.tsv` 中记录原因并跳过，不机械生成无意义图。
+
+该 skill 不重新标准化对象、不执行差异分析，也不把细胞当成生物学重复。正式差异结论来自 `11-scrna-run-differential-analysis` 的完整结果；pseudobulk normalized counts 可作为样本级表达图的优先数据源。
+
+配置模板：[config.example.json](skills/15-scrna-visualize-gene/references/config.example.json)。
+
 ## 五、版本 2 到版本 3 的名称迁移
 
 版本 3 保留既有科学计算，同时重新划分职责并增加 QC 过滤和独立富集入口：
@@ -679,6 +687,7 @@ propeller/DCATS 的调整 P 值、sccomp posterior FDR、scCODA posterior inclus
 - `12-scrna-run-pathway-enrichment`：复用原差异分析中的富集实现，提供独立入口。
 - `13-scrna-test-cell-abundance`：新增样本感知的注释级组成与 Milo 邻域丰度分析；没有删除或替代既有差异表达、富集和可视化输出。
 - `14-scrna-visualize-cell-composition`：新增 cluster/注释/状态组成展示和 sample、condition、batch 诊断图。
+- `15-scrna-visualize-gene`：新增固定风格的 FeaturePlot、分组表达、样本表达、热图和已有 DE 结果高亮图。
 
 迁移没有删减既有 DE、marker、subset、program scoring 和 enrichment 的完整计算表。旧版安装目录不应与新版并存，否则相同任务可能被重复或错误路由。
 

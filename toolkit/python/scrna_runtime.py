@@ -53,6 +53,10 @@ SPECS = {
         "required": ["project.id", "output_dir", "metadata.sample", "composition.variables", "composition.denominator.description"],
         "artifacts": ["composition_counts", "composition_proportions", "sample_coverage", "composition_audit", "plot_status", "figures", "run_manifest"],
     },
+    "15-scrna-visualize-gene": {
+        "required": ["project.id", "input.object", "genes", "metadata.sample", "expression.assay", "output_dir"],
+        "artifacts": ["gene_status", "cell_expression_summary", "sample_expression", "target_gene_summary", "plot_status", "figures", "run_manifest"],
+    },
     "06-scrna-preprocess-and-cluster": {
         "required": ["project.id", "input.object", "output_dir"],
         "artifacts": ["preprocessed_clustered_object", "scenario_summary", "cell_assignments", "cluster_sizes", "resolution_stability", "workflow_state", "run_manifest"],
@@ -74,6 +78,7 @@ DRIVERS = {
     "12-scrna-run-pathway-enrichment": "differential_analysis.R",
     "13-scrna-test-cell-abundance": "cell_abundance.R",
     "14-scrna-visualize-cell-composition": "visualize_cell_composition.R",
+    "15-scrna-visualize-gene": "visualize_gene.R",
     "10-scrna-score-programs": "score_programs.R",
     "06-scrna-preprocess-and-cluster": "preprocess_cluster.R",
 }
@@ -91,6 +96,7 @@ ENV_PROFILES = {
     "12-scrna-run-pathway-enrichment": "06-deg-analysis",
     "13-scrna-test-cell-abundance": "07-cell-abundance",
     "14-scrna-visualize-cell-composition": "02-annotation",
+    "15-scrna-visualize-gene": "02-annotation",
     "06-scrna-preprocess-and-cluster": "03-integration",
     "10-scrna-score-programs": "05-pathway_program",
 }
@@ -369,6 +375,28 @@ def validate(skill, config, config_path):
         modes = config.get("modes", ["composition_summary"])
         if not isinstance(modes, list) or not modes or any(str(x) not in {"composition_summary", "batch_diagnostic", "hierarchical_composition"} for x in modes):
             errors.append("modes must contain composition_summary, batch_diagnostic, or hierarchical_composition")
+        figure_format = nested_get(config, "plots.figure_format") or "png"
+        if figure_format not in {"png", "pdf", "both"}:
+            errors.append("plots.figure_format must be png, pdf, or both")
+    if skill == "15-scrna-visualize-gene":
+        genes = config.get("genes")
+        if not isinstance(genes, list) or not genes:
+            errors.append("genes must be a non-empty array")
+        else:
+            symbols = []
+            for index, gene in enumerate(genes):
+                if isinstance(gene, str):
+                    symbol = gene
+                elif isinstance(gene, dict):
+                    symbol = gene.get("symbol")
+                else:
+                    symbol = None
+                if is_blank(symbol):
+                    errors.append(f"gene {index + 1} requires symbol")
+                else:
+                    symbols.append(str(symbol))
+            if len(symbols) != len(set(symbols)):
+                errors.append("genes must not contain duplicate symbols")
         figure_format = nested_get(config, "plots.figure_format") or "png"
         if figure_format not in {"png", "pdf", "both"}:
             errors.append("plots.figure_format must be png, pdf, or both")

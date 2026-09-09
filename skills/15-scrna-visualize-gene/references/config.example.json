@@ -1,0 +1,40 @@
+{
+  "project": {"id": "project_id"},
+  "input": {
+    "object": "path/to/annotated_object.qs",
+    "differential_table": null,
+    "pseudobulk_data": null
+  },
+  "genes": [
+    {"symbol": "ACLY", "label": "ACLY"},
+    {"symbol": "SLC9A3R2", "label": "NHERF2"}
+  ],
+  "metadata": {
+    "sample": "sample_id",
+    "condition": "condition",
+    "population": "cell_type",
+    "reduction": "umap"
+  },
+  "expression": {"assay": "RNA"},
+  "differential_columns": {
+    "gene": "gene",
+    "log2_fold_change": "log2FoldChange",
+    "adjusted_p_value": "padj"
+  },
+  "plots": {
+    "featureplot": true,
+    "dotplot": true,
+    "violin": true,
+    "sample_expression": true,
+    "sample_heatmap": true,
+    "de_effect": true,
+    "volcano_highlight": true,
+    "figure_format": "png"
+  },
+  "figure_style": {
+    "colors": {"condition": {"control": "#4477AA", "case": "#D55E00"}}
+  },
+  "runtime": {"pixi_root": "/home/faz_laptop/projects/scrna_envs"},
+  "output_dir": "results/15_gene_visualization"
+}
+
