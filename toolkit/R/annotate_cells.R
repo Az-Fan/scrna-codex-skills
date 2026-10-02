@@ -113,7 +113,11 @@ object_clusters <- cluster_levels(clusters)
 if (!setequal(object_clusters, decisions$cluster)) stop("Annotation decisions must cover exactly every object cluster")
 confirmed_values <- tolower(unlist(cfg_get(config, "annotation.confirmed_values", list("confirmed")), use.names = FALSE))
 if (any(!tolower(as.character(decisions[[decision_col]])) %in% confirmed_values)) stop("Every annotation decision must be confirmed before apply_confirmed")
-if (any(!nzchar(as.character(decisions[[broad_col]]))) || any(!nzchar(as.character(decisions[[fine_col]])))) stop("Confirmed broad and fine labels cannot be empty")
+for (column in c(broad_col, fine_col)) {
+  labels <- trimws(as.character(decisions[[column]]))
+  if (anyNA(labels) || any(!nzchar(labels))) stop("Confirmed broad and fine labels cannot be missing or empty")
+  decisions[[column]] <- labels
+}
 
 broad_out <- cfg_get(config, "annotation.output_broad_column", broad_col)
 fine_out <- cfg_get(config, "annotation.output_fine_column", fine_col)

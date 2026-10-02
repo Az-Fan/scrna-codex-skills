@@ -6,6 +6,10 @@ Use exactly one of `input.object` (annotated Seurat RDS/QS; required for Milo) o
 
 Every sample must map to one condition and one value for each sample-level covariate. Positive effects mean numerator greater than denominator on the recorded method-specific scale.
 
+Numeric covariates remain continuous by default; character/factor covariates are categorical. Use `metadata.covariate_types`, for example `{"age":"continuous","donor":"categorical"}`, to override inference. Continuous values must be finite and numeric. `covariate_types.tsv` records resolved types, and each comparison writes `model_design.tsv` and `model_design.json` before fitting.
+
+`analysis.min_cells_per_sample` refers to each sample's total cells in the declared denominator. `analysis.min_cells_policy=audit_only` preserves the legacy behavior and warns while retaining low-cell samples. `exclude_samples` removes those samples from the model and rechecks independent replicates, rank and residual degrees of freedom; `stop` rejects a comparison with any low-cell sample. This policy never removes low-abundance cell types or their zero counts from otherwise eligible samples.
+
 `analysis.denominator.mode=all_input_cells` uses every input cell. `selected_cell_types` requires `analysis.denominator.include` and recomputes sample totals after selection. Always state `analysis.denominator.description`. An EC-enriched object estimates relative EC-subtype composition, not the EC fraction or absolute EC number in the original tissue.
 
 ## Methods

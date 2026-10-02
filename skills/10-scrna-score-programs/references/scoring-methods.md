@@ -12,6 +12,8 @@
 
 When `data` is requested but absent, normalize the selected assay in memory by default and record the resulting session; set `normalize_if_missing` to `false` to require a pre-existing normalized layer. This never changes the input file.
 
+Seurat v5 expression layers may be exact names or one/many sample-suffixed layers. Resolve and join the requested family in memory, including the one-sample subset case, and require its cell IDs to match the complete input object.
+
 Do not compare numeric values from different methods as if they shared a scale. If the user requests a method comparison, compare within-signature ranks, correlations, group contrasts, and stability rather than raw magnitudes.
 
 Run AUCell's current ranking and AUC calls with one core because its legacy `nCores` path can require an uninstalled `doMC` backend and is deprecated upstream. Treat the skill-level `cores` setting as applicable to methods that safely honor it.

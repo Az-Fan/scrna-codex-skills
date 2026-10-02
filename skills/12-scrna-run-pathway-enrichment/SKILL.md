@@ -7,6 +7,8 @@ description: Run auditable GO, KEGG, Reactome, and Hallmark ORA/GSEA from one or
 
 This dedicated entry point reuses the enrichment implementation from differential analysis without rerunning DE.
 
+For multiple `input.differential_tables`, give each table a distinct `id` when stable names matter; omitted IDs become `table_1`, `table_2`, etc. Multi-table task paths include this table ID before population/comparison, and sanitized collisions are rejected. Combined enrichment rows retain `task_id` and `input_table`. Existing numerator/denominator columns are preserved unless the table specification explicitly overrides them.
+
 ## Workflow
 
 1. Confirm species, gene identifier type, effect direction, test-statistic columns, whether the input contains all tested genes, and an explicit integer `random_seed`.

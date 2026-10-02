@@ -8,10 +8,8 @@ import json
 from importlib.metadata import version
 from pathlib import Path
 
-import anndata as ad
 import numpy as np
 import pandas as pd
-import pertpy as pt
 
 
 def parse_args() -> argparse.Namespace:
@@ -24,6 +22,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--comparison-id", required=True)
     parser.add_argument("--reference", default="automatic")
     parser.add_argument("--covariates", default="")
+    parser.add_argument("--covariate-types", type=Path, help="R-resolved covariate/type TSV")
     parser.add_argument("--fdr", type=float, default=0.05)
     parser.add_argument("--num-samples", type=int, default=10000)
     parser.add_argument("--num-warmup", type=int, default=1000)
@@ -34,11 +33,42 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def apply_covariate_types(metadata, covariates, types):
+    metadata = metadata.copy()
+    for column in covariates:
+        if column not in metadata:
+            raise ValueError(f"metadata column not found: {column}")
+        kind = types.get(column, "continuous" if pd.api.types.is_numeric_dtype(metadata[column]) else "categorical")
+        if kind == "continuous":
+            values = pd.to_numeric(metadata[column], errors="raise")
+            if not np.isfinite(values.to_numpy(dtype=float)).all():
+                raise ValueError(f"Continuous covariate is non-finite: {column}")
+            metadata[column] = values
+        elif kind == "categorical":
+            if metadata[column].isna().any() or metadata[column].astype(str).str.strip().eq("").any():
+                raise ValueError(f"Categorical covariate is missing or blank: {column}")
+            metadata[column] = pd.Categorical(metadata[column].astype(str))
+        else:
+            raise ValueError(f"Unsupported covariate type: {column}={kind}")
+    return metadata
+
+
+def read_sample_table(path, dtypes=None):
+    columns = pd.read_csv(path, sep="\t", nrows=0).columns
+    return pd.read_csv(path, sep="\t", index_col=0, dtype={**(dtypes or {}), columns[0]: str})
+
+
 def main() -> int:
     args = parse_args()
+    import anndata as ad
+    import pertpy as pt
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    counts = pd.read_csv(args.counts, sep="\t", index_col=0)
-    metadata = pd.read_csv(args.metadata, sep="\t", index_col=0)
+    types = {}
+    if args.covariate_types:
+        type_table = pd.read_csv(args.covariate_types, sep="\t")
+        types = dict(zip(type_table["covariate"], type_table["type"]))
+    counts = read_sample_table(args.counts)
+    metadata = read_sample_table(args.metadata, {column:str for column,kind in types.items() if kind=="categorical"})
     if not counts.index.is_unique or not metadata.index.is_unique:
         raise ValueError("sample identifiers must be unique")
     missing = counts.index.difference(metadata.index)
@@ -62,6 +92,7 @@ def main() -> int:
         ordered=True,
     )
     covariates = [value for value in args.covariates.split(",") if value]
+    metadata = apply_covariate_types(metadata, covariates, types)
     required = ["contrast_group", *covariates]
     for column in required:
         if column not in metadata.columns:

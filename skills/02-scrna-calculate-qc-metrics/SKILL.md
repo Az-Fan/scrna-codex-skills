@@ -35,6 +35,8 @@ Keep user-facing data and figures at the result root. Put executor-only status a
 
 For Seurat v5 input, let the executor join multiple raw-count layers in memory and verify that the resulting matrix covers every object cell. Do not require callers to modify or resave their source object first.
 
+For Seurat input, configure `metadata.sample`. Explicit sample/batch columns must exist and have complete, nonblank values. Use `input.single_sample=true` with no sample column only for a deliberately declared single-sample object; a misspelled configured column never enables this fallback.
+
 Set `ambient_rna.method` to `skip` for a fast run that records DecontX as deliberately skipped. Set `ambient_rna.cluster_column` only for complete, broad population labels; supplying it bypasses DecontX's cell-population estimation, although celda still generates a UMAP for its result object. Use `parallel.workers` to process independent samples concurrently, bounded by available memory and the number of samples.
 
 ## Boundaries
@@ -42,7 +44,7 @@ Set `ambient_rna.method` to `skip` for a fast run that records DecontX as delibe
 - Support STARsolo matrices and Seurat RDS/QS objects with raw counts.
 - Use optional GTF and Velocyto inputs when available; record skipped metrics when they are absent.
 - Treat the `n_genes` threshold as a diagnostic flag only.
-- Stop only when the primary object or count matrix is unreadable. Record optional missing inputs or packages as skipped metrics.
+- Stop for unreadable primary inputs or invalid required sample/batch metadata. Record optional missing inputs or packages as skipped metrics.
 - Never install or repair dependencies automatically.
 - Do not infer sample batches from sample names.
 

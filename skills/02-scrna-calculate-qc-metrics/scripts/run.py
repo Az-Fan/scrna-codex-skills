@@ -41,6 +41,8 @@ def main():
     primary = Path(input_config[key]).expanduser().resolve()
     if input_type == "seurat" and not primary.is_file():
         fail(f"Seurat object not found: {primary}")
+    if input_type == "seurat" and not config.get("metadata", {}).get("sample") and input_config.get("single_sample") is not True:
+        fail("Seurat QC requires metadata.sample or explicit input.single_sample=true")
     if input_type == "starsolo" and not primary.is_dir():
         fail(f"STARsolo directory not found: {primary}")
 

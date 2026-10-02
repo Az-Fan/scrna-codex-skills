@@ -72,7 +72,9 @@ meta$qc_filter_status <- "approved"
 meta$qc_filter_source <- decision_path
 counts <- get_raw_counts(obj, assay = assay)[, keep, drop = FALSE]
 filtered <- Seurat::CreateSeuratObject(counts = counts, assay = assay, project = cfg_get(config, "project.id", required = TRUE), meta.data = meta, min.cells = 0, min.features = 0)
-if (ncol(filtered) != expected_retained || nrow(filtered) != nrow(obj)) stop("Filtered object dimensions are invalid")
+if (ncol(filtered) != expected_retained ||
+    !identical(rownames(filtered[[assay]]), rownames(counts)) ||
+    !identical(colnames(filtered), colnames(counts))) stop("Filtered object dimensions are invalid")
 if (length(filtered@reductions) || length(filtered@graphs)) stop("Filtered handoff unexpectedly inherited reductions or graphs")
 
 out <- prepare_output(config)

@@ -3,6 +3,8 @@ import importlib.util
 import json
 import tempfile
 import unittest
+import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -17,6 +19,9 @@ SPEC.loader.exec_module(MODULE)
 RUNTIME_SPEC = importlib.util.spec_from_file_location("scrna_runtime", ROOT / "toolkit/python/scrna_runtime.py")
 RUNTIME = importlib.util.module_from_spec(RUNTIME_SPEC)
 RUNTIME_SPEC.loader.exec_module(RUNTIME)
+SCCODA_SPEC = importlib.util.spec_from_file_location("sccoda_adapter", ROOT / "toolkit/python/cell_abundance_sccoda.py")
+SCCODA = importlib.util.module_from_spec(SCCODA_SPEC)
+SCCODA_SPEC.loader.exec_module(SCCODA)
 
 
 class RecommendationContractTests(unittest.TestCase):
@@ -49,11 +54,104 @@ class RecommendationContractTests(unittest.TestCase):
         self.assertIn("batch_condition_perfectly_confounded", decision["reasons"])
 
     def test_single_pareto_scenario_can_resolve(self):
-        metrics = pd.DataFrame([{"status": "completed", "metric": "ilisi", "value": 0.5}])
+        metrics = pd.DataFrame([{"scenario": "none", "batch_variable": "batch", "biological_label": "cell_type", "status": "completed", "metric": metric, "value": 0.5} for metric in ["ilisi", "label_asw"]])
         confounding = pd.DataFrame([{"perfect_confounding": False}])
         decision = MODULE.recommendation_status(metrics, self.ranking, confounding, self.config)
         self.assertEqual(decision["status"], "resolved")
         self.assertEqual(decision["recommended_scenario"], "none")
+
+    def test_malformed_completed_rows_do_not_resolve_a_ranking(self):
+        metrics = pd.DataFrame([{"status":"completed","metric":"ilisi","value":.5}])
+        decision = MODULE.recommendation_status(metrics,self.ranking,pd.DataFrame(),self.config)
+        self.assertEqual(decision["status"],"unresolved")
+
+    def test_partial_high_scores_do_not_create_a_winner(self):
+        config = {"metrics": {"batch_removal": ["ilisi"], "biological_conservation": ["label_asw", "nmi"]}}
+        rows = []
+        for scenario, value in [("partial", .99), ("none", .5)]:
+            for metric in ["ilisi", "label_asw", "nmi"]:
+                failed = scenario == "partial" and metric == "nmi"
+                rows.append(dict(scenario=scenario, batch_variable="batch", biological_label="cell_type", metric=metric,
+                    metric_group="batch_removal" if metric == "ilisi" else "biological_conservation",
+                    value=np.nan if failed else value, status="failed" if failed else "completed"))
+        metrics = pd.DataFrame(rows)
+        _, ranking = MODULE.summarize(metrics, config)
+        decision = MODULE.recommendation_status(metrics, ranking, pd.DataFrame(), config)
+        self.assertEqual(decision["status"], "unresolved")
+        self.assertIsNone(decision["recommended_scenario"])
+        self.assertFalse(ranking.set_index("scenario").loc["partial", "pareto_efficient"])
+        weighted_config = dict(config,scoring={"enabled":True,"batch_weight":.3,"biology_weight":.7})
+        weighted,_ = MODULE.summarize(metrics,weighted_config)
+        self.assertTrue(pd.isna(weighted.set_index("scenario").loc["partial","weighted_score"]))
+
+    def test_an_entire_missing_label_metric_grid_blocks_recommendation(self):
+        config = dict(self.config, metadata={"batch_variables": ["batch"], "biological_labels": ["broad", "fine"]})
+        metrics = pd.DataFrame([dict(scenario="none", batch_variable="batch", biological_label="broad", metric=metric,
+            status="completed", value=.5) for metric in ["ilisi", "label_asw"]])
+        decision = MODULE.recommendation_status(metrics, self.ranking, pd.DataFrame(), config)
+        self.assertEqual(decision["status"], "unresolved")
+        self.assertIn("incomplete_requested_metric_evidence", decision["reasons"])
+
+    def test_precomputed_reductions_have_distinct_ids_and_duplicate_grids_are_rejected(self):
+        config = {"benchmark": {"methods": [{"name": "precomputed", "reduction": "pca"}, {"name": "precomputed", "reduction": "harmony"}]}}
+        scenarios = MODULE.expand_methods(config)
+        self.assertEqual(len({x["id"] for x in scenarios}), 3)
+        with self.assertRaises(ValueError):
+            MODULE.expand_methods({"benchmark": {"methods": [{"name": "harmony", "parameter_grid": {"theta": [2, 2.0]}}]}})
+
+    def test_validation_allows_an_explicit_empty_plot_selection(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            obj = Path(temporary)/"object.rds"; obj.write_bytes(b"fixture")
+            config = {"project":{"id":"test"},"input":{"object":str(obj)},"metadata":{"sample":"sample","batch_variables":["batch"]},
+                "benchmark":{"methods":[{"name":"none"}]},"metrics":{"batch_removal":[],"biological_conservation":[]},"plots":[],"output_dir":str(Path(temporary)/"out")}
+            errors,_ = RUNTIME.validate("05-scrna-benchmark-integration",config,Path(temporary)/"config.json")
+            self.assertEqual(errors,[])
+
+
+class ExecutorAuditTests(unittest.TestCase):
+    def test_failure_updates_manifest_and_archives_old_results(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            obj = root / "object.rds"; obj.write_bytes(b"fixture")
+            output = root / "output"; output.mkdir()
+            (output / "all_comparisons.tsv").write_text("old result\n")
+            config = {"project": {"id": "test"}, "input": {"object": str(obj)},
+                "metadata": {"sample": "sample", "condition": "condition"},
+                "comparison": {"numerator": "case", "denominator": "control"}, "output_dir": str(output),
+                "executor": {"argv": [sys.executable, "-c", "import json,sys; from pathlib import Path; p=Path(sys.argv[1]); p.write_text(json.dumps({'exit_status':0,'skill':'11-scrna-run-differential-analysis'})); sys.exit(3)", str(output / "_provenance/run_manifest.json")]}}
+            config_path = root / "config.json"; config_path.write_text(json.dumps(config))
+            done = subprocess.run([sys.executable, str(ROOT / "skills/11-scrna-run-differential-analysis/scripts/run.py"), "--config", str(config_path), "--execute"], capture_output=True, text=True)
+            self.assertEqual(done.returncode, 3, done.stdout + done.stderr)
+            manifest = json.loads((output / "_provenance/run_manifest.json").read_text())
+            self.assertEqual(manifest["exit_status"], 3)
+            self.assertEqual(manifest["status"], "failed")
+            self.assertFalse((output / "all_comparisons.tsv").exists())
+            self.assertEqual((Path(manifest["previous_output"]) / "all_comparisons.tsv").read_text(), "old result\n")
+
+    def test_archiving_does_not_move_an_input_in_the_output_directory(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "output"; output.mkdir()
+            obj = output / "object.rds"; obj.write_bytes(b"source data")
+            with self.assertRaises(ValueError):
+                RUNTIME.archive_previous_output("11-scrna-run-differential-analysis", {"input": {"object": str(obj)}}, Path(temporary) / "config.json", output, "run")
+            self.assertEqual(obj.read_bytes(), b"source data")
+
+
+class CovariateHandoffTests(unittest.TestCase):
+    def test_numeric_category_and_continuous_covariate_keep_their_r_types(self):
+        metadata = pd.DataFrame({"age":[41,42,43,44],"donor":[101,102,101,102]})
+        observed = SCCODA.apply_covariate_types(metadata,["age","donor"],{"age":"continuous","donor":"categorical"})
+        self.assertTrue(pd.api.types.is_numeric_dtype(observed.age))
+        self.assertIsInstance(observed.donor.dtype,pd.CategoricalDtype)
+        self.assertTrue(pd.api.types.is_numeric_dtype(metadata.donor))
+
+    def test_sample_and_declared_category_strings_survive_tsv_roundtrip(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary)/"metadata.tsv"
+            path.write_text("sample\tdonor\tage\n001\t01\t41\n1\t1\t42\n")
+            observed = SCCODA.read_sample_table(path,{"donor":str})
+            self.assertEqual(observed.index.tolist(),["001","1"])
+            self.assertEqual(observed.donor.tolist(),["01","1"])
 
 
 class V3WorkflowContractTests(unittest.TestCase):

@@ -9,6 +9,10 @@ import os
 import shutil
 import subprocess
 import sys
+import uuid
+import re
+import itertools
+from decimal import Decimal
 from pathlib import Path
 
 
@@ -30,7 +34,7 @@ SPECS = {
         "artifacts": ["cluster_markers", "top_cluster_markers", "cluster_marker_summary", "marker_dotplot", "run_manifest"],
     },
     "05-scrna-benchmark-integration": {
-        "required": ["project.id", "input.object", "metadata.sample", "metadata.batch_variables", "benchmark.methods", "metrics", "plots", "output_dir"],
+        "required": ["project.id", "input.object", "metadata.sample", "metadata.batch_variables", "benchmark.methods", "metrics", "output_dir"],
         "artifacts": ["method_runs", "metric_results", "method_summary", "design_confounding", "selected_plots", "benchmark_object", "recommendation", "recommendation_status", "run_manifest"],
     },
     "09-scrna-export-subset": {
@@ -325,6 +329,12 @@ def validate(skill, config, config_path):
         min_cells = nested_get(config, "analysis.min_cells_per_sample")
         if min_cells is not None and (not isinstance(min_cells, int) or isinstance(min_cells, bool) or min_cells < 1):
             errors.append("analysis.min_cells_per_sample must be a positive integer")
+        if (nested_get(config, "analysis.min_cells_policy") or "audit_only") not in {"audit_only", "exclude_samples", "stop"}:
+            errors.append("analysis.min_cells_policy must be audit_only, exclude_samples or stop")
+        covariate_types = nested_get(config, "metadata.covariate_types") or {}
+        covariates = nested_get(config, "metadata.covariates") or []
+        if not isinstance(covariate_types, dict) or any(key not in covariates or kind not in {"continuous", "categorical"} for key, kind in covariate_types.items()):
+            errors.append("metadata.covariate_types must map configured covariates to continuous or categorical")
         method_names = {str(method).lower() for method in methods} if isinstance(methods, list) else set()
         if "propeller" in method_names:
             transform = nested_get(config, "method_options.propeller.transform")
@@ -454,6 +464,8 @@ def validate(skill, config, config_path):
                 scenario_names.append(name)
                 if name not in supported_methods:
                     errors.append(f"benchmark method {index + 1} has unsupported name: {name}")
+                if name == "none" and method.get("id", "none") != "none":
+                    errors.append("The uncorrected baseline scenario ID must be none")
                 grid = method.get("parameter_grid", {})
                 if not isinstance(grid, dict):
                     errors.append(f"benchmark method {index + 1} parameter_grid must be an object")
@@ -472,6 +484,22 @@ def validate(skill, config, config_path):
                         errors.append(f"benchmark method {index + 1} parameter {parameter} must contain positive numbers")
             if "none" not in scenario_names:
                 warnings.append("uncorrected method 'none' will be injected as the required baseline")
+            if not errors:
+                ids = []
+                for method in methods:
+                    name = str(method["name"]).lower()
+                    base = method.get("id") or (name + "__reduction_" + str(method.get("reduction", "")) if name == "precomputed" else name)
+                    grid = method.get("parameter_grid", {})
+                    for values in itertools.product(*grid.values()):
+                        def text(value):
+                            if isinstance(value, bool): return str(value).lower()
+                            if isinstance(value, (int, float)): return format(Decimal(format(value, ".15g")), "f")
+                            return str(value)
+                        suffix = "__".join(str(key) + "_" + text(value) for key, value in zip(grid, values))
+                        ids.append(re.sub(r"[^A-Za-z0-9_.-]+", "_", str(base) + ("__" + suffix if suffix else "")).strip("_"))
+                if "none" not in scenario_names: ids.append("none")
+                if any(not value for value in ids) or len(ids) != len(set(ids)):
+                    errors.append("Integration scenario IDs must be non-empty and unique after sanitization")
         metric_cfg = config.get("metrics", {})
         if not isinstance(metric_cfg, dict):
             errors.append("metrics must be an object")
@@ -540,6 +568,52 @@ def make_manifest(skill, config, config_path, errors, warnings):
     }
 
 
+def run_manifest_name(skill, config):
+    if skill == "06-scrna-preprocess-and-cluster":
+        return "run_manifest_finalize.json" if nested_get(config, "workflow.action") == "finalize_resolution" else "run_manifest_preprocess.json"
+    return "run_manifest.json"
+
+
+def archive_previous_output(skill, config, config_path, output_dir, run_id):
+    """Keep an earlier analysis intact outside the current result directory."""
+    if skill not in {"11-scrna-run-differential-analysis", "12-scrna-run-pathway-enrichment", "13-scrna-test-cell-abundance"}:
+        return None
+    if not output_dir.exists() or not any(output_dir.iterdir()):
+        return None
+    def strings(value):
+        if isinstance(value, dict):
+            for child in value.values(): yield from strings(child)
+        elif isinstance(value, list):
+            for child in value: yield from strings(child)
+        elif isinstance(value, str): yield value
+    protected = [str(config_path)] + list(strings(config.get("input", {})))
+    if nested_get(config, "enrichment.input_results"):
+        protected.append(nested_get(config, "enrichment.input_results"))
+    resolved_output = output_dir.resolve()
+    for value in protected:
+        candidate = Path(os.path.expandvars(os.path.expanduser(value))).resolve()
+        if candidate.exists() and (candidate == resolved_output or resolved_output in candidate.parents):
+            raise ValueError("Input/config is inside an existing output directory; use a separate output_dir to preserve it: " + str(candidate))
+    archive_root = output_dir.parent / ("." + output_dir.name + "-previous-runs")
+    archive_root.mkdir(exist_ok=True)
+    archived = archive_root / run_id
+    output_dir.rename(archived)
+    archived_provenance = archived / "_provenance"
+    archived_provenance.mkdir(exist_ok=True)
+    (archived_provenance / "archive_record.json").write_text(json.dumps({
+        "original_output_dir": str(resolved_output), "archived_output_dir": str(archived.resolve()),
+        "archived_at": dt.datetime.now(dt.timezone.utc).isoformat(), "superseding_run_id": run_id,
+        "historical_path_resolution": "Replace the original_output_dir prefix with archived_output_dir; prior manifests are preserved unchanged."
+    }, indent=2) + "\n", encoding="utf-8")
+    return str(archived)
+
+
+def write_execution_manifest(path, record):
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
 def main(skill):
     if skill not in SPECS:
         raise SystemExit(f"unknown skill: {skill}")
@@ -579,25 +653,61 @@ def main(skill):
         print(f"ERROR: executable not found: {argv[0]}", file=sys.stderr)
         return 2
     output_dir = Path(os.path.expandvars(os.path.expanduser(str(config["output_dir"]))))
+    run_id = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S") + "-" + uuid.uuid4().hex[:12]
+    try:
+        previous_output = archive_previous_output(skill, config, args.config, output_dir, run_id)
+    except (OSError, ValueError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
     output_dir.mkdir(parents=True, exist_ok=True)
+    if previous_output and output_dir.resolve() in manifest_path.resolve().parents:
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     technical_dir = output_dir / "_provenance"
     technical_dir.mkdir(parents=True, exist_ok=True)
     log_path = technical_dir / "run.log"
     started = dt.datetime.now(dt.timezone.utc).isoformat()
     command = [executable] + [str(x) for x in argv[1:]]
-    with log_path.open("a", encoding="utf-8") as log:
-        log.write(f"[{started}] START {' '.join(command)}\n")
-        child_env = os.environ.copy()
-        child_env["SCRNA_ACTIVE_SKILL"] = skill
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, env=child_env)
-        assert process.stdout is not None
-        for line in process.stdout:
-            sys.stdout.write(line)
-            sys.stdout.flush()
-            log.write(line)
-            log.flush()
-        returncode = process.wait()
-        process.stdout.close()
+    execution_path = technical_dir / run_manifest_name(skill, config)
+    execution = {"schema_version": 2, "skill": skill, "run_id": run_id, "project_id": nested_get(config, "project.id"),
+        "started_at": started, "status": "running", "exit_status": None, "output_dir": str(output_dir),
+        "config": {"path": str(args.config.resolve()), "sha256": sha256(args.config)}, "artifacts": [],
+        "previous_output": previous_output, "executor_argv": command}
+    write_execution_manifest(execution_path, execution)
+    returncode = 1
+    process = None
+    try:
+        with log_path.open("a", encoding="utf-8") as log:
+            log.write(f"[{started}] START {' '.join(command)}\n")
+            child_env = os.environ.copy()
+            child_env["SCRNA_ACTIVE_SKILL"] = skill
+            child_env["SCRNA_RUN_ID"] = run_id
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, env=child_env)
+            assert process.stdout is not None
+            for line in process.stdout:
+                sys.stdout.write(line)
+                sys.stdout.flush()
+                log.write(line)
+                log.flush()
+            returncode = process.wait()
+            process.stdout.close()
+    except KeyboardInterrupt:
+        returncode = 130
+        if process and process.poll() is None:
+            process.terminate()
+            try: process.wait(timeout=10)
+            except subprocess.TimeoutExpired: process.kill(); process.wait()
+    except OSError as exc:
+        print(f"ERROR: executor failed: {exc}", file=sys.stderr)
+    finally:
         finished = dt.datetime.now(dt.timezone.utc).isoformat()
-        log.write(f"[{finished}] EXIT {returncode}\n")
+        with log_path.open("a", encoding="utf-8") as log:
+            log.write(f"[{finished}] EXIT {returncode}\n")
+        try:
+            record = json.loads(execution_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            record = execution
+        record.update(run_id=run_id, status="completed" if returncode == 0 else "failed", exit_status=returncode,
+            executor_started_at=started, executor_finished_at=finished, executor_argv=command, previous_output=previous_output)
+        write_execution_manifest(execution_path, record)
     return returncode

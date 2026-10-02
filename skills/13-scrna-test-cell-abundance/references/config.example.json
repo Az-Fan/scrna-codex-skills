@@ -1,7 +1,7 @@
 {
   "project": {"id": "project_id"},
   "input": {"object": "path/to/annotated_object.qs", "counts_table": null, "count_column": "n_cells"},
-  "metadata": {"sample": "sample_id", "condition": "condition", "cell_type": "annotation_fine", "covariates": []},
+  "metadata": {"sample": "sample_id", "condition": "condition", "cell_type": "annotation_fine", "covariates": [], "covariate_types": {}},
   "comparisons": [{"id": "pah_vs_control", "numerator": "pah", "denominator": "control"}],
   "analysis": {
     "methods": ["sccomp", "propeller", "sccoda"],
@@ -12,6 +12,7 @@
     },
     "min_samples_per_group": 3,
     "min_cells_per_sample": 20,
+    "min_cells_policy": "audit_only",
     "fdr": 0.05,
     "random_seed": 154959
   },

@@ -255,8 +255,16 @@ if (input_type == "starsolo") {
   if (!inherits(obj, "Seurat")) stop("input.object is not a Seurat object")
   counts <- get_counts(obj); original_meta <- obj[[]]
   sample_col <- getv("metadata.sample"); batch_col <- getv("metadata.batch")
-  sample_values <- if (!is.null(sample_col) && sample_col %in% colnames(original_meta)) as.character(original_meta[[sample_col]]) else rep("all_cells", nrow(original_meta))
-  batch_values <- if (!is.null(batch_col) && batch_col %in% colnames(original_meta)) as.character(original_meta[[batch_col]]) else rep(NA_character_, nrow(original_meta))
+  for (column in unique(c(sample_col, batch_col))) {
+    if (!column %in% colnames(original_meta)) stop("Configured metadata column not found: ", column)
+    values <- as.character(original_meta[[column]])
+    if (anyNA(values) || any(!nzchar(trimws(values)))) stop("Configured metadata column contains missing or blank values: ", column)
+  }
+  if (is.null(sample_col) && !isTRUE(getv("input.single_sample", FALSE))) {
+    stop("Seurat QC requires metadata.sample or explicit input.single_sample=true")
+  }
+  sample_values <- if (!is.null(sample_col)) as.character(original_meta[[sample_col]]) else rep("all_cells", nrow(original_meta))
+  batch_values <- if (!is.null(batch_col)) as.character(original_meta[[batch_col]]) else rep(NA_character_, nrow(original_meta))
   if (!is.null(decontx_cluster_col) && !decontx_cluster_col %in% colnames(original_meta)) {
     stop("Configured ambient_rna.cluster_column not found in Seurat metadata: ", decontx_cluster_col)
   }

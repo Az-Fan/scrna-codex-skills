@@ -8,7 +8,7 @@ if (!requireNamespace("Seurat", quietly = TRUE)) stop("Package 'Seurat' is requi
 if (!requireNamespace("Matrix", quietly = TRUE)) stop("Package 'Matrix' is required")
 
 as_chr <- function(x) unlist(x %||% list(), use.names = FALSE)
-safe_id <- function(x) gsub("[^A-Za-z0-9_.-]+", "_", x)
+safe_id <- function(x) gsub("^_+|_+$", "", gsub("[^A-Za-z0-9_.-]+", "_", x))
 write_tsv <- function(x, path) utils::write.table(x, path, sep = "\t", quote = FALSE, row.names = FALSE, na = "")
 grid_rows <- function(grid) {
   if (is.null(grid) || !length(grid)) return(list(list()))
@@ -18,7 +18,11 @@ grid_rows <- function(grid) {
 }
 scenario_id <- function(method, params) {
   if (!length(params)) return(method)
-  suffix <- paste(vapply(names(params), function(nm) paste0(nm, "_", params[[nm]]), character(1)), collapse = "__")
+  suffix <- paste(vapply(names(params), function(nm) {
+    value <- params[[nm]]
+    text <- if (is.logical(value)) tolower(as.character(value)) else if (is.numeric(value)) format(value, digits = 15, scientific = FALSE, trim = TRUE) else as.character(value)
+    paste0(nm, "_", text)
+  }, character(1)), collapse = "__")
   safe_id(paste(method, suffix, sep = "__"))
 }
 add_reduction <- function(target, embeddings, name, assay, key) {
@@ -55,8 +59,12 @@ if (!"none" %in% method_names) methods <- c(list(list(name = "none")), methods)
 scenarios <- list()
 for (method in methods) for (params in grid_rows(method$parameter_grid)) {
   name <- tolower(method$name)
-  scenarios[[length(scenarios) + 1L]] <- list(name = name, id = scenario_id(name, params), params = params, spec = method)
+  if (name == "none" && !identical(method$id %||% "none", "none")) stop("The uncorrected baseline scenario ID must be none")
+  base_id <- method$id %||% if (name == "precomputed") paste0(name, "__reduction_", method$reduction) else name
+  scenarios[[length(scenarios) + 1L]] <- list(name = name, id = safe_id(scenario_id(base_id, params)), params = params, spec = method)
 }
+ids <- vapply(scenarios, function(x) x$id, character(1))
+if (any(!nzchar(ids)) || anyDuplicated(ids)) stop("Integration scenario IDs must be non-empty and unique after sanitization")
 
 out <- prepare_output(config)
 exchange <- file.path(out, "exchange"); embeddings_dir <- file.path(exchange, "embeddings")

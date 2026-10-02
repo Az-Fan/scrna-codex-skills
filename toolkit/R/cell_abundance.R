@@ -47,6 +47,8 @@ methods <- unique(tolower(as_chr(cfg_get(config, "analysis.methods", required = 
 fdr <- as.numeric(cfg_get(config, "analysis.fdr", 0.05))
 min_samples <- as.integer(cfg_get(config, "analysis.min_samples_per_group", 2L))
 min_cells <- as.integer(cfg_get(config, "analysis.min_cells_per_sample", 20L))
+min_cells_policy <- cfg_get(config, "analysis.min_cells_policy", "audit_only")
+if (!min_cells_policy %in% c("audit_only", "exclude_samples", "stop")) stop("analysis.min_cells_policy must be audit_only, exclude_samples or stop")
 denominator_mode <- cfg_get(config, "analysis.denominator.mode", required = TRUE)
 denominator_description <- cfg_get(config, "analysis.denominator.description", required = TRUE)
 denominator_include <- as_chr(cfg_get(config, "analysis.denominator.include", list()))
@@ -56,7 +58,11 @@ if (min_samples < 2L) stop("analysis.min_samples_per_group must be at least 2")
 if (min_cells < 1L) stop("analysis.min_cells_per_sample must be positive")
 
 read_counts_table <- function(path) {
-  table <- utils::read.delim(path, check.names = FALSE, stringsAsFactors = FALSE)
+  declared <- cfg_get(config, "metadata.covariate_types", list())
+  categorical <- names(declared)[vapply(declared, function(x) identical(x, "categorical"), logical(1))]
+  identity_columns <- unique(c(sample_col, condition_col, cell_type_col, categorical))
+  table <- utils::read.delim(path, check.names = FALSE, stringsAsFactors = FALSE,
+    colClasses = stats::setNames(rep("character", length(identity_columns)), identity_columns))
   count_col <- cfg_get(config, "input.count_column", "n_cells")
   required <- unique(c(sample_col, condition_col, cell_type_col, covariates, count_col))
   missing <- setdiff(required, colnames(table))
@@ -94,7 +100,7 @@ validate_sample_metadata <- function(table) {
   samples <- unique(as.character(table[[sample_col]]))
   rows <- lapply(samples, function(sample_id) {
     sub <- table[as.character(table[[sample_col]]) == sample_id, , drop = FALSE]
-    values <- lapply(columns, function(column) unique(as.character(sub[[column]])))
+    values <- lapply(columns, function(column) unique(sub[[column]]))
     names(values) <- columns
     bad <- names(values)[vapply(values, length, integer(1)) != 1L]
     if (length(bad)) stop("Sample ", sample_id, " maps to multiple values for: ", paste(bad, collapse = ", "))
@@ -107,6 +113,24 @@ validate_sample_metadata <- function(table) {
 }
 
 sample_meta <- validate_sample_metadata(raw_table)
+sample_meta[[condition_col]] <- as.character(sample_meta[[condition_col]])
+declared_types <- cfg_get(config, "metadata.covariate_types", list())
+if (length(setdiff(names(declared_types), covariates))) stop("metadata.covariate_types names must be configured covariates")
+type_rows <- lapply(covariates, function(column) {
+  kind <- declared_types[[column]] %||% if (is.numeric(sample_meta[[column]])) "continuous" else "categorical"
+  if (!kind %in% c("continuous", "categorical")) stop("Covariate type must be continuous or categorical: ", column)
+  if (kind == "continuous") {
+    sample_meta[[column]] <<- suppressWarnings(as.numeric(as.character(sample_meta[[column]])))
+    if (any(!is.finite(sample_meta[[column]]))) stop("Continuous covariate contains non-finite or non-numeric values: ", column)
+  } else {
+    values <- trimws(as.character(sample_meta[[column]]))
+    if (anyNA(values) || any(!nzchar(values))) stop("Categorical covariate contains missing or blank values: ", column)
+    sample_meta[[column]] <<- factor(values)
+  }
+  data.frame(covariate = column, type = kind, source_class = class(raw_table[[column]])[1], stringsAsFactors = FALSE)
+})
+type_audit <- if (length(type_rows)) do.call(rbind, type_rows) else data.frame(covariate = character(), type = character(), source_class = character())
+write_tsv(type_audit, file.path(out, "covariate_types.tsv"))
 input_totals <- stats::aggregate(raw_table$n_cells_internal, list(sample = as.character(raw_table[[sample_col]])), sum)
 colnames(input_totals) <- c(sample_col, "n_input_cells")
 
@@ -152,9 +176,13 @@ design_audit <- merge(sample_meta, input_totals, by = sample_col, all.x = TRUE, 
 design_audit <- merge(design_audit, denom_totals_df, by = sample_col, all.x = TRUE, sort = FALSE)
 design_audit$denominator_fraction <- design_audit$n_denominator_cells / design_audit$n_input_cells
 design_audit$passes_min_cells <- design_audit$n_denominator_cells >= min_cells
+design_audit$min_cells_policy <- min_cells_policy
 design_audit$denominator_mode <- denominator_mode
 design_audit$denominator_description <- denominator_description
 write_tsv(design_audit, file.path(out, "design_audit.tsv"))
+if (min_cells_policy == "audit_only" && any(!design_audit$passes_min_cells)) {
+  warning("Samples below analysis.min_cells_per_sample are retained because analysis.min_cells_policy=audit_only")
+}
 
 eligibility <- data.frame(
   cell_type = types,
@@ -167,6 +195,9 @@ write_tsv(eligibility, file.path(out, "cell_type_eligibility.tsv"))
 
 sample_meta_for <- function(comparison) {
   md <- sample_meta[as.character(sample_meta[[condition_col]]) %in% c(comparison$denominator, comparison$numerator), , drop = FALSE]
+  low_samples <- intersect(rownames(md), design_audit[[sample_col]][!design_audit$passes_min_cells])
+  if (min_cells_policy == "stop" && length(low_samples)) stop("Samples below minimum denominator-cell threshold: ", paste(low_samples, collapse = ", "))
+  if (min_cells_policy == "exclude_samples") md <- md[!rownames(md) %in% low_samples, , drop = FALSE]
   md$contrast_group <- factor(
     ifelse(as.character(md[[condition_col]]) == comparison$numerator, "numerator", "denominator"),
     levels = c("denominator", "numerator")
@@ -177,7 +208,15 @@ sample_meta_for <- function(comparison) {
   terms <- c(covariates, "contrast_group")
   design <- stats::model.matrix(stats::as.formula(paste("~", paste(terms, collapse = " + "))), md)
   if (qr(design)$rank < ncol(design)) stop("Rank deficient or confounded sample-level design")
+  if (nrow(design) <= qr(design)$rank) stop("Insufficient residual degrees of freedom in sample-level design")
   rownames(md) <- as.character(md[[sample_col]])
+  design_dir <- file.path(out, "comparisons", safe_name(comparison$id))
+  dir.create(design_dir, recursive = TRUE, showWarnings = FALSE)
+  write_tsv(data.frame(sample = rownames(md), design, check.names = FALSE), file.path(design_dir, "model_design.tsv"))
+  jsonlite::write_json(list(formula = paste("~", paste(terms, collapse = " + ")), rank = qr(design)$rank,
+    n_samples = nrow(design), covariate_types = type_audit, min_cells_policy = min_cells_policy,
+    excluded_low_cell_samples = if (min_cells_policy == "exclude_samples") low_samples else character()),
+    file.path(design_dir, "model_design.json"), auto_unbox = TRUE, pretty = TRUE)
   md
 }
 
@@ -364,6 +403,7 @@ run_sccoda <- function(comparison, task_dir) {
       "--numerator", comparison$numerator, "--denominator", comparison$denominator,
       "--comparison-id", comparison$id, "--reference", reference,
       "--covariates", paste(covariates, collapse = ","), "--fdr", as.character(fdr),
+      "--covariate-types", file.path(out, "covariate_types.tsv"),
       "--num-samples", as.character(cfg_get(config, "method_options.sccoda.num_samples", 10000L)),
       "--num-warmup", as.character(cfg_get(config, "method_options.sccoda.num_warmup", 1000L)),
       "--seed", as.character(cfg_get(config, "analysis.random_seed", 1L)),
@@ -513,6 +553,8 @@ plot_method_effects <- function(result, task_dir, title) {
 plot_base_abundance()
 
 comparisons <- cfg_get(config, "comparisons", required = TRUE)
+comparison_ids <- vapply(comparisons, function(x) as.character(x$id), character(1))
+if (anyDuplicated(safe_name(comparison_ids))) stop("Comparison IDs must be unique after sanitization")
 all_results <- list(); status_rows <- list(); task_index <- 0L
 for (comparison in comparisons) {
   comparison$id <- as.character(comparison$id)
@@ -590,5 +632,5 @@ write_run_manifest(config, "13-scrna-test-cell-abundance", out, artifacts,
   c(paste0("methods=", paste(methods, collapse = ",")), paste0("denominator=", denominator_description),
     "Biological samples, not cells, are the inferential replicates.",
     "Observed proportions are relative compositions, not absolute tissue cell abundance.",
-    "Input object was not rewritten."))
+    "Input object was not rewritten."), exit_status = if (any(status$status == "completed")) 0L else 1L)
 if (!any(status$status == "completed")) stop("No cell-abundance task completed; inspect task_status.tsv")

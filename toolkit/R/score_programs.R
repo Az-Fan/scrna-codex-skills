@@ -35,12 +35,16 @@ get_layer <- function(obj, assay, layer) {
     layers <- SeuratObject::Layers(obj[[assay]])
     exact <- layers[layers == layer]
     split <- layers[grepl(paste0("^", layer, "[.]"), layers)]
-    if (!length(exact) && length(split) > 1L) {
+    if (!length(exact) && length(split)) {
       obj <- SeuratObject::JoinLayers(obj, assay = assay, layers = layer, new = layer)
       exact <- layer
     }
     if (!length(exact)) stop("Layer not found: ", assay, "/", layer)
-    return(list(object = obj, matrix = SeuratObject::LayerData(obj, assay = assay, layer = layer)))
+    mat <- SeuratObject::LayerData(obj, assay = assay, layer = layer)
+    if (anyDuplicated(colnames(mat)) || !setequal(colnames(mat), colnames(obj))) {
+      stop("Expression layer cells do not match all object cells: ", assay, "/", layer)
+    }
+    return(list(object = obj, matrix = mat[, colnames(obj), drop = FALSE]))
   }
   slot <- if (layer %in% c("counts", "data", "scale.data")) layer else stop("Unsupported Seurat v4 slot: ", layer)
   list(object = obj, matrix = SeuratObject::GetAssayData(obj, assay = assay, slot = slot))

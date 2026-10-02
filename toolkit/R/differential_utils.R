@@ -66,6 +66,10 @@ make_table_tasks <- function(config) {
   }
   if (!is.list(specs) || !length(specs)) stop("input.differential_tables must be a non-empty array")
   tasks <- list()
+  table_ids <- vapply(seq_along(specs), function(i) as.character(specs[[i]]$id %||% paste0("table_", i)), character(1))
+  if (anyNA(table_ids) || any(!nzchar(trimws(table_ids))) || anyDuplicated(safe_name(table_ids))) {
+    stop("Differential input table IDs must be non-empty and unique after sanitization")
+  }
   for (i in seq_along(specs)) {
     spec <- specs[[i]]; x <- standardize_de_table(read_de_table(spec$path, spec$sheet), config)
     pop_col <- first_column(x, spec$population_column %||% cfg_get(config, "enrichment.table_columns.population"), c("population", "celltype", "cell_type", "cluster"))
@@ -73,9 +77,18 @@ make_table_tasks <- function(config) {
     keys <- data.frame(population = if (is.null(pop_col)) spec$population %||% "all_genes" else as.character(x[[pop_col]]), comparison_id = if (is.null(cmp_col)) spec$comparison_id %||% spec$id %||% paste0("table_", i) else as.character(x[[cmp_col]]), stringsAsFactors = FALSE)
     for (key in split(seq_len(nrow(x)), interaction(keys$population, keys$comparison_id, drop = TRUE))) {
       pop <- keys$population[key[1]]; cmp <- keys$comparison_id[key[1]]; task_id <- safe_name(paste(pop, cmp, sep = "__"))
-      tasks[[paste0(task_id, "__", length(tasks) + 1L)]] <- list(id = task_id, population = pop, comparison = list(id = cmp, numerator = spec$numerator %||% "numerator", denominator = spec$denominator %||% "denominator"), result = x[key, , drop = FALSE], mapping = attr(x, "column_mapping"), source = spec$path)
+      if (length(specs) > 1L) task_id <- paste(safe_name(table_ids[i]), task_id, sep = "__")
+      direction_value <- function(column) {
+        if (!is.null(spec[[column]])) return(as.character(spec[[column]]))
+        if (!column %in% names(x)) return(column)
+        values <- unique(as.character(x[[column]][key]))
+        if (length(values) != 1L || anyNA(values) || !nzchar(trimws(values))) stop("Ambiguous differential direction column: ", column)
+        values
+      }
+      tasks[[paste0(task_id, "__", length(tasks) + 1L)]] <- list(id = task_id, population = pop, comparison = list(id = cmp, numerator = direction_value("numerator"), denominator = direction_value("denominator")), result = x[key, , drop = FALSE], mapping = attr(x, "column_mapping"), source = spec$path)
     }
   }
+  if (anyDuplicated(vapply(tasks, function(x) x$id, character(1)))) stop("Enrichment task IDs collide after sanitization; assign distinct table/comparison/population identifiers")
   tasks
 }
 
@@ -100,7 +113,11 @@ run_enrichment_only_workflow <- function(config) {
     if (inherits(ans, "error")) {
       writeLines(conditionMessage(ans), file.path(task_dir, "ENRICHMENT_ERROR.txt")); statuses[[i]] <- data.frame(task_id = task$id, population = task$population, comparison_id = task$comparison$id, status = "failed", message = conditionMessage(ans), n_genes = nrow(task$result), source = task$source, stringsAsFactors = FALSE)
     } else {
-      if (nrow(ans)) enriched[[task$id]] <- ans
+      if (nrow(ans)) {
+        ans$task_id <- task$id
+        ans$input_table <- task$source
+        enriched[[task$id]] <- ans
+      }
       enrichment_state <- summarize_enrichment_status(task_dir)
       statuses[[i]] <- data.frame(task_id = task$id, population = task$population, comparison_id = task$comparison$id, status = enrichment_state, message = "", n_genes = nrow(task$result), source = task$source, stringsAsFactors = FALSE)
     }
@@ -112,7 +129,8 @@ run_enrichment_only_workflow <- function(config) {
   comparison_artifacts <- list.files(file.path(out, "comparisons"), recursive = TRUE, full.names = TRUE)
   artifacts <- c(artifacts, comparison_artifacts[file.info(comparison_artifacts)$isdir %in% FALSE])
   active_skill <- Sys.getenv("SCRNA_ACTIVE_SKILL", unset = "11-scrna-run-differential-analysis")
-  write_run_manifest(config, active_skill, out, artifacts, c("stage=enrichment_only", "Differential input tables were not modified"))
+  write_run_manifest(config, active_skill, out, artifacts, c("stage=enrichment_only", "Differential input tables were not modified"),
+                     exit_status = if (any(status$status %in% c("completed", "partial", "empty"))) 0L else 1L)
   if (!any(status$status %in% c("completed", "partial", "empty"))) stop("No table enrichment task completed; inspect task_status.tsv")
 }
 
@@ -120,11 +138,14 @@ normalize_comparisons <- function(config) {
   xs <- cfg_get(config, "comparisons")
   if (is.null(xs)) xs <- list(cfg_get(config, "comparison", required = TRUE))
   if (!is.list(xs) || !length(xs)) stop("comparisons must be a non-empty JSON array")
-  lapply(seq_along(xs), function(i) {
+  comparisons <- lapply(seq_along(xs), function(i) {
     x <- xs[[i]]; numerator <- x$numerator; denominator <- x$denominator
     if (is.null(numerator) || is.null(denominator) || numerator == denominator) stop("Each comparison needs different numerator and denominator")
     list(id = x$id %||% safe_name(paste(numerator, "vs", denominator)), numerator = as.character(numerator), denominator = as.character(denominator))
   })
+  ids <- vapply(comparisons, function(x) as.character(x$id), character(1))
+  if (anyNA(ids) || any(!nzchar(trimws(ids))) || anyDuplicated(safe_name(ids))) stop("Comparison IDs must be non-empty and unique after sanitization")
+  comparisons
 }
 
 validate_sample_mapping <- function(meta, sample_col, condition_col, covariates) {

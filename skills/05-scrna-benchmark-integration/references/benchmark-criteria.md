@@ -4,6 +4,8 @@
 
 Supported method names are `none`, `harmony`, `rpca`, `scvi`, `scanvi`, `bbknn`, and `precomputed`. Expand each array-valued parameter in `parameter_grid` into separate scenarios. `none` is injected when omitted. Treat scANVI as supervised and require an explicit label field. Treat BBKNN as graph correction and exclude it from embedding-only metrics unless the implementation explicitly supports its graph.
 
+Precomputed scenarios include the reduction name in their ID. An optional method `id` can distinguish other repeated method specifications. Expanded IDs must remain unique after sanitization; duplicate parameter values or IDs are rejected before outputs are written.
+
 Run R-native adapters in the R process. Run scVI, scANVI, BBKNN, and scIB-metrics through `benchmark.python_argv_prefix`. Use `['python3']` for an environment containing the required packages or an argv prefix such as `['pixi','run','-e','scvi','python']`; never encode it as a shell command string. The Python stage runs on CPU unless the execution environment and user configuration explicitly provide otherwise.
 
 ## Metadata roles
@@ -21,9 +23,13 @@ Batch-removal choices may include `ilisi`, `batch_asw`, `pcr_comparison`, `graph
 
 Write one row per scenario, batch variable, biological label, and metric. Record `completed`, `skipped_missing_label`, `skipped_incompatible_representation`, `missing_dependency`, or `failed`; never silently drop a requested metric.
 
+The current scIB adapter requires an explicit biological label even for a batch-only request; absence is recorded as `skipped_missing_label`. Preserve `raw_value` (scIB's result before across-scenario min–max scaling) alongside `scaled_value`; intrinsic scIB metric transformations are retained. The compatibility column `value` equals the latter and `value_scale=scib_min_max_across_scenarios` describes its scale. Scaling is relative to the scenarios within that batch/label evaluation, so scaled values cannot establish comparability between separate runs.
+
 ## Ranking
 
 Keep batch-removal and biological-conservation summaries separate. If `scoring.enabled` is true, calculate the configured weighted score only after scaling comparable completed metrics. Do not impute missing metrics. Also report Pareto-efficient scenarios so a weighted score is never the sole selection rule.
+
+Automatic recommendation requires both metric groups, a completed uncorrected baseline, and complete finite evidence for every requested scenario/batch/label/metric combination. Missing, failed, duplicated, or skipped requested evidence makes the decision unresolved; partial tables remain available for review. The machine-readable status includes per-scenario expected and completed metric-row counts.
 
 ## Plots
 

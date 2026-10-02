@@ -10,7 +10,9 @@ New runs write execution manifests, session information, workflow state, task ma
 
 Custom follow-up plots follow the same rule: the figure and any useful scientific summary belong in the result directory, while the plot's manifest/session record belongs in `_provenance/`. Avoid treating all JSON or all TSV files alike: recommendation status, design audits, coverage, and missing/failed task reports can be essential to interpreting results. Surface material failures or limitations in the handoff even when their technical details are stored below `_provenance/`.
 
-Read `_provenance/workflow_state.json` for guided clustering state. For existing runs created by older versions, fall back to `workflow_state.json` at the result root. The same new-path-first lookup applies to old manifests and session files (`session_info.txt` or `sessionInfo.txt`). The executors do not migrate old files; rerunning into an old output directory does not remove its existing records.
+Read `_provenance/workflow_state.json` for guided clustering state. For existing runs created by older versions, fall back to `workflow_state.json` at the result root. The same new-path-first lookup applies to old manifests and session files (`session_info.txt` or `sessionInfo.txt`).
+
+The shared execution runner records a unique run ID and the actual child exit status, including failures before an R manifest is written. For skills 11–13, execution into a nonempty output directory first preserves the whole prior directory under the sibling `.<output-name>-previous-runs/<run-id>/`, then creates a fresh current output directory. The current manifest records `previous_output`. Keep inputs and configs outside this output directory; overlapping input/config paths are rejected before any archive move. Use the documented `scripts/run.py --execute` entry point to get this supervision and rerun isolation. Other skills retain their existing cache/finalization/overwrite rules.
 
 ## Objects, supplements, and project rules
 

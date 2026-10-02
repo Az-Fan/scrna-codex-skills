@@ -31,6 +31,8 @@ method <- cfg_get(config, "analysis.method", "pseudobulk_deseq2")
 
 comparisons <- normalize_comparisons(config)
 populations <- select_populations(meta, population_col, cfg_get(config, "population", list()))
+task_ids <- unlist(lapply(populations, function(population) vapply(comparisons, function(comparison) safe_name(paste(population, comparison$id, sep = "__")), character(1))), use.names = FALSE)
+if (anyDuplicated(task_ids)) stop("Differential task IDs collide after sanitization; use distinct population/comparison identifiers")
 out <- prepare_output(config)
 dir.create(file.path(out, "comparisons"), showWarnings = FALSE, recursive = TRUE)
 thresholds <- list(
@@ -117,5 +119,6 @@ writeLines(capture.output(sessionInfo()), technical_path(out, "session_info.txt"
 artifacts <- c(artifacts, technical_path(out, "session_info.txt"))
 active_skill <- Sys.getenv("SCRNA_ACTIVE_SKILL", unset = "11-scrna-run-differential-analysis")
 write_run_manifest(config, active_skill, out, artifacts,
-                   c(paste0("method=", method), paste0("stage=", stage), "Positive log2 fold change means numerator > denominator", "Input object was not rewritten"))
+                   c(paste0("method=", method), paste0("stage=", stage), "Positive log2 fold change means numerator > denominator", "Input object was not rewritten"),
+                   exit_status = if (any(status$status == "completed")) 0L else 1L)
 if (!any(status$status == "completed")) stop("No differential-analysis task completed; inspect task_status.tsv")

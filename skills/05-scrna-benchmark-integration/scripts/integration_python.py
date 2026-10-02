@@ -7,6 +7,7 @@ import math
 import re
 import sys
 import traceback
+from decimal import Decimal
 from pathlib import Path
 
 import numpy as np
@@ -24,13 +25,23 @@ def expand_methods(config):
     scenarios = []
     for spec in methods:
         name = str(spec["name"]).lower()
+        if name == "none" and spec.get("id", "none") != "none":
+            raise ValueError("The uncorrected baseline scenario ID must be none")
         grid = spec.get("parameter_grid", {})
         keys = list(grid)
         rows = itertools.product(*(grid[k] for k in keys)) if keys else [()]
         for values in rows:
             params = dict(zip(keys, values))
-            suffix = "__".join("{}_{}".format(k, params[k]) for k in keys)
-            scenarios.append({"name": name, "id": safe(name + ("__" + suffix if suffix else "")), "params": params, "spec": spec})
+            def parameter_text(value):
+                if isinstance(value, bool): return str(value).lower()
+                if isinstance(value, (int, float)): return format(Decimal(format(value, ".15g")), "f")
+                return str(value)
+            suffix = "__".join("{}_{}".format(k, parameter_text(params[k])) for k in keys)
+            base = spec.get("id") or (name + "__reduction_" + str(spec.get("reduction", "")) if name == "precomputed" else name)
+            scenarios.append({"name": name, "id": safe(base + ("__" + suffix if suffix else "")), "params": params, "spec": spec})
+    ids = [row["id"] for row in scenarios]
+    if any(not x for x in ids) or len(set(ids)) != len(ids):
+        raise ValueError("Integration scenario IDs must be non-empty and unique after sanitization")
     return scenarios
 
 
@@ -149,7 +160,7 @@ METRIC_MATCH = {
     "graph_connectivity": ("graph", "connect"), "kbet": ("kbet",), "clisi": ("clisi",),
     "label_asw": ("silhouette", "label"), "isolated_labels": ("isolated",), "nmi": ("nmi",), "ari": ("ari",),
 }
-METRIC_COLUMNS = ["scenario", "batch_variable", "biological_label", "metric", "metric_group", "value", "status", "notes"]
+METRIC_COLUMNS = ["scenario", "batch_variable", "biological_label", "metric", "metric_group", "value", "raw_value", "scaled_value", "value_scale", "status", "notes"]
 
 
 def normalize_metric(value):
@@ -187,7 +198,14 @@ def benchmark_metrics(adata, runs, config, output):
     baseline_key = next((x["representation"] for x in embedding_runs if x["method"] == "none"), None)
     rows = list(audit_rows)
     for batch in config["metadata"]["batch_variables"]:
-        for label in config["metadata"].get("biological_labels", []):
+        for label in (config["metadata"].get("biological_labels") or [""]):
+            if not label:
+                for key in keys:
+                    for metric in requested_batch + requested_bio:
+                        rows.append({"scenario": lookup[key], "batch_variable": batch, "biological_label": "", "metric": metric,
+                            "metric_group": "batch_removal" if metric in requested_batch else "biological_conservation",
+                            "value": np.nan, "status": "skipped_missing_label", "notes": "scIB adapter requires an explicit biological label"})
+                continue
             try:
                 bio_options = BioConservation(
                     isolated_labels="isolated_labels" in requested_bio,
@@ -209,10 +227,15 @@ def benchmark_metrics(adata, runs, config, output):
                     n_jobs=int(config["benchmark"].get("n_jobs", 1)))
                 bench.benchmark()
                 result = bench.get_results(min_max_scale=True)
+                raw_result = bench.get_results(min_max_scale=False)
                 if "Embedding" in result.columns:
                     result = result.set_index("Embedding")
+                if "Embedding" in raw_result.columns:
+                    raw_result = raw_result.set_index("Embedding")
                 if any("batch correction" in normalize_metric(x) for x in result.index):
                     result = result.T
+                if any("batch correction" in normalize_metric(x) for x in raw_result.index):
+                    raw_result = raw_result.T
                 result = result.loc[result.index.intersection(keys)]
                 for key, values in result.iterrows():
                     normalized = {column: normalize_metric(column) for column in result.columns}
@@ -223,14 +246,39 @@ def benchmark_metrics(adata, runs, config, output):
                             value = pd.to_numeric(pd.Series([values[matches[0]]]), errors="coerce").iloc[0]
                             status = "completed" if np.isfinite(value) else "failed"
                             note = "source_metric=" + str(matches[0]) + ("; non-finite result" if status == "failed" else "")
+                            raw_value = pd.to_numeric(pd.Series([raw_result.loc[key, matches[0]]]), errors="coerce").iloc[0]
                         else:
                             value, status, note = np.nan, "skipped_incompatible_representation", "metric absent from scIB result"
-                        rows.append({"scenario": lookup[key], "batch_variable": batch, "biological_label": label, "metric": metric, "metric_group": "batch_removal" if metric in requested_batch else "biological_conservation", "value": value, "status": status, "notes": note})
+                            raw_value = np.nan
+                        rows.append({"scenario": lookup[key], "batch_variable": batch, "biological_label": label, "metric": metric, "metric_group": "batch_removal" if metric in requested_batch else "biological_conservation", "value": value,
+                            "raw_value": raw_value, "scaled_value": value, "value_scale": "scib_min_max_across_scenarios", "status": status, "notes": note})
             except Exception as exc:
                 for key in keys:
                     for metric in requested_batch + requested_bio:
                         rows.append({"scenario": lookup[key], "batch_variable": batch, "biological_label": label, "metric": metric, "metric_group": "batch_removal" if metric in requested_batch else "biological_conservation", "value": np.nan, "status": "failed", "notes": "{}: {}".format(type(exc).__name__, exc)})
     return pd.DataFrame(rows, columns=METRIC_COLUMNS)
+
+
+def metric_coverage(metrics, config, scenarios=None):
+    requested = list(config["metrics"].get("batch_removal", [])) + list(config["metrics"].get("biological_conservation", []))
+    metadata = config.get("metadata", {})
+    batches = metadata.get("batch_variables") or metrics.get("batch_variable", pd.Series(dtype=str)).drop_duplicates().tolist() or [""]
+    labels = metadata.get("biological_labels") or metrics.get("biological_label", pd.Series(dtype=str)).drop_duplicates().tolist() or [""]
+    scenarios = scenarios if scenarios is not None else metrics.get("scenario", pd.Series(dtype=str)).drop_duplicates().tolist()
+    rows = []
+    required_columns = {"scenario", "batch_variable", "biological_label", "metric", "status", "value"}
+    for scenario in scenarios:
+        expected = len(batches) * len(labels) * len(requested)
+        completed = 0
+        if required_columns.issubset(metrics.columns):
+            for batch, label, metric in itertools.product(batches, labels, requested):
+                hit = metrics[(metrics.scenario == scenario) & (metrics.batch_variable == batch) &
+                    (metrics.biological_label == label) & (metrics.metric == metric)]
+                if len(hit) == 1 and hit.iloc[0].status == "completed" and np.isfinite(hit.iloc[0].value):
+                    completed += 1
+        rows.append({"scenario": scenario, "expected_metric_rows": expected, "completed_metric_rows": completed,
+                     "evidence_complete": bool(expected and completed == expected)})
+    return pd.DataFrame(rows, columns=["scenario", "expected_metric_rows", "completed_metric_rows", "evidence_complete"])
 
 
 def summarize(metrics, config):
@@ -239,15 +287,16 @@ def summarize(metrics, config):
         return pd.DataFrame(), pd.DataFrame()
     summary = complete.groupby(["scenario", "metric_group"], observed=True)["value"].mean().unstack()
     summary = summary.rename(columns={"batch_removal": "batch_score", "biological_conservation": "biology_score"}).reset_index()
+    summary = summary.merge(metric_coverage(metrics, config), on="scenario", how="left")
     for column in ("batch_score", "biology_score"):
         if column not in summary: summary[column] = np.nan
     scoring = config.get("scoring", {})
     summary["weighted_score"] = np.nan
     if scoring.get("enabled"):
-        both = summary[["batch_score", "biology_score"]].notna().all(axis=1)
+        both = summary[["batch_score", "biology_score"]].notna().all(axis=1) & summary["evidence_complete"]
         summary.loc[both, "weighted_score"] = scoring.get("batch_weight", .3) * summary.loc[both, "batch_score"] + scoring.get("biology_weight", .7) * summary.loc[both, "biology_score"]
     summary["pareto_efficient"] = False
-    valid = summary.dropna(subset=["batch_score", "biology_score"])
+    valid = summary[summary.evidence_complete].dropna(subset=["batch_score", "biology_score"])
     for idx, row in valid.iterrows():
         dominated = ((valid["batch_score"] >= row["batch_score"]) & (valid["biology_score"] >= row["biology_score"]) & ((valid["batch_score"] > row["batch_score"]) | (valid["biology_score"] > row["biology_score"]))).any()
         summary.loc[idx, "pareto_efficient"] = not dominated
@@ -255,7 +304,7 @@ def summarize(metrics, config):
     return summary, ranking
 
 
-def recommendation_status(metrics, ranking, confounding, config):
+def recommendation_status(metrics, ranking, confounding, config, runs=None):
     """Return a machine-readable decision state; never infer a winner from partial evidence."""
     requested = list(config["metrics"].get("batch_removal", [])) + list(
         config["metrics"].get("biological_conservation", [])
@@ -265,6 +314,16 @@ def recommendation_status(metrics, ranking, confounding, config):
         reasons.append("no_requested_metric_completed")
     if ranking.empty:
         reasons.append("no_comparable_ranking")
+    scenarios = [x["scenario"] for x in runs] if runs is not None else sorted(set(
+        metrics.get("scenario", pd.Series(dtype=str)).dropna().tolist() +
+        ranking.get("scenario", pd.Series(dtype=str)).dropna().tolist()))
+    coverage = metric_coverage(metrics, config, scenarios)
+    if not coverage.empty and not coverage.evidence_complete.all():
+        reasons.append("incomplete_requested_metric_evidence")
+    if runs is not None and not any(x["method"] == "none" and x["status"] == "completed" for x in runs):
+        reasons.append("uncorrected_baseline_not_completed")
+    if not config["metrics"].get("batch_removal") or not config["metrics"].get("biological_conservation"):
+        reasons.append("automatic_recommendation_requires_both_metric_groups")
     if not confounding.empty and confounding["perfect_confounding"].fillna(False).any():
         reasons.append("batch_condition_perfectly_confounded")
     state = "resolved" if not reasons else "unresolved"
@@ -282,6 +341,7 @@ def recommendation_status(metrics, ranking, confounding, config):
         "reasons": reasons,
         "requested_metric_count": len(requested),
         "completed_metric_rows": int((metrics["status"] == "completed").sum()) if not metrics.empty else 0,
+        "metric_coverage": coverage.to_dict("records"),
     }
 
 
@@ -374,7 +434,7 @@ def main():
     metrics.to_csv(output / "metric_results_long.tsv", sep="\t", index=False)
     metrics[metrics.status != "completed"].to_csv(output / "skipped_metrics.tsv", sep="\t", index=False)
     summary, ranking = summarize(metrics, config); summary.to_csv(output / "method_summary.tsv", sep="\t", index=False); ranking.to_csv(output / "method_ranking.tsv", sep="\t", index=False)
-    decision = recommendation_status(metrics, ranking, confounding, config)
+    decision = recommendation_status(metrics, ranking, confounding, config, runs=runs)
     (output / "recommendation_status.json").write_text(json.dumps(decision, indent=2) + "\n", encoding="utf-8")
     make_plots(adata, runs, metrics, summary, config, output, seed)
     adata.write_h5ad(output / "benchmark_embeddings.h5ad", compression="gzip")

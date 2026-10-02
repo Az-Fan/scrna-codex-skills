@@ -1,21 +1,50 @@
 .scrna_runtime_started_at <- Sys.time()
 .scrna_sha256 <- function(path) {
   if (is.null(path) || !file.exists(path) || !requireNamespace("digest", quietly = TRUE)) return(NA_character_)
+  if (dir.exists(path)) {
+    members <- .scrna_directory_members(path)
+    return(digest::digest(members, algo = "sha256"))
+  }
   digest::digest(path, algo = "sha256", file = TRUE)
+}
+
+.scrna_directory_members <- function(path) {
+  files <- sort(list.files(path, recursive = TRUE, full.names = FALSE, all.files = TRUE))
+  files <- files[!file.info(file.path(path, files))$isdir]
+  lapply(files, function(member) list(path = member,
+    bytes = unname(file.info(file.path(path, member))$size),
+    sha256 = .scrna_sha256(file.path(path, member))))
 }
 
 read_skill_config <- function(path) {
   if (!requireNamespace("jsonlite", quietly = TRUE)) stop("Package 'jsonlite' is required")
   config <- jsonlite::fromJSON(path, simplifyVector = FALSE)
   config_path <- normalizePath(path, mustWork = TRUE)
-  input <- config$input$object %||% config$input$counts_table %||% config$input$path %||%
-    config$input$differential_table
+  input_config <- config[["input"]] %||% list()
+  # Exact lookup prevents differential_table from partially matching the
+  # differential_tables array and passing a list to file.exists().
+  input <- input_config[["object"]] %||% input_config[["counts_table"]] %||% input_config[["path"]] %||%
+    input_config[["differential_table"]]
   attr(config, "config_path") <- config_path
   attr(config, "input_record") <- list(
     path = input,
     bytes = if (!is.null(input) && file.exists(input)) unname(file.info(input)$size) else NA_real_,
     sha256 = .scrna_sha256(input)
   )
+  if (!is.null(input) && dir.exists(input)) {
+    attr(config, "input_record")$type <- "directory"
+    attr(config, "input_record")$members <- .scrna_directory_members(input)
+    attr(config, "input_record")$bytes <- sum(vapply(attr(config, "input_record")$members, function(x) x$bytes, numeric(1)))
+  }
+  if (is.null(input) && length(input_config[["differential_tables"]])) {
+    tables <- lapply(input_config[["differential_tables"]], function(spec) {
+      path <- spec[["path"]]
+      list(path = path, bytes = unname(file.info(path)$size), sha256 = .scrna_sha256(path))
+    })
+    attr(config, "input_record") <- list(type = "tables", tables = tables,
+      bytes = sum(vapply(tables, function(x) x$bytes, numeric(1))),
+      sha256 = if (requireNamespace("digest", quietly = TRUE)) digest::digest(tables, algo = "sha256") else NA_character_)
+  }
   config
 }
 
@@ -43,7 +72,29 @@ load_scrna_object <- function(path, format = "auto", sample_id = NULL) {
   if (format %in% c("rds", "seurat_rds")) return(readRDS(path))
   if (format == "10x_dir") {
     if (!requireNamespace("Seurat", quietly = TRUE)) stop("Package 'Seurat' is required")
-    counts <- Seurat::Read10X(path)
+    uncompressed <- file.path(path, c("matrix.mtx", "barcodes.tsv", "features.tsv"))
+    if (all(file.exists(uncompressed)) && !file.exists(file.path(path, "barcodes.tsv.gz"))) {
+      # Modern Seurat Read10X expects gzipped v3 files; STARsolo and unpacked
+      # bundles can contain the same three files without compression.
+      counts <- methods::as(Matrix::readMM(uncompressed[1]), "CsparseMatrix")
+      barcodes <- utils::read.delim(uncompressed[2], header = FALSE, colClasses = "character")
+      features <- utils::read.delim(uncompressed[3], header = FALSE, colClasses = "character")
+      if (nrow(features) != nrow(counts) || nrow(barcodes) != ncol(counts)) stop("10x feature/barcode dimensions do not match matrix")
+      symbols <- features[[if (ncol(features) >= 2L) 2L else 1L]]
+      rownames(counts) <- make.unique(symbols)
+      colnames(counts) <- barcodes[[1]]
+      if (ncol(features) >= 3L) {
+        rna <- features[[3]] == "Gene Expression"
+        if (!any(rna)) stop("10x input has no Gene Expression features")
+        counts <- counts[rna, , drop = FALSE]
+      }
+    } else {
+      counts <- Seurat::Read10X(path)
+      if (is.list(counts)) {
+        if (is.null(counts[["Gene Expression"]])) stop("10x input has no Gene Expression matrix")
+        counts <- counts[["Gene Expression"]]
+      }
+    }
     obj <- Seurat::CreateSeuratObject(counts = counts, project = sample_id %||% "scrna")
     if (!is.null(sample_id)) obj$sample_id <- sample_id
     return(obj)
@@ -111,7 +162,7 @@ technical_path <- function(out, name) {
   file.path(directory, name)
 }
 
-write_run_manifest <- function(config, skill, out, artifacts, notes = character()) {
+write_run_manifest <- function(config, skill, out, artifacts, notes = character(), exit_status = 0L) {
   figure_records <- file.path(out, "_provenance", c("figure_status.tsv", "figure_colors.tsv"))
   artifacts <- c(artifacts, figure_records[file.exists(figure_records)])
   # A rerun must not include an older copy of its own manifest as an artifact.
@@ -128,6 +179,7 @@ write_run_manifest <- function(config, skill, out, artifacts, notes = character(
   finished_at <- Sys.time()
   manifest <- list(
     schema_version = 2L,
+    run_id = Sys.getenv("SCRNA_RUN_ID", unset = ""),
     skill = skill,
     project_id = cfg_get(config, "project.id", required = TRUE),
     started_at = format(.scrna_runtime_started_at, tz = "UTC", usetz = TRUE),
@@ -139,7 +191,8 @@ write_run_manifest <- function(config, skill, out, artifacts, notes = character(
     output_dir = out,
     artifacts = artifact_records,
     random_seed = attr(config, "resolved_random_seed") %||% cfg_get(config, "preprocessing.seed", cfg_get(config, "random_seed")),
-    exit_status = 0L,
+    exit_status = as.integer(exit_status),
+    status = if (exit_status == 0L) "completed" else "failed",
     notes = unname(as.list(notes))
   )
   action <- cfg_get(config, "workflow.action")

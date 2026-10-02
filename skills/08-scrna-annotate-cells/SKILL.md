@@ -15,7 +15,7 @@ The action writes the complete marker table, an annotation-review table, the clu
 
 ## Apply confirmed decisions
 
-Set `workflow.action=apply_confirmed` and provide the reviewed TSV using [references/config.apply.example.json](references/config.apply.example.json). Every object cluster must occur exactly once and every row must have an allowed confirmed decision. The action writes broad, fine, and optional state labels to a derivative object and always produces the complete cell-level annotation table, cluster summary, annotated UMAP, cluster/sample/condition audit UMAP, session information, and manifest.
+Set `workflow.action=apply_confirmed` and provide the reviewed TSV using [references/config.apply.example.json](references/config.apply.example.json). Every object cluster must occur exactly once and every row must have an allowed confirmed decision. Broad and fine labels must be present and nonblank after trimming whitespace. The action writes broad, fine, and optional state labels to a derivative object and always produces the complete cell-level annotation table, cluster summary, annotated UMAP, cluster/sample/condition audit UMAP, session information, and manifest.
 
 ## Guardrails
 
