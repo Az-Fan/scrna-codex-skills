@@ -76,7 +76,13 @@ if (ncol(filtered) != expected_retained || nrow(filtered) != nrow(obj)) stop("Fi
 if (length(filtered@reductions) || length(filtered@graphs)) stop("Filtered handoff unexpectedly inherited reductions or graphs")
 
 out <- prepare_output(config)
-object_name <- cfg_get(config, "output.object_name", "filtered_object.qs")
+object_name <- cfg_get(config, "output.object_name")
+if (is.null(object_name)) {
+  object_format <- cfg_get(config, "output.object_format", "auto")
+  if (!object_format %in% c("auto", "qs", "rds")) stop("output.object_format must be auto, qs or rds")
+  if (object_format == "auto") object_format <- if (requireNamespace("qs", quietly = TRUE)) "qs" else "rds"
+  object_name <- paste0("filtered_object.", object_format)
+}
 if (!grepl("\\.(qs|rds)$", object_name, ignore.case = TRUE)) stop("output.object_name must end in .qs or .rds")
 object_out <- file.path(out, object_name)
 if (file.exists(object_out)) stop("Refusing to overwrite filtered object: ", object_out)

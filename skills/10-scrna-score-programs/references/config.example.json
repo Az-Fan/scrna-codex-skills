@@ -29,6 +29,24 @@
     }
   ],
   "summarize_by": ["sample_id", "celltype", "condition"],
+  "visualization": {
+    "enabled": true,
+    "dpi": 300,
+    "group_heatmap": {
+      "enabled": true,
+      "x": "condition",
+      "facet": "celltype",
+      "facet_rows": 2,
+      "scale": "none",
+      "focus_levels": []
+    },
+    "umap": {
+      "enabled": false,
+      "reduction": "umap",
+      "split_by": "condition",
+      "features_per_page": 12
+    }
+  },
   "random_seed": 1,
   "cores": 8,
   "cache": {"enabled": true},

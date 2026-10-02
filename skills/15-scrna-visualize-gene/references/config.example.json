@@ -16,6 +16,7 @@
     "reduction": "umap"
   },
   "expression": {"assay": "RNA"},
+  "differential_selection": {},
   "differential_columns": {
     "gene": "gene",
     "log2_fold_change": "log2FoldChange",
@@ -37,4 +38,3 @@
   "runtime": {"pixi_root": "/home/faz_laptop/projects/scrna_envs"},
   "output_dir": "results/15_gene_visualization"
 }
-

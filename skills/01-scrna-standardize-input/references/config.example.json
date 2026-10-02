@@ -1,7 +1,7 @@
 {
   "project": {"id": "project_id"},
   "input": {"path": "path/to/input", "format": "auto"},
-  "metadata": {"sample": "sample_column"},
+  "metadata": {"sample": "sample_column", "condition": "condition_column", "batch": "batch_column"},
   "output": {"object_format": "auto"},
   "output_dir": "results/standardized"
 }

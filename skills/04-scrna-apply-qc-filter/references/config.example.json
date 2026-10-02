@@ -19,6 +19,6 @@
     "approved_at": "2026-01-01",
     "note": "Approved after sample-aware QC review"
   },
-  "output": {"object_name": "filtered_object.qs"},
+  "output": {"object_format": "auto"},
   "output_dir": "/path/to/results/04_qc_filter"
 }

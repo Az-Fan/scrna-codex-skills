@@ -10,6 +10,10 @@
 
 `metadata.condition`, `metadata.population`, and `metadata.reduction` are optional in principle, but their dependent figures are skipped when absent. `input.differential_table` must be a complete delimited DE table. `input.pseudobulk_data` may be an RDS list containing `normalized_counts` and `coldata`.
 
+For a combined DE table, configure `differential_selection`, for example `{"population": "EC", "comparison_id": "stz_vs_control"}`. Keys name actual table columns and values select one exact level. The selected table must describe one task and contain one row per gene; ambiguous tasks or duplicated genes stop before result tables are written. Keep all tested genes within the selected task as the volcano background. Scope columns and numerator/denominator are retained in the target-gene summary when supplied.
+
+Pseudobulk `coldata` row names must match the normalized-count sample IDs; metadata is reordered to matrix column order before plotting.
+
 ## Primary tables
 
 - `gene_status.tsv`: requested symbols/labels and availability in object, DE table, and pseudobulk matrix.
@@ -21,4 +25,3 @@
 ## Provenance
 
 `_provenance/` contains `run_manifest.json`, `session_info.txt`, `figure_colors.tsv`, and the shared figure status record. Figures are deterministic for a fixed object, config, and software environment.
-

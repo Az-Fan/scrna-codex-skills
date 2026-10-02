@@ -13,3 +13,7 @@ Every configured decision field must contain only unambiguous boolean values (`T
 The output object retains raw counts and input metadata for kept cells, plus configured decision-table columns. It intentionally drops normalized layers, reductions, graphs, neighbors, and exploratory cluster state so downstream preprocessing starts from the approved raw-count handoff.
 
 Required outputs are the filtered object, complete compressed cell-decision table, sample and optional condition retention tables, decision-reason counts, approval record, session information, and run manifest.
+
+## Output format
+
+`output.object_format=auto` chooses QS when `qs` is available and otherwise RDS. Set `qs` or `rds` for a fixed format, or provide `output.object_name` with the explicit extension. An explicit QS request requires `qs`; run the dependency checker with `--config` before execution. Multiple raw-count layers are joined in memory and verified against the full cell set before applying decisions.

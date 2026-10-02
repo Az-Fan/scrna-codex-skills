@@ -22,7 +22,7 @@ The default is the repository's `paper_v1` white-background, 300-dpi style. The 
 ## Workflow
 
 1. Confirm the Seurat RDS/QS object, target gene symbols, normalized assay, reduction, biological sample field, and optional condition/population fields.
-2. Optionally supply a complete DE table and pseudobulk data from `11-scrna-run-differential-analysis`.
+2. Optionally supply a complete DE table and pseudobulk data from `11-scrna-run-differential-analysis`. For a combined DE table, explicitly select one population/comparison with `differential_selection`; ambiguous tasks and duplicated genes are rejected.
 3. Dry-run `scripts/run.py --config <config>`, review paths and fields, then execute.
 4. Inspect `gene_status.tsv` and `plot_status.tsv`; missing genes and inapplicable figures are skipped with reasons.
 5. Interpret cell-level panels descriptively. Use sample-level observations and the supplied formal DE result for condition claims.
@@ -38,4 +38,3 @@ The default is the repository's `paper_v1` white-background, 300-dpi style. The 
 - Keep per-sample values visible and state whether they came from pseudobulk normalized counts or descriptive sample means.
 
 Read [references/input-output-contract.md](references/input-output-contract.md) for field and output schemas. Read [references/figure-design.md](references/figure-design.md) before changing the fixed figure family.
-

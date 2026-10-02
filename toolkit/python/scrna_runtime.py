@@ -211,9 +211,11 @@ def validate(skill, config, config_path):
         decision_table = nested_get(config, "input.decision_table")
         if decision_table and not Path(os.path.expandvars(os.path.expanduser(str(decision_table)))).exists():
             errors.append(f"decision table does not exist in this execution context: {decision_table}")
-        object_name = str(nested_get(config, "output.object_name") or "filtered_object.qs")
+        object_name = str(nested_get(config, "output.object_name") or "filtered_object.rds")
         if not object_name.lower().endswith((".qs", ".rds")):
             errors.append("output.object_name must end in .qs or .rds")
+        if (nested_get(config, "output.object_format") or "auto") not in {"auto", "qs", "rds"}:
+            errors.append("output.object_format must be auto, qs or rds")
     if skill == "08-scrna-annotate-cells":
         action = str(nested_get(config, "workflow.action") or "")
         if action not in {"prepare_review", "apply_confirmed"}:
@@ -372,6 +374,10 @@ def validate(skill, config, config_path):
         mode = nested_get(config, "composition.denominator.mode") or "all_input_cells"
         if mode not in {"all_input_cells", "selected_parent", "selected_cell_types"}:
             errors.append("composition.denominator.mode must be all_input_cells, selected_parent, or selected_cell_types")
+        if mode == "selected_parent" and is_blank(nested_get(config, "composition.parent_column")):
+            errors.append("selected_parent requires composition.parent_column")
+        if mode in {"selected_parent", "selected_cell_types"} and is_blank(nested_get(config, "composition.denominator.include")):
+            errors.append("selected denominator requires composition.denominator.include")
         modes = config.get("modes", ["composition_summary"])
         if not isinstance(modes, list) or not modes or any(str(x) not in {"composition_summary", "batch_diagnostic", "hierarchical_composition"} for x in modes):
             errors.append("modes must contain composition_summary, batch_diagnostic, or hierarchical_composition")
@@ -379,6 +385,9 @@ def validate(skill, config, config_path):
         if figure_format not in {"png", "pdf", "both"}:
             errors.append("plots.figure_format must be png, pdf, or both")
     if skill == "15-scrna-visualize-gene":
+        selection = config.get("differential_selection", {})
+        if not isinstance(selection, dict) or any(value is not None and (isinstance(value, (list, dict)) or is_blank(value)) for value in selection.values()):
+            errors.append("differential_selection must map column names to single non-empty values")
         genes = config.get("genes")
         if not isinstance(genes, list) or not genes:
             errors.append("genes must be a non-empty array")

@@ -184,6 +184,7 @@ def benchmark_metrics(adata, runs, config, output):
                     audit_rows.append({"scenario": run["scenario"], "batch_variable": batch, "biological_label": label, "metric": metric, "metric_group": "batch_removal" if metric in requested_batch else "biological_conservation", "value": np.nan, "status": status, "notes": note})
     keys = [x["representation"] for x in embedding_runs]
     lookup = {x["representation"]: x["scenario"] for x in embedding_runs}
+    baseline_key = next((x["representation"] for x in embedding_runs if x["method"] == "none"), None)
     rows = list(audit_rows)
     for batch in config["metadata"]["batch_variables"]:
         for label in config["metadata"].get("biological_labels", []):
@@ -203,7 +204,9 @@ def benchmark_metrics(adata, runs, config, output):
                     pcr_comparison="pcr_comparison" in requested_batch,
                 )
                 bench = Benchmarker(adata, batch_key=batch, label_key=label, embedding_obsm_keys=keys,
-                    bio_conservation_metrics=bio_options, batch_correction_metrics=batch_options, n_jobs=-1)
+                    bio_conservation_metrics=bio_options, batch_correction_metrics=batch_options,
+                    pre_integrated_embedding_obsm_key=baseline_key,
+                    n_jobs=int(config["benchmark"].get("n_jobs", 1)))
                 bench.benchmark()
                 result = bench.get_results(min_max_scale=True)
                 if "Embedding" in result.columns:
@@ -218,7 +221,8 @@ def benchmark_metrics(adata, runs, config, output):
                         matches = [col for col, text in normalized.items() if all(token in text for token in tokens)]
                         if matches:
                             value = pd.to_numeric(pd.Series([values[matches[0]]]), errors="coerce").iloc[0]
-                            status, note = "completed", "source_metric=" + str(matches[0])
+                            status = "completed" if np.isfinite(value) else "failed"
+                            note = "source_metric=" + str(matches[0]) + ("; non-finite result" if status == "failed" else "")
                         else:
                             value, status, note = np.nan, "skipped_incompatible_representation", "metric absent from scIB result"
                         rows.append({"scenario": lookup[key], "batch_variable": batch, "biological_label": label, "metric": metric, "metric_group": "batch_removal" if metric in requested_batch else "biological_conservation", "value": value, "status": status, "notes": note})

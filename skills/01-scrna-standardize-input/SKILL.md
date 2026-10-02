@@ -10,7 +10,7 @@ Create an auditable input layer without changing biological values unnecessarily
 ## Workflow
 
 1. Inspect files read-only and identify the matrix orientation, format, assay, species, gene identifiers, barcodes, and available metadata.
-2. Create or validate `samples.tsv`. Require unique sample identifiers and explicit condition labels; retain batch when available.
+2. Create or validate `samples.tsv`. Require unique sample identifiers and a single condition/batch per sample when configured. Declare explicit condition labels before downstream condition comparisons; retain batch when available.
 3. Map source columns to the canonical roles `sample`, `condition`, `batch`, and `cell_type`. Do not silently rename ambiguous fields.
 4. Preserve raw integer counts. Keep normalized values in a separate assay or layer.
 5. Make cell identifiers globally unique while retaining original barcodes and provenance.
@@ -24,7 +24,7 @@ Create an auditable input layer without changing biological values unnecessarily
 - Never overwrite raw inputs.
 - Stop when species, sample identity, or matrix orientation cannot be established safely.
 
-Read [references/input-contract.md](references/input-contract.md) for the canonical contract. Use the repository tool `toolkit/python/validate_project.py` to validate sample tables.
+Read [references/input-contract.md](references/input-contract.md) for the canonical contract. Use the bundled `scripts/validate_project.py` to validate sample tables; for exploratory input without condition labels, use `--required sample_id`.
 
 ## Execution
 

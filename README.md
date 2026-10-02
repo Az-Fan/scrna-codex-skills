@@ -1,6 +1,6 @@
 # scRNA-seq Codex Skills
 
-这是一套面向 Codex、Claude Code 和 WispScience 的可审计单细胞 RNA 测序工作流。当前发布版包含 13 个 skill，覆盖输入标准化、QC、人工批准后过滤、整合评估、预处理聚类、marker、人工注释、子集导出、基因程序评分、差异表达、通路富集和样本感知的细胞丰度变化分析。
+这是一套面向 Codex、Claude Code 和 WispScience 的可审计单细胞 RNA 测序工作流。当前开发分支包含 15 个 skill，覆盖输入标准化、QC、人工批准后过滤、整合评估、预处理聚类、marker、人工注释、子集导出、基因程序评分、差异表达、通路富集、细胞丰度变化、组成可视化和目标基因展示。固定发布标签 `v3.1.0` 包含 13 个 skill，不包含开发分支新增的 14/15 和后续修复。
 
 规范开发仓库位于 `/home/faz_laptop/projects/scrna-codex-skills`；GitHub 仓库 `git@github.com:Az-Fan/scrna-codex-skills.git` 是固定版本的分发来源。科学计算默认复用服务器上已经注册的 pixi 环境，不会自动创建环境、修改环境或安装缺失依赖。
 
@@ -39,7 +39,8 @@
           ↓
         12 ORA/GSEA 通路富集
   ├─→ 13 细胞类型组成与局部邻域丰度变化
-  └─→ 14 细胞组成、比例与批次诊断可视化
+  ├─→ 14 细胞组成、比例与批次诊断可视化
+  └─→ 15 目标基因表达与既有差异结果可视化
 ```
 
 几个重要边界：
@@ -73,6 +74,8 @@ python3 scrna-codex-skills/scripts/install_skills.py --target ~/.codex/skills --
 ```
 
 安装到 Claude Code 时，把目标改为 `~/.claude/skills`。安装后重新启动 agent 会话，使 skill discovery 读取新版本。安装脚本只组装 skill 自身的指令和执行器，不修改项目数据与 pixi 环境。
+
+开发分支安装器会先构建完整的 15 个 skill，再替换安装目录。旧文件和遗留的 `03.1-scrna-apply-qc-filter` 会迁入安装目录之外的备份目录；构建或替换失败时保留或恢复旧安装。安装器不修改其他 skill。若曾直接改动安装文件，先把有效改动迁回规范源码。
 
 ## 三、通用使用方式
 
@@ -124,10 +127,13 @@ python3 ~/.codex/skills/<skill-name>/scripts/run_in_tmux.py \
 | `10` | `05-pathway_program` |
 | `11`–`12` | `06-deg-analysis` |
 | `13` | `07-cell-abundance`（R 方法为 `default`，scCODA 为 `sccoda`） |
+| `14`–`15` | `02-annotation` |
 
 完整兼容性说明见 [toolkit/references/compatibility.md](toolkit/references/compatibility.md)。
 
-## 四、13 个 skill 的输入、用法和输出
+每个 skill 均可运行 `scripts/check_dependencies.py --config <项目配置>`，按输入/输出格式与所选方法检查真实依赖。只运行 `--help` 或不提供配置的基础探测不能证明所有可选分支可用。整合评价会检查配置中的 Python 和 `scib_metrics`；QS 输入和显式 QS 输出会要求 `qs`。
+
+## 四、15 个 skill 的输入、用法和输出
 
 ### 01-scrna-standardize-input：标准化输入和元数据
 
@@ -245,7 +251,7 @@ compact 模式根目录只保留：
 
 **主要输出**
 
-- `filtered_object.qs` 或配置的 `.rds`：只含 raw counts 和保留 metadata 的交接对象，不继承 reductions/graphs。
+- `filtered_object.qs/.rds`：只含 raw counts 和保留 metadata 的交接对象，不继承 reductions/graphs。默认 `output.object_format=auto`，没有 `qs` 时写 RDS；显式指定的扩展名始终受尊重。
 - `cell_filter_decisions.tsv.gz`：完整逐细胞输入决策、最终 retained 和原因。
 - `filter_summary_by_sample.tsv`。
 - 可选 `filter_summary_by_condition.tsv`。

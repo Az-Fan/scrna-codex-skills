@@ -1,4 +1,4 @@
 interface:
-  display_name: "08 Export scRNA Subset"
+  display_name: "09 Export scRNA Subset"
   short_description: "Reanalyze a selected cell population"
   default_prompt: "Use $09-scrna-export-subset to export a focused raw-count subset and provenance for downstream reanalysis."

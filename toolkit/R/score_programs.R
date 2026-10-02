@@ -36,7 +36,7 @@ get_layer <- function(obj, assay, layer) {
     exact <- layers[layers == layer]
     split <- layers[grepl(paste0("^", layer, "[.]"), layers)]
     if (!length(exact) && length(split) > 1L) {
-      obj <- SeuratObject::JoinLayers(obj, assay = assay, layers = split, new = layer)
+      obj <- SeuratObject::JoinLayers(obj, assay = assay, layers = layer, new = layer)
       exact <- layer
     }
     if (!length(exact)) stop("Layer not found: ", assay, "/", layer)
@@ -221,6 +221,99 @@ summarize_scores <- function(scores, meta, groups, task_name) {
   long
 }
 
+save_ggplot <- function(plot, path, width, height, dpi) {
+  require_pkg("ggplot2", "Set visualization.enabled=false to run without figures.")
+  ggplot2::ggsave(path, plot = plot, width = width, height = height, units = "in",
+                  dpi = dpi, limitsize = FALSE, bg = "white")
+}
+
+plot_group_heatmaps <- function(summary_out, groups, out, config) {
+  spec <- cfg_get(config, "visualization.group_heatmap", list())
+  if (identical(spec$enabled, FALSE) || !nrow(summary_out)) return(character())
+  require_pkg("ggplot2", "Set visualization.group_heatmap.enabled=false to skip these figures.")
+  x <- cfg_get(spec, "x", if (length(groups)) tail(groups, 1L) else NULL)
+  facet <- cfg_get(spec, "facet", if (length(groups) > 1L) groups[[length(groups) - 1L]] else NULL)
+  if (is.null(x) || !x %in% groups) stop("visualization.group_heatmap.x must be present in summarize_by")
+  if (!is.null(facet) && (!nzchar(facet) || facet == "none")) facet <- NULL
+  if (!is.null(facet) && !facet %in% groups) stop("visualization.group_heatmap.facet must be present in summarize_by")
+  scale_mode <- tolower(cfg_get(spec, "scale", "none"))
+  if (!scale_mode %in% c("none", "row_zscore")) stop("visualization.group_heatmap.scale must be none or row_zscore")
+  focus <- as_character_vector(cfg_get(spec, "focus_levels", list()))
+  dpi <- as.integer(cfg_get(config, "visualization.dpi", 300L))
+  paths <- character()
+  for (task_name in unique(summary_out$task)) {
+    tab_all <- summary_out[summary_out$task == task_name, , drop = FALSE]
+    keep_groups <- unique(c(x, facet))
+    aggregate_formula <- stats::as.formula(paste("mean_score ~ signature +", paste(keep_groups, collapse = " + ")))
+    tab_all <- stats::aggregate(aggregate_formula, data = tab_all, FUN = mean)
+    views <- list(all = tab_all)
+    if (!is.null(facet) && length(focus)) views$focused <- tab_all[as.character(tab_all[[facet]]) %in% focus, , drop = FALSE]
+    for (view_name in names(views)) {
+      tab <- views[[view_name]]
+      if (!nrow(tab)) next
+      if (scale_mode == "row_zscore") {
+        tab$display_score <- ave(tab$mean_score, tab$signature, FUN = function(z) {
+          s <- stats::sd(z); if (!is.finite(s) || s == 0) rep(0, length(z)) else (z - mean(z)) / s
+        })
+        legend <- "Row z-score"
+      } else {
+        tab$display_score <- tab$mean_score
+        legend <- "Mean score"
+      }
+      p <- ggplot2::ggplot(tab, ggplot2::aes_string(x = x, y = "signature", fill = "display_score")) +
+        ggplot2::geom_tile(color = "white", linewidth = 0.2) +
+        ggplot2::labs(x = NULL, y = NULL, fill = legend, title = task_name) +
+        ggplot2::theme_classic(base_size = 10) +
+        ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                       axis.text.y = ggplot2::element_text(size = 7),
+                       strip.background = ggplot2::element_blank())
+      if (min(tab$display_score) < 0 && max(tab$display_score) > 0) {
+        p <- p + ggplot2::scale_fill_gradient2(low = "#2166AC", mid = "white", high = "#B2182B", midpoint = 0)
+      } else {
+        p <- p + ggplot2::scale_fill_viridis_c(option = "C")
+      }
+      if (!is.null(facet)) p <- p + ggplot2::facet_wrap(stats::as.formula(paste("~", facet)), nrow = as.integer(cfg_get(spec, "facet_rows", 2L)))
+      suffix <- if (view_name == "focused") "_focused" else ""
+      path <- file.path(out, "figures", paste0(task_name, "_group_heatmap", suffix, ".png"))
+      width <- as.numeric(cfg_get(spec, "width", if (is.null(facet)) 8 else 14))
+      height <- as.numeric(cfg_get(spec, "height", max(4, min(16, 0.22 * length(unique(tab$signature)) + 2))))
+      save_ggplot(p, path, width, height, dpi)
+      paths <- c(paths, path)
+    }
+  }
+  paths
+}
+
+plot_score_umaps <- function(obj, task_scores, task_assays, out, config) {
+  spec <- cfg_get(config, "visualization.umap", list())
+  if (!isTRUE(spec$enabled)) return(character())
+  reduction <- cfg_get(spec, "reduction", "umap")
+  if (!reduction %in% names(obj@reductions)) stop("UMAP visualization reduction not found: ", reduction)
+  split_by <- cfg_get(spec, "split_by")
+  if (!is.null(split_by) && !split_by %in% colnames(obj[[]])) stop("visualization.umap.split_by metadata not found: ", split_by)
+  page_size <- as.integer(cfg_get(spec, "features_per_page", 12L))
+  if (is.na(page_size) || page_size < 1L) stop("visualization.umap.features_per_page must be positive")
+  dpi <- as.integer(cfg_get(config, "visualization.dpi", 300L))
+  paths <- character()
+  old_assay <- Seurat::DefaultAssay(obj)
+  on.exit(Seurat::DefaultAssay(obj) <- old_assay, add = TRUE)
+  for (task_name in names(task_scores)) {
+    Seurat::DefaultAssay(obj) <- task_assays[[task_name]]
+    features <- rownames(obj[[task_assays[[task_name]]]])
+    pages <- split(features, ceiling(seq_along(features) / page_size))
+    for (page in seq_along(pages)) {
+      p <- Seurat::FeaturePlot(obj, features = pages[[page]], reduction = reduction,
+                               split.by = split_by, keep.scale = "all", combine = TRUE)
+      path <- file.path(out, "figures", paste0(task_name, "_umap_activity_page", page, ".png"))
+      panels <- length(pages[[page]]) * if (is.null(split_by)) 1L else length(unique(obj[[split_by]][, 1L]))
+      save_ggplot(p, path, width = min(20, max(7, 3.4 * min(4, panels))),
+                  height = max(4, 3.1 * ceiling(panels / 4)), dpi = dpi)
+      paths <- c(paths, path)
+    }
+  }
+  paths
+}
+
 obj_path <- cfg_get(config, "input.object", required = TRUE)
 obj <- load_scrna_object(obj_path, "auto")
 out <- prepare_output(config)
@@ -245,6 +338,8 @@ coverage_all <- list()
 summary_all <- list()
 task_manifest <- list()
 output_assays <- character()
+task_scores <- list()
+task_assays <- list()
 feature_mappings <- list()
 artifacts <- character()
 seed <- as.integer(cfg_get(config, "random_seed", 1L))
@@ -293,6 +388,7 @@ for (i in seq_along(tasks)) {
   method_package <- c(vision = "VISION", aucell = "AUCell", ucell = "UCell", addmodulescore = "Seurat", progeny = "progeny")[[method]]
   method_version <- if (!is.null(method_package) && requireNamespace(method_package, quietly = TRUE)) as.character(utils::packageVersion(method_package)) else NA_character_
   task_key <- digest_value(list(input = input_fingerprint, cells = colnames(mat), features = rownames(mat),
+                                species = species, assay = assay, layer = layer, seed = seed, gene_sets = gene_sets,
                                 task = task, provenance = provenance, package = method_package, package_version = method_version))
   cache_file <- file.path(out, "scores", paste0(task_name, "_", task_key, ".rds"))
   cache_hit <- isTRUE(cfg_get(config, "cache.enabled", TRUE)) && file.exists(cache_file)
@@ -334,6 +430,8 @@ for (i in seq_along(tasks)) {
   if (!identical(colnames(score_assay), colnames(obj))) stop("Score assay cell order does not match the Seurat object")
   obj[[assay_name]] <- score_assay
   output_assays <- c(output_assays, assay_name)
+  task_scores[[task_name]] <- scores
+  task_assays[[task_name]] <- assay_name
   score_file <- file.path(out, "scores", paste0(task_name, "_scores.tsv.gz"))
   con <- gzfile(score_file, "wt")
   utils::write.table(data.frame(signature = rownames(scores), scores, check.names = FALSE), con, sep = "\t", quote = FALSE, row.names = FALSE)
@@ -358,20 +456,11 @@ mapping_path <- file.path(out, "assay_feature_mapping.tsv")
 mapping_out <- do.call(rbind, feature_mappings)
 utils::write.table(mapping_out, mapping_path, sep = "\t", quote = FALSE, row.names = FALSE)
 
+visualization_enabled <- !identical(cfg_get(config, "visualization.enabled", TRUE), FALSE)
 plot_paths <- character()
-if (nrow(summary_out) && length(summary_groups)) {
-  for (task_name in unique(summary_out$task)) {
-    tab <- summary_out[summary_out$task == task_name, , drop = FALSE]
-    labels <- apply(tab[, summary_groups, drop = FALSE], 1L, paste, collapse = " | ")
-    mat_plot <- stats::xtabs(tab$mean_score ~ tab$signature + labels)
-    if (nrow(mat_plot) > 1L && ncol(mat_plot) > 1L) {
-      plot_path <- file.path(out, "figures", paste0(task_name, "_group_mean_heatmap.png"))
-      grDevices::png(plot_path, width = min(6000, max(1200, 45 * ncol(mat_plot))), height = min(5000, max(900, 24 * nrow(mat_plot))), res = 150)
-      stats::heatmap(mat_plot, scale = "row", margins = c(10, 12), main = paste(task_name, "group mean scores"))
-      grDevices::dev.off()
-      plot_paths <- c(plot_paths, plot_path)
-    }
-  }
+if (visualization_enabled) {
+  plot_paths <- c(plot_paths, plot_group_heatmaps(summary_out, summary_groups, out, config))
+  plot_paths <- c(plot_paths, plot_score_umaps(obj, task_scores, task_assays, out, config))
 }
 
 format <- tolower(cfg_get(config, "output.object_format", "qs"))

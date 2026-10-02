@@ -48,20 +48,35 @@ md$.sample <- as.character(md[[sample_col]])
 count_col <- getv(cfg, "input.count_column", "n_cells")
 parent_col <- getv(cfg, "composition.parent_column")
 if (!is.null(parent_col) && nzchar(parent_col) && !parent_col %in% names(md)) stop("Missing parent column: ", parent_col)
+sample_mapping <- unique(md[c(sample_col, condition_col, batch_col)])
+if (anyNA(md$.sample) || any(!nzchar(trimws(md$.sample)))) stop("Sample IDs must be present and non-empty")
+if (anyDuplicated(sample_mapping[[sample_col]])) stop("Each sample must map to exactly one condition and batch")
+if (denom_mode == "selected_parent" && (is.null(parent_col) || !nzchar(parent_col))) stop("selected_parent requires composition.parent_column")
 
 make_long <- function(v) {
   cat <- as.character(md[[v$column]]); cat[is.na(cat) | !nzchar(cat)] <- "Missing"
-  parent <- if (!is.null(parent_col) && nzchar(parent_col)) as.character(md[[parent_col]]) else "all"
+  parent <- if (!is.null(parent_col) && nzchar(parent_col)) as.character(md[[parent_col]]) else rep("all", nrow(md))
   parent[is.na(parent) | !nzchar(parent)] <- "Missing"
   if (denom_mode %in% c("selected_parent", "selected_cell_types")) {
     include <- unlist(getv(cfg, "composition.denominator.include", character()))
-    if (length(include)) keep <- parent %in% include else keep <- rep(TRUE, length(parent))
+    if (denom_mode == "selected_parent") {
+      if (!length(include)) stop("selected_parent requires denominator.include")
+      missing <- setdiff(include, parent)
+      if (length(missing)) stop("Requested parent populations are absent: ", paste(missing, collapse = ", "))
+      keep <- parent %in% include
+    } else {
+      if (!length(include)) stop("selected_cell_types requires denominator.include")
+      missing <- setdiff(include, cat)
+      if (length(missing)) stop("Requested denominator categories are absent: ", paste(missing, collapse = ", "))
+      keep <- cat %in% include
+    }
   } else keep <- rep(TRUE, length(parent))
   if (is.null(obj)) {
     n <- as.numeric(md[[count_col]]); if (anyNA(n) || any(n < 0)) stop("Count column must be non-negative numeric")
   } else n <- rep(1, nrow(md))
   d <- data.frame(sample = md$.sample, condition = md$.condition, batch = md$.batch, category = cat, parent = parent, n_cells = n, stringsAsFactors = FALSE)
   d <- d[keep, , drop = FALSE]
+  if (!nrow(d)) stop("No cells remain for the declared denominator")
   agg <- aggregate(n_cells ~ sample + condition + batch + parent + category, d, sum)
   samples <- unique(d[c("sample", "condition", "batch", "parent")]); cats <- unique(agg$category)
   grid <- merge(samples, data.frame(category = cats, stringsAsFactors = FALSE), all = TRUE)
@@ -73,7 +88,8 @@ make_long <- function(v) {
 }
 
 all_long <- do.call(rbind, lapply(var_info, make_long)); write_tsv(all_long, file.path(out, "composition_counts.tsv")); write_tsv(all_long, file.path(out, "composition_proportions.tsv"))
-coverage <- aggregate(cbind(n_cells, denominator_cells) ~ variable + sample + condition + batch + parent, all_long, function(x) x[[1]])
+coverage <- aggregate(n_cells ~ variable + sample + condition + batch + parent, all_long, sum)
+names(coverage)[names(coverage) == "n_cells"] <- "denominator_cells"
 coverage$n_categories_observed <- vapply(seq_len(nrow(coverage)), function(i) sum(all_long$variable == coverage$variable[i] & all_long$sample == coverage$sample[i] & all_long$parent == coverage$parent[i] & all_long$n_cells > 0), integer(1))
 coverage$low_coverage <- coverage$denominator_cells < as.numeric(getv(cfg, "quality.min_cells_per_sample", 20))
 write_tsv(coverage, file.path(out, "sample_coverage.tsv"))
@@ -89,24 +105,33 @@ cat_colors <- setNames(colors$color[colors$field == "category"], colors$label[co
 condition_colors <- setNames(colors$color[colors$field == "condition"], colors$label[colors$field == "condition"])
 
 for (v in var_info) {
-  x <- all_long[all_long$variable == v$column, , drop = FALSE]; x$category <- factor(x$category, levels = sort(unique(x$category)))
-  if (length(unique(x$category)) < 2L) {
-    for (family in c("composition_overview", "composition_dotplot", "composition_heatmap", "composition_counts", "embedding_diagnostics")) record(family, v$column, "skipped", "composition variable has fewer than two observed categories")
-    next
+  variable_long <- all_long[all_long$variable == v$column, , drop = FALSE]
+  for (parent_level in sort(unique(variable_long$parent))) {
+    x <- variable_long[variable_long$parent == parent_level, , drop = FALSE]
+    # 每个父群独立出图，零组合只补该父群中实际存在的子类。
+    observed_categories <- unique(x$category[x$n_cells > 0])
+    x <- x[x$category %in% observed_categories, , drop = FALSE]
+    x$category <- factor(x$category, levels = sort(unique(x$category)))
+    parent_suffix <- if (length(unique(variable_long$parent)) > 1L || !is.null(parent_col)) paste0("_parent_", match(parent_level, sort(unique(variable_long$parent))), "_", safe(parent_level)) else ""
+    figure_id <- paste0(safe(v$column), parent_suffix)
+    if (length(unique(x$category)) < 2L) {
+      for (family in c("composition_overview", "composition_dotplot", "composition_heatmap", "composition_counts")) record(family, figure_id, "skipped", "composition variable has fewer than two observed categories")
+      next
+    }
+    title <- paste(v$label, "composition", if (parent_level != "all") paste0("within ", parent_level) else "")
+    p1 <- ggplot(x, aes(sample, proportion, fill = category)) + geom_col(width = .82, colour = "white", linewidth = .15) + scale_y_continuous(labels = scales::percent, limits = c(0, 1), expand = c(0, 0)) + scale_fill_manual(values = cat_colors, drop = FALSE) + labs(title = title, subtitle = paste0("One bar per sample; denominator: ", denom_desc), x = NULL, y = "Proportion") + theme_paper + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    n_condition <- length(unique(x$condition)); n_batch <- length(unique(x$batch))
+    if (n_condition > 1 && n_batch > 1) p1 <- p1 + facet_grid(condition ~ batch, scales = "free_x", space = "free_x")
+    else if (n_condition > 1) p1 <- p1 + facet_grid(. ~ condition, scales = "free_x", space = "free_x")
+    else if (n_batch > 1) p1 <- p1 + facet_grid(. ~ batch, scales = "free_x", space = "free_x")
+    save_plot(p1, file.path(out, paste0("composition_overview_", figure_id)), max(8, length(unique(x$sample)) * .35), 6); record("composition_overview", figure_id)
+    p2 <- ggplot(x, aes(condition, proportion)) + geom_jitter(aes(colour = condition), width = .12, height = 0, size = 2.2, alpha = .85) + stat_summary(fun = mean, geom = "point", shape = 95, size = 7, colour = "#303030") + facet_wrap(~ category, ncol = min(4, max(1, length(unique(x$category)))), scales = "free_y") + scale_y_continuous(labels = scales::percent) + scale_colour_manual(values = condition_colors, drop = FALSE) + labs(title = paste(title, "by group"), subtitle = "Each point is a sample; black marker is the descriptive group mean", x = NULL, y = "Proportion", colour = "Condition") + theme_paper
+    save_plot(p2, file.path(out, paste0("composition_dotplot_", figure_id)), 9, 6); record("composition_dotplot", figure_id)
+    hm <- aggregate(proportion ~ sample + category, x, mean); p3 <- ggplot(hm, aes(sample, category, fill = proportion)) + geom_tile(colour = "white", linewidth = .2) + scale_fill_gradient2(low = "#2166AC", mid = "#F7F7F7", high = "#B2182B", midpoint = .5, labels = scales::percent) + labs(title = paste(title, "heatmap"), subtitle = "Sample-level proportions", x = NULL, y = NULL, fill = "Proportion") + theme_paper + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    save_plot(p3, file.path(out, paste0("composition_heatmap_", figure_id)), max(8, length(unique(x$sample)) * .35), max(5, length(unique(x$category)) * .25)); record("composition_heatmap", figure_id)
+    p4 <- ggplot(x, aes(condition, n_cells)) + geom_jitter(aes(colour = condition), width = .12, height = 0, size = 2.2, alpha = .85) + facet_wrap(~ category, ncol = min(4, max(1, length(unique(x$category)))), scales = "free_y") + scale_y_continuous(labels = scales::comma) + scale_colour_manual(values = condition_colors, drop = FALSE) + labs(title = paste(title, "counts"), subtitle = "Counts are shown alongside relative composition", x = NULL, y = "Cells", colour = "Condition") + theme_paper
+    save_plot(p4, file.path(out, paste0("composition_counts_", figure_id)), 9, 6); record("composition_counts", figure_id)
   }
-  title <- paste(v$label, "composition")
-  p1 <- ggplot(x, aes(sample, proportion, fill = category)) + geom_col(width = .82, colour = "white", linewidth = .15) + scale_y_continuous(labels = scales::percent, limits = c(0, 1), expand = c(0, 0)) + scale_fill_manual(values = cat_colors, drop = FALSE) + labs(title = title, subtitle = paste0("One bar per sample; denominator: ", denom_desc), x = NULL, y = "Proportion") + theme_paper + theme(axis.text.x = element_text(angle = 45, hjust = 1))
-  n_condition <- length(unique(x$condition)); n_batch <- length(unique(x$batch))
-  if (n_condition > 1 && n_batch > 1) p1 <- p1 + facet_grid(condition ~ batch, scales = "free_x", space = "free_x")
-  else if (n_condition > 1) p1 <- p1 + facet_grid(. ~ condition, scales = "free_x", space = "free_x")
-  else if (n_batch > 1) p1 <- p1 + facet_grid(. ~ batch, scales = "free_x", space = "free_x")
-  save_plot(p1, file.path(out, paste0("composition_overview_", safe(v$column))), max(8, length(unique(x$sample)) * .35), 6); record("composition_overview", paste0(v$column))
-  p2 <- ggplot(x, aes(condition, proportion)) + geom_jitter(aes(colour = condition), width = .12, height = 0, size = 2.2, alpha = .85) + stat_summary(fun = mean, geom = "point", shape = 95, size = 7, colour = "#303030") + facet_wrap(~ category, ncol = min(4, max(1, length(unique(x$category)))), scales = "free_y") + scale_y_continuous(labels = scales::percent) + scale_colour_manual(values = condition_colors, drop = FALSE) + labs(title = paste(title, "by group"), subtitle = "Each point is a sample; black marker is the descriptive group mean", x = NULL, y = "Proportion", colour = "Condition") + theme_paper
-  save_plot(p2, file.path(out, paste0("composition_dotplot_", safe(v$column))), 9, 6); record("composition_dotplot", v$column)
-  hm <- aggregate(proportion ~ sample + category, x, mean); p3 <- ggplot(hm, aes(sample, category, fill = proportion)) + geom_tile(colour = "white", linewidth = .2) + scale_fill_gradient2(low = "#2166AC", mid = "#F7F7F7", high = "#B2182B", midpoint = .5, labels = scales::percent) + labs(title = paste(title, "heatmap"), subtitle = "Sample-level proportions", x = NULL, y = NULL, fill = "Proportion") + theme_paper + theme(axis.text.x = element_text(angle = 45, hjust = 1))
-  save_plot(p3, file.path(out, paste0("composition_heatmap_", safe(v$column))), max(8, length(unique(x$sample)) * .35), max(5, length(unique(x$category)) * .25)); record("composition_heatmap", v$column)
-  p4 <- ggplot(x, aes(condition, n_cells)) + geom_jitter(aes(colour = condition), width = .12, height = 0, size = 2.2, alpha = .85) + facet_wrap(~ category, ncol = min(4, max(1, length(unique(x$category)))), scales = "free_y") + scale_y_continuous(labels = scales::comma) + scale_colour_manual(values = condition_colors, drop = FALSE) + labs(title = paste(title, "counts"), subtitle = "Counts are shown alongside relative composition", x = NULL, y = "Cells", colour = "Condition") + theme_paper
-  save_plot(p4, file.path(out, paste0("composition_counts_", safe(v$column))), 9, 6); record("composition_counts", v$column)
   if (!is.null(obj) && isTRUE(getv(cfg, "plots.umap", TRUE)) && reduction %in% names(obj@reductions)) {
     fields <- unique(c(sample_col, condition_col, batch_col, v$column)); fields <- fields[!is.null(fields) & nzchar(fields) & fields %in% names(md)]
     fields <- fields[vapply(fields, function(f) length(unique(as.character(md[[f]]))) > 1L, logical(1))]

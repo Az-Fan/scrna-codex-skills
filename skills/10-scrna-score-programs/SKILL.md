@@ -15,7 +15,8 @@ Treat pathway analysis as explicit gene-level scoring with versioned resources a
 4. Run `scripts/run.py --config <config>` to validate the contract and write a plan manifest. Review it, then rerun with `--execute`.
 5. Inspect `signature_coverage.tsv` before interpreting scores. Resolve species or identifier problems when many signatures are skipped or have low coverage.
 6. Inspect `_provenance/task_manifest.json` for methods, resources, cache keys, output assays, and cache hits.
-7. Use cell-level scores for visualization. Read [references/interpretation-and-inference.md](references/interpretation-and-inference.md) before testing conditions.
+7. Configure the scientific figures rather than accepting generic defaults. Read [references/visualization.md](references/visualization.md) for condition-by-cell-type heatmaps, focused populations, UMAP activity maps, pagination, and optional template-library lookup.
+8. Use cell-level scores for visualization. Read [references/interpretation-and-inference.md](references/interpretation-and-inference.md) before testing conditions.
 
 If execution may exceed 10 minutes, has uncertain duration, or could outlive the remote session, read [references/long-running-execution.md](references/long-running-execution.md) and launch the confirmed `--execute` command with `scripts/run_in_tmux.py`. Keep validation and dry runs in the foreground.
 
@@ -32,7 +33,7 @@ If execution may exceed 10 minutes, has uncertain duration, or could outlive the
 
 ## Outputs
 
-Write a derivative Seurat object, per-task matrices, coverage and grouped-summary tables, grouped heatmaps, task and run manifests, and session information. Attach each score matrix as a namespaced Seurat assay with programs as features and cells as columns. Use `assay_feature_mapping.tsv` because Seurat assay feature names replace underscores with hyphens while exported matrices preserve original signature names.
+Write a derivative Seurat object, per-task matrices, coverage and grouped-summary tables, configurable faceted heatmaps and UMAP activity maps, task and run manifests, and session information. Attach each score matrix as a namespaced Seurat assay with programs as features and cells as columns. Use `assay_feature_mapping.tsv` because Seurat assay feature names replace underscores with hyphens while exported matrices preserve original signature names.
 
 ## Result organization
 

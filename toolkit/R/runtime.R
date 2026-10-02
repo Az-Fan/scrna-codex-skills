@@ -82,11 +82,27 @@ save_scrna_object <- function(obj, path) {
 get_raw_counts <- function(obj, assay = NULL) {
   if (!requireNamespace("SeuratObject", quietly = TRUE)) stop("Package 'SeuratObject' is required")
   assay <- assay %||% Seurat::DefaultAssay(obj)
+  if (!assay %in% names(obj@assays)) stop("Assay not found: ", assay)
   if (utils::packageVersion("SeuratObject") >= "5.0.0") {
-    SeuratObject::LayerData(obj, assay = assay, layer = "counts")
+    selected <- obj[[assay]]
+    layers <- SeuratObject::Layers(selected, search = "^counts($|[.])")
+    if (!length(layers)) stop("No raw counts layer in assay: ", assay)
+    # 只在内存中合并，保证导出的矩阵覆盖全部对象细胞。
+    if (length(layers) > 1L) selected <- SeuratObject::JoinLayers(selected, layers = "counts", new = "counts")
+    counts <- SeuratObject::LayerData(selected, layer = if (length(layers) > 1L) "counts" else layers[[1]])
   } else {
-    SeuratObject::GetAssayData(obj, assay = assay, slot = "counts")
+    counts <- SeuratObject::GetAssayData(obj, assay = assay, slot = "counts")
   }
+  cells <- colnames(obj)
+  if (!nrow(counts) || !ncol(counts)) stop("Raw counts matrix is empty: ", assay)
+  if (anyDuplicated(colnames(counts)) || !setequal(cells, colnames(counts))) {
+    stop("Raw counts cells do not match all object cells in assay: ", assay)
+  }
+  values <- if (inherits(counts, "sparseMatrix")) counts@x else as.vector(counts)
+  if (any(!is.finite(values)) || any(values < 0) || any(abs(values - round(values)) > 1e-8)) {
+    stop("Raw counts must be finite non-negative integers: ", assay)
+  }
+  counts[, cells, drop = FALSE]
 }
 
 technical_path <- function(out, name) {

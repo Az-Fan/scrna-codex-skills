@@ -12,9 +12,6 @@ config[["output"]][["figure_format"]] <- cfg_get(config, "plots.figure_format", 
 write_tsv <- function(x, path) utils::write.table(x, path, sep = "\t", quote = FALSE, row.names = FALSE, na = "")
 safe <- function(x) gsub("[^A-Za-z0-9]+", "_", tolower(x))
 enabled <- function(name) isTRUE(cfg_get(config, paste0("plots.", name), TRUE))
-figure_stems <- c("target_gene_featureplots", "target_gene_dotplot", "target_gene_violinplot", "target_gene_sample_expression", "target_gene_sample_heatmap", "target_gene_de_effect", "target_gene_volcano_highlight")
-stale <- unlist(lapply(figure_stems, function(stem) file.path(out, paste0(stem, c(".png", ".pdf")))))
-unlink(stale[file.exists(stale)])
 
 gene_cfg <- cfg_get(config, "genes", required = TRUE)
 gene_info <- do.call(rbind, lapply(gene_cfg, function(x) {
@@ -48,7 +45,6 @@ long <- do.call(rbind, lapply(available, function(g) data.frame(cell[, c("cell_i
 keys <- interaction(long$symbol, long$label, long$sample, long$condition, long$population, drop = TRUE, lex.order = TRUE)
 summary_rows <- lapply(split(long, keys), function(x) data.frame(symbol = x$symbol[[1]], label = x$label[[1]], sample = x$sample[[1]], condition = x$condition[[1]], population = x$population[[1]], n_cells = nrow(x), mean_expression = mean(x$expression), median_expression = median(x$expression), detected_fraction = mean(x$expression > 0), stringsAsFactors = FALSE))
 cell_summary <- do.call(rbind, summary_rows); rownames(cell_summary) <- NULL
-write_tsv(cell_summary, file.path(out, "target_gene_cell_expression_summary.tsv"))
 
 de <- NULL; de_path <- cfg_get(config, "input.differential_table")
 de_gene <- cfg_get(config, "differential_columns.gene", "gene"); de_lfc <- cfg_get(config, "differential_columns.log2_fold_change", "log2FoldChange"); de_padj <- cfg_get(config, "differential_columns.adjusted_p_value", "padj")
@@ -56,6 +52,24 @@ if (!is.null(de_path) && nzchar(de_path)) {
   de <- if (grepl("\\.csv$", de_path, ignore.case = TRUE)) read.csv(de_path, check.names = FALSE) else read.delim(de_path, check.names = FALSE)
   miss_cols <- setdiff(c(de_gene, de_lfc, de_padj), names(de)); if (length(miss_cols)) stop("Missing differential table columns: ", paste(miss_cols, collapse = ", "))
   de[[de_gene]] <- as.character(de[[de_gene]])
+  selection <- cfg_get(config, "differential_selection", list())
+  # 先选择完整的一个差异任务，再做基因展示筛选。
+  for (column in names(selection)) {
+    value <- selection[[column]]
+    if (is.null(value)) next
+    if (!column %in% names(de)) stop("Differential selection column not found: ", column)
+    if (length(value) != 1L || !nzchar(as.character(value))) stop("Differential selection requires one value per column")
+    de <- de[!is.na(de[[column]]) & as.character(de[[column]]) == as.character(value), , drop = FALSE]
+  }
+  if (!nrow(de)) stop("Differential selection matched zero rows")
+  for (column in intersect(c("population", "comparison_id", "numerator", "denominator"), names(de))) {
+    if (anyNA(de[[column]]) || length(unique(de[[column]])) != 1L) {
+      stop("Select one differential task with differential_selection; ambiguous column: ", column)
+    }
+  }
+  if (anyNA(de[[de_gene]]) || any(!nzchar(de[[de_gene]])) || anyDuplicated(de[[de_gene]])) {
+    stop("Differential table must contain exactly one row per gene after differential_selection")
+  }
 }
 
 pb <- NULL; pb_path <- cfg_get(config, "input.pseudobulk_data")
@@ -69,6 +83,10 @@ if (!is.null(pb)) {
   mat <- as.matrix(pb$normalized_counts); common <- intersect(available, rownames(mat))
   if (length(common)) {
     cd <- as.data.frame(pb$coldata); ids <- colnames(mat)
+    if (anyDuplicated(ids) || anyDuplicated(rownames(cd)) || !setequal(ids, rownames(cd))) {
+      stop("Pseudobulk coldata sample IDs do not match normalized-count columns")
+    }
+    cd <- cd[ids, , drop = FALSE]
     pb_sample_col <- if (sample_col %in% names(cd)) sample_col else if ("sample" %in% names(cd)) "sample" else NULL
     pb_condition_col <- if (!is.null(condition_col) && condition_col %in% names(cd)) condition_col else if ("condition" %in% names(cd)) "condition" else NULL
     sample_values <- do.call(rbind, lapply(common, function(g) data.frame(symbol = g, label = gene_info$label[match(g, gene_info$symbol)], sample = if (is.null(pb_sample_col)) ids else as.character(cd[[pb_sample_col]]), condition = if (is.null(pb_condition_col)) "all" else as.character(cd[[pb_condition_col]]), value = log2(as.numeric(mat[g, ]) + 1), source = "pseudobulk_normalized_counts_log2p1", stringsAsFactors = FALSE)))
@@ -78,6 +96,7 @@ if (is.null(sample_values)) {
   sample_values <- aggregate(expression ~ symbol + label + sample + condition, long, mean)
   names(sample_values)[names(sample_values) == "expression"] <- "value"; sample_values$source <- "mean_normalized_cell_expression"
 }
+write_tsv(cell_summary, file.path(out, "target_gene_cell_expression_summary.tsv"))
 write_tsv(sample_values, file.path(out, "target_gene_sample_expression.tsv"))
 
 gene_status <- gene_info
@@ -89,6 +108,13 @@ write_tsv(gene_status, file.path(out, "gene_status.tsv"))
 target_summary <- gene_status
 target_summary$log2_fold_change <- NA_real_; target_summary$adjusted_p_value <- NA_real_
 if (!is.null(de)) { m <- match(target_summary$symbol, de[[de_gene]]); target_summary$log2_fold_change <- as.numeric(de[[de_lfc]][m]); target_summary$adjusted_p_value <- as.numeric(de[[de_padj]][m]) }
+if (!is.null(de)) {
+  scope <- intersect(c("population", "comparison_id", "numerator", "denominator"), names(de))
+  for (column in scope) target_summary[[column]] <- as.character(de[[column]][[1]])
+  scope_record <- data.frame(column = names(cfg_get(config, "differential_selection", list())) %||% character(),
+                             selected_value = vapply(cfg_get(config, "differential_selection", list()), function(x) if (is.null(x)) "" else as.character(x), character(1)))
+  write_tsv(scope_record, technical_path(out, "differential_selection.tsv"))
+}
 write_tsv(target_summary, file.path(out, "target_gene_summary.tsv"))
 
 status <- data.frame(family = character(), file = character(), status = character(), reason = character(), stringsAsFactors = FALSE)

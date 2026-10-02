@@ -80,11 +80,12 @@ def main() -> int:
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument("--env-root", type=Path, default=Path("/home/faz_laptop/projects/scrna_envs"))
     parser.add_argument("--pixi", type=Path, default=Path.home() / ".pixi/bin/pixi")
+    parser.add_argument("--output-root", type=Path, help="use an isolated directory instead of replacing previous fixture outputs")
     parser.add_argument("--start-at", choices=list(SKILL_ENVS), help="resume at this skill without deleting earlier outputs")
     args = parser.parse_args()
     repo = args.repo.resolve()
-    output_root = repo / "test-output/e2e"
-    installed = repo / "test-output/installed"
+    output_root = args.output_root.resolve() if args.output_root else repo / "test-output/e2e"
+    installed = output_root.parent / "installed"
     configs = output_root / "configs"
     fixture = repo / "tests/fixtures/tiny_scrna.rds"
     qc_fixture = repo / "tests/fixtures/tiny_scrna_multilayer.rds"
@@ -109,7 +110,7 @@ def main() -> int:
     qc_project = args.env_root / "01-scrna-qc"
     base = {"project": {"id": "tiny_fixture"}, "input": {"object": str(fixture)}}
     definitions = {
-        "01-scrna-standardize-input": {**base, "input": {"path": str(fixture), "format": "auto"}, "metadata": {"sample": "sample_label"}},
+        "01-scrna-standardize-input": {**base, "input": {"path": str(fixture), "format": "auto"}, "metadata": {"sample": "sample_label", "condition": "condition", "batch": "batch_id"}},
         "02-scrna-calculate-qc-metrics": {
             "pixi": {"executable": str(args.pixi), "project": str(qc_project), "environment": "default"},
             "input": {"type": "seurat", "object": str(qc_fixture), "starsolo_dir": None, "gtf_file": None},
@@ -127,7 +128,7 @@ def main() -> int:
         },
         "04-scrna-apply-qc-filter": {
             **base,
-            "input": {"object": str(fixture), "decision_table": str(decision_table), "assay": "RNA"},
+            "input": {"object": str(qc_fixture), "decision_table": str(decision_table), "assay": "RNA"},
             "metadata": {"sample": "sample_label", "condition": "condition"},
             "decision": {"cell_id_column": "cell_id", "include_all_true": ["in_scope", "passes_core_qc"], "exclude_any_true": ["exclude_severe"], "reason_column": "reason", "expected_retained_cells": 79, "carry_columns": ["passes_core_qc", "exclude_severe"]},
             "approval": {"status": "approved", "approved_at": "2026-09-02", "note": "deterministic E2E fixture"},
@@ -147,7 +148,7 @@ def main() -> int:
         },
         "07-scrna-find-cluster-markers": {**base, "metadata": {"cluster": "seurat_clusters"}, "analysis": {"assay": "RNA", "test_use": "wilcox", "only_pos": True, "logfc_threshold": 0.1, "min_pct": 0.1, "min_diff_pct": -0.1, "return_thresh": 1.0, "max_cells_per_ident": None, "random_seed": 1, "join_layers": True, "normalize_if_missing": True}, "reporting": {"top_n": 10, "dotplot_top_n": 3}},
         "08-scrna-annotate-cells": {**base, "workflow": {"action": "prepare_review"}, "input": {"object": str(fixture), "markers": str(output_root / "07-scrna-find-cluster-markers/cluster_markers.tsv")}, "metadata": {"sample": "sample_label", "condition": "condition", "cluster": "seurat_clusters", "reduction": "umap"}, "clustering": {"compute_if_missing": False}, "markers": {"assay": "RNA", "canonical": {"endothelial": ["Kdr", "Pecam1", "Cdh5"], "fibroblast": ["Col1a1", "Col3a1", "Dcn"]}}},
-        "09-scrna-export-subset": {**base, "metadata": {"sample": "sample_label", "cell_type": "cell_type"}, "subset": {"include": ["Endothelial"]}},
+        "09-scrna-export-subset": {**base, "input": {"object": str(qc_fixture)}, "metadata": {"sample": "sample_label", "cell_type": "cell_type"}, "subset": {"include": ["Endothelial"]}},
         "10-scrna-score-programs": {**base, "input": {"object": str(fixture), "assay": "RNA", "layer": "counts"}, "species": "mouse", "tasks": [{"name": "vascular_program", "method": "addmodulescore", "gene_sets": {"source": "inline", "sets": {"vascular": ["Kdr", "Pecam1", "Cdh5"]}}, "coverage": {"min_genes": 3, "min_fraction": 1.0, "on_insufficient": "error"}, "parameters": {"normalize_if_missing": True, "nbin": 4, "ctrl": 2}}], "summarize_by": ["sample_label", "condition", "cell_type"], "random_seed": 1, "cores": 1, "cache": {"enabled": False}, "output": {"object_format": "rds"}},
         "11-scrna-run-differential-analysis": {**base, "metadata": {"sample": "sample_label", "condition": "condition", "covariates": []}, "population": {"mode": "all", "include": [], "exclude": []}, "comparisons": [{"id": "stz_vs_control", "numerator": "stz", "denominator": "control"}], "analysis": {"stage": "differential", "method": "pseudobulk_deseq2", "assay": "RNA", "design": "~ condition", "min_cells_per_sample_population": 10, "min_samples_per_group": 2, "min_total_count": 1, "min_count_per_sample": 1, "min_samples_expressed": 2, "padj_threshold": 0.1, "lfc_threshold": 0.1, "lfc_shrink": False}, "plots": {"top_genes": 10}, "enrichment": {"enabled": False, "species": "mouse", "gene_id_type": "SYMBOL"}},
         "12-scrna-run-pathway-enrichment": {"project": {"id": "tiny_fixture_enrichment"}, "random_seed": 1, "input": {"differential_table": str(output_root / "11-scrna-run-differential-analysis/all_comparisons.tsv")}, "analysis": {"stage": "enrichment_only", "padj_threshold": 1.0, "lfc_threshold": 0.0}, "enrichment": {"enabled": True, "species": "mouse", "gene_id_type": "SYMBOL", "databases": ["GO_BP"], "min_input_genes": 1, "min_gene_set_size": 1, "max_gene_set_size": 500, "plot_top_terms": 5, "plot_label_width": 30, "plot_terms_per_page": 8}},
@@ -180,6 +181,19 @@ def main() -> int:
             "runtime": {"pixi_root": str(args.env_root)},
         },
     }
+    definitions["05-scrna-benchmark-integration"]["input"]["object"] = str(qc_fixture)
+    definitions["10-scrna-score-programs"]["input"]["object"] = str(qc_fixture)
+    definitions["10-scrna-score-programs"]["tasks"][0]["gene_sets"]["sets"] = {"vascular_program": ["Kdr", "Pecam1", "Cdh5"]}
+    definitions["10-scrna-score-programs"]["visualization"] = {
+        "enabled": True,
+        "group_heatmap": {"x": "condition", "facet": "cell_type", "focus_levels": ["Endothelial"]},
+        "umap": {"enabled": True, "features_per_page": 1},
+    }
+    EXPECTED["10-scrna-score-programs"].extend([
+        "figures/vascular_program_group_heatmap.png",
+        "figures/vascular_program_group_heatmap_focused.png",
+        "figures/vascular_program_umap_activity_page1.png",
+    ])
 
     report = {"fixture_sha256_before": fixture_hash, "skills": {}}
     started = args.start_at is None
@@ -287,6 +301,21 @@ def main() -> int:
                     raise RuntimeError(f"{skill}: artifact checksum mismatch: {artifact_path}")
         if manifest.get("skill") != skill:
             raise RuntimeError(f"{skill}: run manifest skill mismatch: {manifest.get('skill')!r}")
+        if skill == "01-scrna-standardize-input":
+            call([sys.executable, installed / skill / "scripts/validate_project.py", out / "samples.tsv"])
+        if skill == "05-scrna-benchmark-integration":
+            with (out / "metric_results_long.tsv").open(encoding="utf-8", newline="") as handle:
+                metric_rows = list(csv.DictReader(handle, delimiter="\t"))
+            if not metric_rows or any(row["status"] != "completed" or not row["value"] for row in metric_rows):
+                raise RuntimeError(f"{skill}: requested metrics did not all complete: {metric_rows}")
+        if skill == "09-scrna-export-subset":
+            with (out / "subset_metadata.tsv").open(encoding="utf-8", newline="") as handle:
+                subset_rows = list(csv.DictReader(handle, delimiter="\t"))
+            barcodes = (out / "barcodes.tsv").read_text().splitlines()
+            with (out / "subset_counts.mtx").open() as handle:
+                dimensions = next(line for line in handle if not line.startswith("%")).split()
+            if len(subset_rows) != 40 or [row["cell_id"] for row in subset_rows] != barcodes or int(dimensions[1]) != 40:
+                raise RuntimeError(f"{skill}: raw counts, metadata and barcodes are not aligned for multi-layer input")
         if skill == "02-scrna-calculate-qc-metrics":
             with gzip.open(out / "metadata.tsv.gz", "rt", encoding="utf-8", newline="") as handle:
                 metadata_rows = list(csv.DictReader(handle, delimiter="\t"))

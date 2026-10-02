@@ -42,7 +42,8 @@ This catalog records existing plot families before visual redesign. A family may
 | 08 | annotated_umap.pdf | apply_confirmed; broad and fine annotation panels | Preserve |
 | 08 | cluster_sample_condition_umap.pdf | apply_confirmed; available audit grouping fields | Preserve |
 | 09 | No figure | Subset export produces object/matrix/tables | Preserve |
-| 10 | <task>_group_mean_heatmap.png | Configured summary groups; at least two signatures and groups | Preserve |
+| 10 | <task>_group_heatmap[_focused].png | Configured comparison/population fields; descriptive group means and optional focused populations | Configurable; PNG 300 dpi |
+| 10 | <task>_umap_activity_pageN.png | Explicitly enabled UMAP activity maps; paginate every retained signature | Optional; PNG 300 dpi |
 | 11 | volcano.png | Each successful population-by-comparison task | Preserve; `paper_v1` |
 | 11 | MA_plot.png | Result includes baseMean | Preserve; `paper_v1` |
 | 11 | pseudobulk_PCA.png | Sample-level normalized pseudobulk data | Preserve; `paper_v1` |

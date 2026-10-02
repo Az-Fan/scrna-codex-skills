@@ -7,7 +7,28 @@ format <- cfg_get(config, "input.format", "auto")
 sample_id <- cfg_get(config, "input.sample_id")
 obj <- load_scrna_object(path, format, sample_id)
 sample_col <- cfg_get(config, "metadata.sample", required = TRUE)
-assert_metadata(obj, sample_col)
+condition_col <- cfg_get(config, "metadata.condition")
+batch_col <- cfg_get(config, "metadata.batch")
+sample_fields <- unique(c(sample_col, condition_col, batch_col))
+assert_metadata(obj, sample_fields)
+meta <- obj[[]]
+for (field in sample_fields) {
+  values <- as.character(meta[[field]])
+  if (anyNA(values) || any(!nzchar(trimws(values)))) stop("Missing or blank sample-level metadata: ", field)
+}
+samples <- unique(meta[sample_fields])
+if (anyDuplicated(samples[[sample_col]])) stop("Each sample must map to exactly one condition and batch")
+roles <- list(sample_id = sample_col, condition = condition_col, batch = batch_col)
+for (role in names(roles)) {
+  field <- roles[[role]]
+  if (is.null(field)) next
+  if (role %in% names(samples) && !identical(as.character(samples[[role]]), as.character(samples[[field]]))) {
+    stop("Ambiguous canonical sample-table column: ", role)
+  }
+  samples[[role]] <- samples[[field]]
+}
+samples <- samples[unique(c(names(roles)[!vapply(roles, is.null, logical(1))], sample_fields))]
+invisible(get_raw_counts(obj))
 out <- prepare_output(config)
 meta_path <- file.path(out, "cell_metadata.tsv")
 samples_path <- file.path(out, "samples.tsv")
@@ -19,9 +40,6 @@ if (object_format == "qs" && !requireNamespace("qs", quietly = TRUE)) {
 }
 object_path <- file.path(out, paste0("standardized_object.", object_format))
 utils::write.table(cbind(cell_id = rownames(obj[[]]), obj[[]]), meta_path, sep = "\t", quote = FALSE, row.names = FALSE)
-sample_fields <- unique(c(sample_col, cfg_get(config, "metadata.condition"), cfg_get(config, "metadata.batch")))
-sample_fields <- sample_fields[!vapply(sample_fields, is.null, logical(1))]
-samples <- unique(obj[[]][sample_fields])
 utils::write.table(samples, samples_path, sep = "\t", quote = FALSE, row.names = FALSE)
 save_scrna_object(obj, object_path)
 jsonlite::write_json(list(source = normalizePath(path), format = format, object_format = object_format, cells = ncol(obj), genes = nrow(obj)), technical_path(out, "provenance.json"), auto_unbox = TRUE, pretty = TRUE)

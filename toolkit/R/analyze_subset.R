@@ -6,6 +6,8 @@ if (!requireNamespace("Seurat", quietly = TRUE)) stop("Package 'Seurat' is requi
 obj <- load_scrna_object(cfg_get(config, "input.object", required = TRUE), "auto")
 sample_col <- cfg_get(config, "metadata.sample", required = TRUE); type_col <- cfg_get(config, "metadata.cell_type", required = TRUE)
 assert_metadata(obj, c(sample_col, type_col)); include <- unlist(cfg_get(config, "subset.include", required = TRUE))
+missing_labels <- setdiff(include, as.character(obj[[]][[type_col]]))
+if (length(missing_labels)) stop("Requested subset labels are absent: ", paste(missing_labels, collapse = ", "))
 keep <- rownames(obj[[]])[obj[[]][[type_col]] %in% include]
 if (!length(keep)) stop("Subset selection matched zero cells")
 sub <- subset(obj, cells = keep)
