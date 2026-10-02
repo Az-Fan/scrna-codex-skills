@@ -6,6 +6,7 @@ description: Run a configurable scRNA-seq batch-correction benchmark from a Seur
 # Benchmark scRNA Integration
 
 Compare only explicitly selected methods and parameters. Always retain `none` as the uncorrected baseline.
+The default Python is the registered integration `scvi` environment, shared by execution and dependency checks. Read [references/compatibility.md](references/compatibility.md) when changing the environment root or interpreter.
 
 ## Workflow
 

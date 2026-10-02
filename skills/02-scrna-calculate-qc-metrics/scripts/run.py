@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -67,6 +68,8 @@ def main():
     if not pixi:
         fail("Existing pixi executable not found; set pixi.executable. The skill will not install it")
     environment = pixi_config.get("environment", "default")
+    if not (manifest.parent / "pixi.lock").is_file() or not (manifest.parent / ".pixi/envs" / environment / "bin/Rscript").is_file():
+        fail("Existing pixi.lock and installed R environment are required; deploy the environment before analysis")
     parallel_config = config.get("parallel", {})
     if not isinstance(parallel_config, dict):
         fail("parallel must be an object")
@@ -93,13 +96,15 @@ def main():
     driver = next((path for path in driver_candidates if path.is_file()), None)
     if driver is None:
         fail("calculate_metrics.R not found; install a self-contained build or run from the source repository")
-    command = [pixi, "run", "--manifest-path", str(manifest), "-e", environment,
+    command = [pixi, "run", "--frozen", "--no-install", "--manifest-path", str(manifest), "-e", environment,
                "--", "Rscript", str(driver), str(config_path)]
     plan = {
         "skill": "02-scrna-calculate-qc-metrics",
         "mode": "execute" if args.execute else "dry-run",
         "pixi_manifest": str(manifest),
         "pixi_environment": environment,
+        "pixi_manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
+        "pixi_lock_sha256": hashlib.sha256((manifest.parent / "pixi.lock").read_bytes()).hexdigest(),
         "input_type": input_type,
         "input": str(primary),
         "gtf_file": str(gtf) if gtf else None,

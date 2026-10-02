@@ -6,6 +6,7 @@ description: Calculate available per-cell QC metrics from STARsolo matrices or a
 # Calculate scRNA QC Metrics
 
 Use the project's existing pixi environment. Never create an environment or install packages.
+The runner requires an existing lock file and installed R interpreter, and uses `pixi run --frozen --no-install`. Read [references/compatibility.md](references/compatibility.md) when diagnosing dependencies.
 
 ## Required conversation
 

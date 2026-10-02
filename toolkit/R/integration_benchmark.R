@@ -131,7 +131,8 @@ python_methods <- any(vapply(scenarios, function(x) x$name %in% c("scvi", "scanv
 requested_metrics <- length(as_chr(cfg_get(config, "metrics.batch_removal", list()))) + length(as_chr(cfg_get(config, "metrics.biological_conservation", list()))) > 0L
 requested_plots <- length(as_chr(cfg_get(config, "plots", list()))) > 0L
 if (python_methods || requested_metrics || requested_plots) {
-  prefix <- as_chr(cfg_get(config, "benchmark.python_argv_prefix", list("python3")))
+  prefix <- scrna_python_prefix(config)
+  if (!nzchar(Sys.which(prefix[[1]])) && !file.exists(prefix[[1]])) stop("Configured integration Python is missing: ", prefix[[1]])
   py_candidates <- c(
     file.path(dirname(script_file), "integration_python.py"),
     file.path(dirname(script_file), "..", "..", "skills", "05-scrna-benchmark-integration", "scripts", "integration_python.py")

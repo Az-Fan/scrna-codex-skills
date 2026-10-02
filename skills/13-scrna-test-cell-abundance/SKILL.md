@@ -6,6 +6,7 @@ description: Test replicated scRNA-seq cell-type composition or local cell-state
 # Test scRNA Cell Abundance
 
 Choose the estimand before the method. Cells are observations; samples or donors are the inferential replicates.
+Resolve the R and scCODA runtimes from the same environment root; an explicitly configured missing scCODA interpreter must fail. Read [references/compatibility.md](references/compatibility.md) when deploying environments or diagnosing dependencies.
 
 ## Workflow
 

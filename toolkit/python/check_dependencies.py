@@ -2,10 +2,9 @@
 """Check registered runtimes and the branches requested in a skill config."""
 import argparse
 import json
-import os
 import subprocess
 from pathlib import Path
-from scrna_runtime import ENV_PROFILES, nested_get
+from scrna_runtime import nested_get, environment_project, environment_record, integration_python_prefix, sccoda_python
 
 CORE = ["Seurat", "SeuratObject", "Matrix", "jsonlite"]
 PROFILES = {
@@ -103,14 +102,12 @@ def main():
     if skill not in PROFILES:
         raise SystemExit(f"Unknown released skill: {skill}")
     config = json.loads(args.config.read_text()) if args.config else {}
-    root = Path(args.pixi_root or nested_get(config, "runtime.pixi_root") or os.environ.get("SCRNA_PIXI_ROOT") or "~/projects/scrna_envs").expanduser().resolve()
-    project = root / ENV_PROFILES[skill]
-    if skill in {"02-scrna-calculate-qc-metrics", "03-scrna-review-qc"} and nested_get(config, "pixi.project"):
-        project = Path(nested_get(config, "pixi.project")).expanduser().resolve()
-        if project.name == "pixi.toml":
-            project = project.parent
+    if args.pixi_root:
+        config.setdefault("runtime", {})["pixi_root"] = args.pixi_root
+    project = environment_project(skill, config)
     required, optional = package_requirements(skill, config)
     report = {"skill": skill, "pixi_manifest": str(project / "pixi.toml"), "required_packages": {}, "optional_packages": {}, "compatible": False, "errors": []}
+    report["environment"] = environment_record(skill, config)
     rscript = project / ".pixi/envs" / (nested_get(config, "pixi.environment") or "default") / "bin/Rscript"
     if not (project / "pixi.toml").is_file() or not rscript.is_file():
         report["errors"].append("Registered pixi manifest or Rscript is missing; system R fallback is disabled")
@@ -140,7 +137,7 @@ def main():
                 modules.append("scvi")
             if "bbknn" in methods:
                 modules.append("bbknn")
-            prefix = nested_get(config, "benchmark.python_argv_prefix") or [str(project / ".pixi/envs/scvi/bin/python")]
+            prefix = integration_python_prefix(config)
             report["python_argv_prefix"] = prefix
             present, error, versions = probe_python(prefix, modules)
             report["python_modules"] = present
@@ -155,7 +152,7 @@ def main():
             if not cmdstan.is_dir():
                 report["errors"].append("Registered CmdStan installation is missing")
         if "sccoda" in methods:
-            python = nested_get(config, "runtime.sccoda_python") or str(project / ".pixi/envs/sccoda/bin/python")
+            python = sccoda_python(config)
             report["sccoda_runtime"] = python
             present, error, versions = probe_python([python], ["pertpy", "anndata", "numpyro", "jax"])
             report["python_modules"] = present

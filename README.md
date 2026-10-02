@@ -133,6 +133,22 @@ python3 ~/.codex/skills/<skill-name>/scripts/run_in_tmux.py \
 
 每个 skill 均可运行 `scripts/check_dependencies.py --config <项目配置>`，按输入/输出格式与所选方法检查真实依赖。只运行 `--help` 或不提供配置的基础探测不能证明所有可选分支可用。整合评价会检查配置中的 Python 和 `scib_metrics`；QS 输入和显式 QS 输出会要求 `qs`。
 
+六组环境的配置和锁文件随仓库维护在 [environments](environments/README.md)，安装 skill 不会自动安装这些环境。环境根目录按 `runtime.pixi_root`、`SCRNA_PIXI_ROOT`、`~/projects/scrna_envs` 的优先级选择；02、03 使用配置里的 `pixi.project` 和 `pixi.environment`。05 默认使用整合项目的 `scvi` Python，13 的 scCODA 使用丰度项目的 `sccoda` Python；明确指定的解释器覆盖优先，路径错误会失败。
+
+核查当前环境配置、解释器和补装包：
+
+```bash
+python3 scripts/manage_environments.py --target ~/projects/scrna_envs
+```
+
+新机器显式部署配置并安装锁定的依赖：
+
+```bash
+python3 scripts/manage_environments.py --target ~/projects/scrna_envs --apply --install
+```
+
+更新已有环境配置时加 `--force`，旧配置会先备份；加 `--install` 才安装依赖。分析阶段直接使用已安装的 R/Python，02、03 的 Pixi 命令使用 `--frozen --no-install`，不会重新求解、安装或升级环境。运行记录包含环境配置和锁文件的 SHA256。补装 R 包由 `supplemental-r.json` 固定版本、源归档校验值和适用的 Git 提交；分析任务不会调用补装程序。
+
 ## 四、15 个 skill 的输入、用法和输出
 
 ### 01-scrna-standardize-input：标准化输入和元数据
@@ -635,13 +651,11 @@ python3 ~/.codex/skills/13-scrna-test-cell-abundance/scripts/run.py \
 sccomp、scCODA 或多方法运行建议交给前述 tmux supervisor。`07-cell-abundance` 环境的首次部署命令为：
 
 ```bash
-cd /home/faz_laptop/projects/scrna_envs/07-cell-abundance
-pixi install -e default
-pixi run -e default install-sccomp-runtime
-pixi install -e sccoda
+python3 scripts/manage_environments.py --target ~/projects/scrna_envs \
+  --profile 07-cell-abundance --apply --install
 ```
 
-环境文件和 `pixi.lock` 固定 R/sccomp/DCATS/Milo、CmdStan 以及 Python/pertpy/scCODA 依赖；skill 自己不会在分析运行时安装或升级包。
+环境文件和 `pixi.lock` 固定 R/sccomp/DCATS/Milo、CmdStan 以及 Python/pertpy/scCODA 依赖；`supplemental-r.json` 另行固定 CmdStanR 和补装依赖。已有配置加 `--force` 后先备份；skill 自己不会在分析运行时安装或升级包。
 
 **主要输出**
 

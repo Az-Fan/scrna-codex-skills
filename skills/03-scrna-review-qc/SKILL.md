@@ -6,6 +6,7 @@ description: Auto-detect available QC metrics in a Seurat RDS/QS object and gene
 # Review scRNA-seq QC
 
 Use the existing project pixi environment. Never create, install, or update an environment.
+The runner requires an existing lock file and installed R interpreter, and uses `pixi run --frozen --no-install`. Read [references/compatibility.md](references/compatibility.md) when diagnosing dependencies.
 
 ## Required inputs
 

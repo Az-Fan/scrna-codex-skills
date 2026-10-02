@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "packages": [
+    {
+      "package": "GenomeInfoDbData",
+      "version": "1.2.13",
+      "archive": "GenomeInfoDbData_1.2.13.tar.gz",
+      "urls": [
+        "https://bioconductor.org/packages/3.20/data/annotation/src/contrib/GenomeInfoDbData_1.2.13.tar.gz",
+        "https://bioarchive.galaxyproject.org/GenomeInfoDbData_1.2.13.tar.gz",
+        "https://depot.galaxyproject.org/software/bioconductor-genomeinfodbdata/bioconductor-genomeinfodbdata_1.2.13_src_all.tar.gz"
+      ],
+      "checksum_algorithm": "md5",
+      "checksum": "8798e58b89d84d9fa6a85f2191704668",
+      "origin": "Bioconda dataURLs.json"
+    },
+    {
+      "package": "GO.db",
+      "version": "3.20.0",
+      "archive": "GO.db_3.20.0.tar.gz",
+      "urls": [
+        "https://bioconductor.org/packages/3.20/data/annotation/src/contrib/GO.db_3.20.0.tar.gz",
+        "https://bioarchive.galaxyproject.org/GO.db_3.20.0.tar.gz",
+        "https://depot.galaxyproject.org/software/bioconductor-go.db/bioconductor-go.db_3.20.0_src_all.tar.gz"
+      ],
+      "checksum_algorithm": "md5",
+      "checksum": "a41513069bb1ff4a2ecfa1a538110699",
+      "origin": "Bioconda dataURLs.json"
+    },
+    {
+      "package": "org.Mm.eg.db",
+      "version": "3.20.0",
+      "archive": "org.Mm.eg.db_3.20.0.tar.gz",
+      "urls": [
+        "https://bioconductor.org/packages/3.20/data/annotation/src/contrib/org.Mm.eg.db_3.20.0.tar.gz",
+        "https://bioarchive.galaxyproject.org/org.Mm.eg.db_3.20.0.tar.gz",
+        "https://depot.galaxyproject.org/software/bioconductor-org.mm.eg.db/bioconductor-org.mm.eg.db_3.20.0_src_all.tar.gz"
+      ],
+      "checksum_algorithm": "md5",
+      "checksum": "63357791b48f3fc181edd8c772ee6f94",
+      "origin": "Bioconda dataURLs.json"
+    },
+    {
+      "package": "reactome.db",
+      "version": "1.89.0",
+      "archive": "reactome.db_1.89.0.tar.gz",
+      "urls": [
+        "https://bioconductor.org/packages/3.20/data/annotation/src/contrib/reactome.db_1.89.0.tar.gz",
+        "https://bioarchive.galaxyproject.org/reactome.db_1.89.0.tar.gz",
+        "https://depot.galaxyproject.org/software/bioconductor-reactome.db/bioconductor-reactome.db_1.89.0_src_all.tar.gz"
+      ],
+      "checksum_algorithm": "md5",
+      "checksum": "9cb7d59e83b3dfbe265d3264d880d5f2",
+      "origin": "Bioconda dataURLs.json"
+    }
+  ]
+}

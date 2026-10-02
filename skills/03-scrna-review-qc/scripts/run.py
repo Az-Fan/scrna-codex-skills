@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
 import json
 import shutil
 import subprocess
@@ -51,10 +52,14 @@ def main():
     if driver is None:
         fail("review_qc.R not found; install a self-contained build or run from the source repository")
     environment = pixi_cfg.get("environment", "default")
-    command = [pixi, "run", "--manifest-path", str(manifest), "-e", environment,
+    if not (manifest.parent / "pixi.lock").is_file() or not (manifest.parent / ".pixi/envs" / environment / "bin/Rscript").is_file():
+        fail("Existing pixi.lock and installed R environment are required; deploy the environment before analysis")
+    command = [pixi, "run", "--frozen", "--no-install", "--manifest-path", str(manifest), "-e", environment,
                "--", "Rscript", str(driver), str(config_path)]
     plan = {"skill": "03-scrna-review-qc", "mode": "execute" if args.execute else "dry-run",
             "pixi_manifest": str(manifest), "pixi_environment": environment,
+            "pixi_manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
+            "pixi_lock_sha256": hashlib.sha256((manifest.parent / "pixi.lock").read_bytes()).hexdigest(),
             "input_object": str(object_path), "sample_column": sample_column,
             "output_detail_level": detail_level,
             "output_dir": str(output), "command": command,

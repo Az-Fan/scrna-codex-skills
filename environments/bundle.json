@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "platform": "linux-64",
+  "profiles": {
+    "01-scrna-qc": {
+      "environments": [
+        "default"
+      ],
+      "files": {
+        "pixi.lock": {
+          "source": "01-scrna-qc/pixi.lock",
+          "sha256": "3a6b805281a274ee06914b77bdb52596ee5738a65c8bae64dceabacae65e5735"
+        },
+        "pixi.toml": {
+          "source": "01-scrna-qc/pixi.toml",
+          "sha256": "807a4852292060305805e44cc79e5f85df0d07776c077eba8bad3d0933c8063d"
+        },
+        "supplemental-r.json": {
+          "source": "01-scrna-qc/supplemental-r.json",
+          "sha256": "839f02a7fa31897bdc6ad9f0391a1bd206cbdd0dd2a4fc0f168fd334101c58c3"
+        },
+        "install_supplemental.R": {
+          "source": "install_supplemental.R",
+          "sha256": "06f6f2fe8af4d7987ca0b719071177469572f9185c97eb108c217cf08bc04ddf"
+        }
+      }
+    },
+    "02-annotation": {
+      "environments": [
+        "default"
+      ],
+      "files": {
+        "pixi.lock": {
+          "source": "02-annotation/pixi.lock",
+          "sha256": "b6f96cf2b58c12337089c9a123bae51228ab9861a6e643f544dc9c07010f3ae0"
+        },
+        "pixi.toml": {
+          "source": "02-annotation/pixi.toml",
+          "sha256": "19296347ce0582a6727d2de87d902a22dd8042ffea0ce62c7bda9f3a55f354e9"
+        }
+      }
+    },
+    "03-integration": {
+      "environments": [
+        "default",
+        "scvi"
+      ],
+      "files": {
+        "conda-pypi-map.json": {
+          "source": "03-integration/conda-pypi-map.json",
+          "sha256": "1d8b9dd81db390b2139319237d028817f75de1c20d81003a4f002efccc08a508"
+        },
+        "pixi.lock": {
+          "source": "03-integration/pixi.lock",
+          "sha256": "0866feb110a7c443300c7755c2dabfd7caf7bd2350aef5017331328951012718"
+        },
+        "pixi.toml": {
+          "source": "03-integration/pixi.toml",
+          "sha256": "9931e23e5537a7c4d0fca4dc9cf8fa2b2df25a32b7de392e8a438ba02f97433a"
+        }
+      }
+    },
+    "05-pathway_program": {
+      "environments": [
+        "default"
+      ],
+      "files": {
+        "pixi.lock": {
+          "source": "05-pathway_program/pixi.lock",
+          "sha256": "79a4e49eb8333522bd3cce2e289b8b5ec61b9aac3eafa6456cc302043e7750f4"
+        },
+        "pixi.toml": {
+          "source": "05-pathway_program/pixi.toml",
+          "sha256": "396bec8c2e81fae5190df23bcb48e08db08e357e4459b647fc8886cbdea23473"
+        },
+        "supplemental-r.json": {
+          "source": "05-pathway_program/supplemental-r.json",
+          "sha256": "b760b7dc8f2ed1d1a6e964510fcb162f6a3a0363407890aa3e2bc30d5e05725f"
+        },
+        "install_supplemental.R": {
+          "source": "install_supplemental.R",
+          "sha256": "06f6f2fe8af4d7987ca0b719071177469572f9185c97eb108c217cf08bc04ddf"
+        }
+      }
+    },
+    "06-deg-analysis": {
+      "environments": [
+        "default"
+      ],
+      "files": {
+        "pixi.lock": {
+          "source": "06-deg-analysis/pixi.lock",
+          "sha256": "2f13fb10a486ff92038453e9c534279fd27db9060dbc2d295f683d3d3592d63e"
+        },
+        "pixi.toml": {
+          "source": "06-deg-analysis/pixi.toml",
+          "sha256": "83602f610638e031d7c36769082753439e9112e72e4681bf8583fc3e123efb7e"
+        },
+        "supplemental-r.json": {
+          "source": "06-deg-analysis/supplemental-r.json",
+          "sha256": "b760b7dc8f2ed1d1a6e964510fcb162f6a3a0363407890aa3e2bc30d5e05725f"
+        },
+        "install_supplemental.R": {
+          "source": "install_supplemental.R",
+          "sha256": "06f6f2fe8af4d7987ca0b719071177469572f9185c97eb108c217cf08bc04ddf"
+        }
+      }
+    },
+    "07-cell-abundance": {
+      "environments": [
+        "default",
+        "sccoda"
+      ],
+      "files": {
+        "pixi.lock": {
+          "source": "07-cell-abundance/pixi.lock",
+          "sha256": "9ef6a90fb7256d59320eef7c03ee1b1e8c3efa79d48024691ec38484f4fad275"
+        },
+        "pixi.toml": {
+          "source": "07-cell-abundance/pixi.toml",
+          "sha256": "2d862311783c364a98c430a91a339ada67fc9743930a3ed34deb51c3e1f5946c"
+        },
+        "supplemental-r.json": {
+          "source": "07-cell-abundance/supplemental-r.json",
+          "sha256": "df73915867c1aaa7efa7450683251dce9c0d0acef3b76f29a45df1bfc7d8cd01"
+        },
+        "install_supplemental.R": {
+          "source": "install_supplemental.R",
+          "sha256": "06f6f2fe8af4d7987ca0b719071177469572f9185c97eb108c217cf08bc04ddf"
+        }
+      }
+    }
+  }
+}

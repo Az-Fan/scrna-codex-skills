@@ -1,0 +1,56 @@
+[workspace]
+authors = ["JarningGau <jarninggau@gmail.com>"]
+channels = [
+    "https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge",
+    "https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/bioconda",
+]
+name = "07-cell-abundance"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[tasks.install-supplemental]
+description = "Install checksum-pinned supplemental R packages explicitly"
+cmd = "Rscript install_supplemental.R --install"
+
+[tasks.install-sccomp-runtime]
+description = "Install the pinned sccomp R interface and dependencies"
+cmd = "Rscript install_supplemental.R --install"
+
+
+[feature.r.dependencies]
+r-base = "4.5.*"
+r-languageserver = ">=0.3.17,<0.4"
+r-matrix = ">=1.7,<2"
+r-seurat = ">=5.3,<6"
+r-qs = ">=0.27,<0.28"
+r-jsonlite = ">=2.0,<3"
+r-ggplot2 = ">=4.0,<5"
+r-ggrepel = ">=0.9,<0.10"
+r-patchwork = ">=1.3,<2"
+r-dplyr = ">=1.1,<2"
+r-tidyr = ">=1.3,<2"
+r-tibble = ">=3.3,<4"
+r-readr = ">=2.1,<3"
+r-remotes = ">=2.5,<3"
+cmdstan = ">=2.39,<2.40"
+bioconductor-singlecellexperiment = ">=1.32,<1.33"
+bioconductor-edger = ">=4.8,<4.9"
+bioconductor-limma = ">=3.66,<3.67"
+bioconductor-speckle = ">=1.10,<1.11"
+bioconductor-milor = ">=2.6,<2.7"
+bioconductor-sccomp = ">=2.2,<2.3"
+bioconductor-dcats = ">=1.8,<1.9"
+
+[feature.sccoda.dependencies]
+python = "3.12.*"
+pertpy = ">=1.3,<1.4"
+pyarrow = ">=21,<22"
+
+[environments]
+default = ["r"]
+sccoda = ["sccoda"]
+
+
+[dependencies]

@@ -4,6 +4,7 @@
 
 - Treat `/home/faz_laptop/projects/scrna-codex-skills` on `ssh:xiyouyun` as the only development working tree and source of truth.
 - Treat `git@github.com:Az-Fan/scrna-codex-skills.git` as the synchronized distribution remote, not as a second independently edited copy.
+- Maintain the six skill environment profiles, locks and supplemental sources under `environments/`; deploy them to the shared runtime directory with `scripts/manage_environments.py`. Do not independently edit installed public environment configuration as source. After changes, update bundle checksums and verify environment audit plus relevant selected-method checks.
 - Do not develop or preserve divergent copies in the Windows workspace, Codex/WispScience installed skill directories, build directories, or another computer.
 - Make source changes in the canonical server working tree. Build installed skills and `.skill` packages from that working tree through the repository scripts; never edit generated or installed copies as source.
 - Before changing files, check the canonical working tree, branch, remote, and upstream divergence. Preserve unrelated changes.

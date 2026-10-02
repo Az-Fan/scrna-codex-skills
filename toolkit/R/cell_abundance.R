@@ -359,10 +359,7 @@ run_dcats <- function(comparison, task_dir) {
 }
 
 find_sccoda_python <- function() {
-  configured <- cfg_get(config, "runtime.sccoda_python")
-  if (!is.null(configured) && file.exists(configured)) return(normalizePath(configured))
-  pixi_root <- path.expand(cfg_get(config, "runtime.pixi_root", "~/projects/scrna_envs"))
-  candidate <- file.path(pixi_root, "07-cell-abundance", ".pixi", "envs", "sccoda", "bin", "python")
+  candidate <- scrna_python_prefix(config, "sccoda")
   if (file.exists(candidate)) return(normalizePath(candidate))
   stop("scCODA executable not found; set runtime.sccoda_python")
 }

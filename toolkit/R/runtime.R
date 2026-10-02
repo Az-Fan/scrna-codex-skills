@@ -60,6 +60,40 @@ cfg_get <- function(x, keys, default = NULL, required = FALSE) {
   value
 }
 
+scrna_expand_path <- function(path) {
+  matches <- gregexpr("\\$\\{[A-Za-z_][A-Za-z0-9_]*\\}|\\$[A-Za-z_][A-Za-z0-9_]*", path)[[1]]
+  widths <- attr(matches, "match.length")
+  for (i in rev(seq_along(matches))) {
+    if (matches[i] < 0L) next
+    token <- substr(path, matches[i], matches[i] + widths[i] - 1L)
+    name <- gsub("[${}]", "", token)
+    path <- paste0(substr(path, 1L, matches[i] - 1L), Sys.getenv(name, unset = token), substring(path, matches[i] + widths[i]))
+  }
+  path.expand(path)
+}
+
+scrna_environment_root <- function(config) {
+  root <- cfg_get(config, "runtime.pixi_root")
+  if (is.null(root) || !nzchar(root)) root <- Sys.getenv("SCRNA_PIXI_ROOT")
+  if (!nzchar(root)) root <- "~/projects/scrna_envs"
+  normalizePath(scrna_expand_path(root), mustWork = FALSE)
+}
+
+scrna_python_prefix <- function(config, method = "integration") {
+  if (method == "integration") {
+    prefix <- cfg_get(config, "benchmark.python_argv_prefix")
+    if (!is.null(prefix)) {
+      prefix <- unlist(prefix, use.names = FALSE)
+      prefix[[1]] <- scrna_expand_path(prefix[[1]])
+      return(prefix)
+    }
+    return(file.path(scrna_environment_root(config), "03-integration", ".pixi", "envs", "scvi", "bin", "python"))
+  }
+  configured <- cfg_get(config, "runtime.sccoda_python")
+  if (!is.null(configured) && nzchar(configured)) return(scrna_expand_path(configured))
+  file.path(scrna_environment_root(config), "07-cell-abundance", ".pixi", "envs", "sccoda", "bin", "python")
+}
+
 load_scrna_object <- function(path, format = "auto", sample_id = NULL) {
   path <- normalizePath(path, mustWork = TRUE)
   if (format == "auto") {

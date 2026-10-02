@@ -6,7 +6,7 @@ Supported method names are `none`, `harmony`, `rpca`, `scvi`, `scanvi`, `bbknn`,
 
 Precomputed scenarios include the reduction name in their ID. An optional method `id` can distinguish other repeated method specifications. Expanded IDs must remain unique after sanitization; duplicate parameter values or IDs are rejected before outputs are written.
 
-Run R-native adapters in the R process. Run scVI, scANVI, BBKNN, and scIB-metrics through `benchmark.python_argv_prefix`. Use `['python3']` for an environment containing the required packages or an argv prefix such as `['pixi','run','-e','scvi','python']`; never encode it as a shell command string. The Python stage runs on CPU unless the execution environment and user configuration explicitly provide otherwise.
+Run R-native adapters in the R process. Run scVI, scANVI, BBKNN, and scIB-metrics in the registered `03-integration/.pixi/envs/scvi/bin/python`, resolved from `runtime.pixi_root`, `SCRNA_PIXI_ROOT`, or `~/projects/scrna_envs`, in that order. The dependency checker and executor use this same interpreter. Override only when needed with `benchmark.python_argv_prefix`, as an argv array, such as an absolute Python path or `['pixi','run','--frozen','--no-install','--manifest-path','/path/to/pixi.toml','-e','scvi','--','python']`. Explicit overrides must already contain the requested dependencies. The Python stage runs on CPU unless the execution environment and user configuration explicitly provide otherwise.
 
 ## Metadata roles
 

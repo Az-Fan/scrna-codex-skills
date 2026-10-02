@@ -127,13 +127,49 @@ def sha256(path):
     return digest.hexdigest()
 
 
-def resolved_rscript(skill, config):
+def environment_root(config):
     pixi_root = nested_get(config, "runtime.pixi_root") or os.environ.get("SCRNA_PIXI_ROOT")
-    root = Path(os.path.expandvars(os.path.expanduser(str(pixi_root or "~/projects/scrna_envs"))))
+    return Path(os.path.expandvars(os.path.expanduser(str(pixi_root or "~/projects/scrna_envs")))).resolve()
+
+
+def environment_project(skill, config):
+    configured = nested_get(config, "pixi.project") if skill in {"02-scrna-calculate-qc-metrics", "03-scrna-review-qc"} else None
+    if configured:
+        project = Path(os.path.expandvars(os.path.expanduser(str(configured)))).resolve()
+        return project.parent if project.name == "pixi.toml" else project
+    return environment_root(config) / ENV_PROFILES[skill]
+
+
+def environment_record(skill, config):
+    project = environment_project(skill, config)
+    files = {}
+    for name in ("pixi.toml", "pixi.lock", "supplemental-r.json"):
+        path = project / name
+        files[name] = {"path": str(path), "sha256": sha256(path) if path.is_file() else None}
+    record = {"project": str(project), "files": files}
+    if skill == "05-scrna-benchmark-integration":
+        record["python_argv_prefix"] = integration_python_prefix(config)
+    if skill == "13-scrna-test-cell-abundance":
+        record["sccoda_python"] = sccoda_python(config)
+    return record
+
+
+def integration_python_prefix(config):
+    prefix = list(nested_get(config, "benchmark.python_argv_prefix") or [str(environment_root(config) / "03-integration/.pixi/envs/scvi/bin/python")])
+    prefix[0] = os.path.expandvars(os.path.expanduser(str(prefix[0])))
+    return prefix
+
+
+def sccoda_python(config):
+    configured = nested_get(config, "runtime.sccoda_python") or str(environment_root(config) / "07-cell-abundance/.pixi/envs/sccoda/bin/python")
+    return os.path.expandvars(os.path.expanduser(str(configured)))
+
+
+def resolved_rscript(skill, config):
     profile = ENV_PROFILES.get(skill)
     if not profile:
         return None
-    candidate = root / profile / ".pixi/envs/default/bin/Rscript"
+    candidate = environment_project(skill, config) / ".pixi/envs/default/bin/Rscript"
     return candidate.resolve() if candidate.is_file() else None
 
 
@@ -562,6 +598,7 @@ def make_manifest(skill, config, config_path, errors, warnings):
         "expected_artifacts": expected_artifacts(skill, config),
         "resolved_argv": [str(value) for value in argv] if argv else None,
         "resolved_rscript": str(resolved_rscript(skill, config)) if not config.get("executor") and resolved_rscript(skill, config) else None,
+        "environment": environment_record(skill, config),
         "errors": errors,
         "warnings": warnings,
         "status": "blocked" if errors else "ready",
@@ -672,7 +709,7 @@ def main(skill):
     execution = {"schema_version": 2, "skill": skill, "run_id": run_id, "project_id": nested_get(config, "project.id"),
         "started_at": started, "status": "running", "exit_status": None, "output_dir": str(output_dir),
         "config": {"path": str(args.config.resolve()), "sha256": sha256(args.config)}, "artifacts": [],
-        "previous_output": previous_output, "executor_argv": command}
+        "previous_output": previous_output, "executor_argv": command, "environment": manifest["environment"]}
     write_execution_manifest(execution_path, execution)
     returncode = 1
     process = None
@@ -682,6 +719,9 @@ def main(skill):
             child_env = os.environ.copy()
             child_env["SCRNA_ACTIVE_SKILL"] = skill
             child_env["SCRNA_RUN_ID"] = run_id
+            child_env["SCRNA_PIXI_ROOT"] = str(environment_root(config))
+            if not config.get("executor") and manifest["resolved_rscript"]:
+                child_env["PATH"] = str(Path(manifest["resolved_rscript"]).parent) + os.pathsep + child_env.get("PATH", "")
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, env=child_env)
             assert process.stdout is not None
             for line in process.stdout:
@@ -708,6 +748,7 @@ def main(skill):
         except (OSError, json.JSONDecodeError):
             record = execution
         record.update(run_id=run_id, status="completed" if returncode == 0 else "failed", exit_status=returncode,
-            executor_started_at=started, executor_finished_at=finished, executor_argv=command, previous_output=previous_output)
+            executor_started_at=started, executor_finished_at=finished, executor_argv=command, previous_output=previous_output,
+            environment=manifest["environment"])
         write_execution_manifest(execution_path, record)
     return returncode

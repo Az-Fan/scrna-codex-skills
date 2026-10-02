@@ -24,8 +24,7 @@
     "milo": {"reduction": "pca", "k": 21, "d": 30, "prop": 0.1, "fdr_weighting": "graph-overlap", "save_object": true}
   },
   "runtime": {
-    "pixi_root": "/home/faz_laptop/projects/scrna_envs",
-    "sccoda_python": "/home/faz_laptop/projects/scrna_envs/07-cell-abundance/.pixi/envs/sccoda/bin/python"
+    "pixi_root": "~/projects/scrna_envs"
   },
   "output_dir": "results/GSE/example/13_cell_abundance"
 }

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "packages": [
+    {
+      "package": "GenomeInfoDbData",
+      "version": "1.2.13",
+      "archive": "GenomeInfoDbData_1.2.13.tar.gz",
+      "urls": [
+        "https://bioconductor.org/packages/3.20/data/annotation/src/contrib/GenomeInfoDbData_1.2.13.tar.gz",
+        "https://bioarchive.galaxyproject.org/GenomeInfoDbData_1.2.13.tar.gz",
+        "https://depot.galaxyproject.org/software/bioconductor-genomeinfodbdata/bioconductor-genomeinfodbdata_1.2.13_src_all.tar.gz"
+      ],
+      "checksum_algorithm": "md5",
+      "checksum": "8798e58b89d84d9fa6a85f2191704668",
+      "origin": "Bioconda dataURLs.json"
+    }
+  ]
+}

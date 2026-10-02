@@ -62,6 +62,10 @@ class OutputLayoutTests(unittest.TestCase):
             with self.subTest(skill=skill), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 (root / "pixi.toml").touch()
+                (root / "pixi.lock").touch()
+                interpreter = root / ".pixi/envs/default/bin/Rscript"
+                interpreter.parent.mkdir(parents=True)
+                interpreter.touch()
                 (root / "input.rds").touch()
                 output = root / "results"
                 config = root / "config.json"

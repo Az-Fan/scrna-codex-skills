@@ -108,7 +108,7 @@ def main() -> int:
             writer.writerow([f"cell_{index:03d}", "TRUE", "TRUE", "TRUE" if index == 80 else "FALSE", "approved_fixture_exclusion" if index == 80 else "retained"])
 
     qc_project = args.env_root / "01-scrna-qc"
-    base = {"project": {"id": "tiny_fixture"}, "input": {"object": str(fixture)}}
+    base = {"project": {"id": "tiny_fixture"}, "input": {"object": str(fixture)}, "runtime": {"pixi_root": str(args.env_root)}}
     definitions = {
         "01-scrna-standardize-input": {**base, "input": {"path": str(fixture), "format": "auto"}, "metadata": {"sample": "sample_label", "condition": "condition", "batch": "batch_id"}},
         "02-scrna-calculate-qc-metrics": {
@@ -134,7 +134,7 @@ def main() -> int:
             "approval": {"status": "approved", "approved_at": "2026-09-02", "note": "deterministic E2E fixture"},
             "output": {"object_name": "filtered_object.rds"},
         },
-        "05-scrna-benchmark-integration": {**base, "input": {"object": str(fixture), "assay": "RNA"}, "metadata": {"sample": "sample_label", "batch_variables": ["batch_id"], "biological_labels": ["cell_type"], "condition": "condition"}, "benchmark": {"methods": [{"name": "none"}, {"name": "harmony", "parameter_grid": {"theta": [2]}}], "dims": [1, 2, 3, 4, 5], "neighbors": {"k": 10}, "seed": 1, "python_argv_prefix": [str(args.env_root / "03-integration/.pixi/envs/scvi/bin/python3.12")]}, "metrics": {"batch_removal": ["batch_asw"], "biological_conservation": ["label_asw", "nmi", "ari"]}, "plots": ["score_heatmap", "metric_tradeoff", "umap_by_batch", "umap_by_label"], "gene_programs": {}, "scoring": {"enabled": False, "batch_weight": 0.3, "biology_weight": 0.7}},
+        "05-scrna-benchmark-integration": {**base, "input": {"object": str(fixture), "assay": "RNA"}, "metadata": {"sample": "sample_label", "batch_variables": ["batch_id"], "biological_labels": ["cell_type"], "condition": "condition"}, "benchmark": {"methods": [{"name": "none"}, {"name": "harmony", "parameter_grid": {"theta": [2]}}], "dims": [1, 2, 3, 4, 5], "neighbors": {"k": 10}, "seed": 1}, "metrics": {"batch_removal": ["batch_asw"], "biological_conservation": ["label_asw", "nmi", "ari"]}, "plots": ["score_heatmap", "metric_tradeoff", "umap_by_batch", "umap_by_label"], "gene_programs": {}, "scoring": {"enabled": False, "batch_weight": 0.3, "biology_weight": 0.7}},
         "06-scrna-preprocess-and-cluster": {
             **base,
             "workflow": {"mode": "guided", "action": "run"},

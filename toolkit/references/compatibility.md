@@ -1,6 +1,6 @@
 # Environment compatibility
 
-The repository uses existing pixi projects and never creates or repairs environments automatically.
+Analysis uses existing pixi projects and never creates or repairs environments automatically. The canonical repository separately versions the six environment profiles, lock files, and pinned supplemental R sources under `environments/`. Use the repository's `scripts/manage_environments.py` for read-only audit or explicit deployment; installing a skill does not install these scientific runtimes.
 
 | Skill | Registered pixi project |
 |---|---|
@@ -21,6 +21,8 @@ The repository uses existing pixi projects and never creates or repairs environm
 | `15-scrna-visualize-gene` | `02-annotation` |
 
 Use the registered probe or dependency checker to resolve the exact interpreter. A missing optional package is reported according to the skill contract; dependencies are never installed implicitly.
+
+The environment root is `runtime.pixi_root`, then `SCRNA_PIXI_ROOT`, then `~/projects/scrna_envs`. QC skills 02 and 03 use explicit `pixi.project` and `pixi.environment`; their commands freeze the lock and disable installation. Skill 05 defaults to the integration project's `scvi` Python; skill 13 defaults to the abundance project's `sccoda` Python. Dependency checks and execution use the same resolution. Explicit `benchmark.python_argv_prefix` or `runtime.sccoda_python` overrides are honored; a missing explicit interpreter is an error. Provenance records environment configuration and lock-file SHA256; it does not certify every installed package's bytes.
 
 Run `scripts/check_dependencies.py --config /absolute/path/config.json` to check selected formats and methods. QS inputs or explicitly requested QS outputs require `qs`; skills 01 and 04 choose RDS when their automatic output format has no `qs` available. The integration check probes the configured Python interpreter and requires `scib_metrics` when metrics are requested. Without a config, checks cover the baseline and report optional branches separately.
 

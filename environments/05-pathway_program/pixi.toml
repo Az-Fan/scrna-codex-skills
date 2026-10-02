@@ -1,0 +1,58 @@
+[workspace]
+authors = ["JarningGau <jarninggau@gmail.com>"]
+channels = [
+    "https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge",
+    "https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/bioconda",
+]
+name = "05-gene-program"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[tasks.install-supplemental]
+description = "Install checksum-pinned supplemental R packages explicitly"
+cmd = "Rscript install_supplemental.R --install"
+
+
+
+
+
+[feature.r.dependencies]
+r-base = "4.4.3.*"
+r-languageserver = ">=0.3.17,<0.4"
+r-matrix = ">=1.7_4,<2"
+r-seurat = "5.4.0.*"
+r-qs = ">=0.27.3,<0.28"
+r-lme4 = ">=2.0_1,<3"
+bioconductor-clusterprofiler = ">=4.14.0,<5"
+"bioconductor-org.mm.eg.db" = ">=3.20.0,<4"
+r-biocmanager = ">=1.30.27,<2"
+r-vision = ">=2.0.0,<3"
+r-rcppml = ">=0.3.7.1,<0.4"
+bioconductor-progeny = ">=1.28.0,<2"
+r-msigdbr = ">=26.1.0,<27"
+bioconductor-aucell = ">=1.28.0,<2"
+bioconductor-gsva = ">=2.0.0,<3"
+bioconductor-gseabase = ">=1.68.0,<2"
+
+[feature.cnmf.dependencies]
+cnmf = ">=1.7.1,<2"
+ipykernel = ">=7.2.0,<8"
+
+[feature.decoupler.dependencies]
+r-base = "4.5.1.*"
+bioconductor-decoupler = ">=2.16.0,<3"
+bioconductor-omnipathr = ">=3.18.4,<4"
+r-languageserver = ">=0.3.17,<0.4"
+r-matrix = ">=1.7_4,<2"
+r-seurat = "5.4.0.*"
+r-qs = ">=0.27.3,<0.28"
+bioconductor-progeny = ">=1.32.0,<2"
+
+[environments]
+default = ["r"]
+cnmf = ["cnmf"]
+decoupler = ["decoupler"]
+
+[dependencies]

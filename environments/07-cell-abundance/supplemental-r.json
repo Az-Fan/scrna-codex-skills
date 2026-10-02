@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "packages": [
+    {
+      "package": "checkmate",
+      "version": "2.3.4",
+      "archive": "checkmate_2.3.4.tar.gz",
+      "urls": [
+        "https://cran.r-project.org/src/contrib/checkmate_2.3.4.tar.gz",
+        "https://cran.r-project.org/src/contrib/Archive/checkmate/checkmate_2.3.4.tar.gz"
+      ],
+      "checksum_algorithm": "sha256",
+      "checksum": "95e1068dee07d95c5e616dfd66e622cf245821acd358a77e790118c34ebd85ca"
+    },
+    {
+      "package": "distributional",
+      "version": "0.8.1",
+      "archive": "distributional_0.8.1.tar.gz",
+      "urls": [
+        "https://cran.r-project.org/src/contrib/distributional_0.8.1.tar.gz",
+        "https://cran.r-project.org/src/contrib/Archive/distributional/distributional_0.8.1.tar.gz"
+      ],
+      "checksum_algorithm": "sha256",
+      "checksum": "99c3ebb5f9e9a1a65e292326f0a7d38cd2934e0b3a3fe35006bfa2408a6dae78"
+    },
+    {
+      "package": "tensorA",
+      "version": "0.36.2.1",
+      "archive": "tensorA_0.36.2.1.tar.gz",
+      "urls": [
+        "https://cran.r-project.org/src/contrib/tensorA_0.36.2.1.tar.gz",
+        "https://cran.r-project.org/src/contrib/Archive/tensorA/tensorA_0.36.2.1.tar.gz"
+      ],
+      "checksum_algorithm": "sha256",
+      "checksum": "06588261fe7dff6a8edafe2b9d436b39a3b46c754f2ed327ae6322561a617db7"
+    },
+    {
+      "package": "posterior",
+      "version": "1.7.1",
+      "archive": "posterior-c7f6d87.tar.gz",
+      "urls": [
+        "https://codeload.github.com/stan-dev/posterior/tar.gz/c7f6d87f83b462aafbe50ffe4d2cd603e323715d"
+      ],
+      "checksum_algorithm": "sha256",
+      "checksum": "e6d4d81fc1885efab5f626e52df39d23bdd4eed3a0facec32f5f98643af7829f",
+      "commit": "c7f6d87f83b462aafbe50ffe4d2cd603e323715d"
+    },
+    {
+      "package": "cmdstanr",
+      "version": "0.9.0",
+      "archive": "cmdstanr-da99e2b.tar.gz",
+      "urls": [
+        "https://codeload.github.com/stan-dev/cmdstanr/tar.gz/da99e2ba954658bdad63bffb738c4444c33a4e0e"
+      ],
+      "checksum_algorithm": "sha256",
+      "checksum": "b9fc4c1986ecc2f9e60036d2071cd0450a60d7d052e92177b2546f9d4aaee8d5",
+      "commit": "da99e2ba954658bdad63bffb738c4444c33a4e0e"
+    }
+  ]
+}
