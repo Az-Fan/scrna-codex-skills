@@ -45,3 +45,5 @@ Resolution scan adds:
 5. For a scan with `selection: review`, open the resolution UMAP/clustree/stability outputs, confirm a resolution, then run `references/config.finalize.example.json` in the same output directory. Finalize reuses the already-computed reductions and graphs, validates a temporary replacement object by reading it back, and atomically replaces the scan object.
 
 The skill never auto-selects a resolution. The stability recommendation is recorded separately from the confirmed resolution.
+
+`RESULTS.md` is the portable result entry point; `_provenance/result_delivery.json` records the current run and explicitly retained review-stage files. Comparison task directories have their own linked entry points when present.

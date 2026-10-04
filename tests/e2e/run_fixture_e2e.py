@@ -14,6 +14,8 @@ import gzip
 import hashlib
 import json
 import os
+import re
+from urllib.parse import unquote
 import shutil
 import subprocess
 import sys
@@ -55,6 +57,20 @@ EXPECTED = {
     "14-scrna-visualize-cell-composition": ["composition_counts.tsv", "composition_proportions.tsv", "sample_coverage.tsv", "composition_audit.tsv", "plot_status.tsv", "composition_overview_seurat_clusters.png", "composition_dotplot_seurat_clusters.png", "composition_heatmap_seurat_clusters.png", "composition_counts_seurat_clusters.png", "embedding_diagnostics_seurat_clusters.png", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
     "15-scrna-visualize-gene": ["gene_status.tsv", "target_gene_cell_expression_summary.tsv", "target_gene_sample_expression.tsv", "target_gene_summary.tsv", "plot_status.tsv", "target_gene_featureplots.png", "target_gene_dotplot.png", "target_gene_violinplot.png", "target_gene_sample_expression.png", "target_gene_sample_heatmap.png", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
 }
+
+
+def check_result_delivery(out: Path):
+    registry = json.loads((out / "_provenance/result_delivery.json").read_text())
+    if registry["exit_status"] != 0 or registry["status"] == "failed":
+        raise RuntimeError(f"{out.name}: delivery reports failed execution")
+    for index in out.rglob("RESULTS.md"):
+        for target in re.findall(r"\]\(([^)]+)\)", index.read_text()):
+            resolved = (index.parent / unquote(target)).resolve()
+            if not resolved.exists() or (resolved != out.resolve() and out.resolve() not in resolved.parents):
+                raise RuntimeError(f"Broken or nonportable result link: {index}: {target}")
+    if not (out / "RESULTS.md").is_file():
+        raise RuntimeError(f"{out.name}: missing result entrypoint")
+    return registry
 
 
 def sha256(path: Path) -> str:
@@ -288,6 +304,7 @@ def main() -> int:
             missing.append("standardized_object.(qs|rds)")
         if missing:
             raise RuntimeError(f"{skill}: missing/empty required artifacts: {missing}")
+        delivery = check_result_delivery(out)
         run_manifest_name = "_provenance/run_manifest_finalize.json" if skill == "06-scrna-preprocess-and-cluster" else "_provenance/run_manifest.json"
         if skill == "02-scrna-calculate-qc-metrics":
             run_manifest_name = "_provenance/run_manifest.json"
@@ -332,7 +349,7 @@ def main() -> int:
                 raise RuntimeError(f"{skill}: execution controls missing from run manifest")
         if skill == "03-scrna-review-qc":
             actual_files = {path.name for path in out.iterdir() if path.is_file()}
-            expected_files = {name for name in EXPECTED[skill] if "/" not in name}
+            expected_files = {name for name in EXPECTED[skill] if "/" not in name} | {"RESULTS.md"}
             if actual_files != expected_files:
                 raise RuntimeError(f"{skill}: compact output mismatch: expected {sorted(expected_files)}, got {sorted(actual_files)}")
             if manifest.get("output_detail_level") != "compact":
@@ -386,7 +403,13 @@ def main() -> int:
                 abundance_status = list(csv.DictReader(handle, delimiter="\t"))
             if {row["method"] for row in abundance_status} != {"propeller", "dcats"} or any(row["status"] != "completed" for row in abundance_status):
                 raise RuntimeError(f"{skill}: abundance method execution mismatch: {abundance_status}")
-        report["skills"][skill] = {"status": "passed", "artifacts": EXPECTED[skill]}
+        if skill == "05-scrna-benchmark-integration" and ((out / "exchange").exists() or not (out / "_provenance/exchange/counts.mtx").is_file()):
+            raise RuntimeError("Integration exchange must stay below _provenance")
+        if skill == "10-scrna-score-programs" and ((out / "resource_cache").exists() or list((out / "scores").glob("*.rds")) or (out / "_provenance/resource_cache").exists()):
+            raise RuntimeError("Inline scoring leaked internal or unused caches")
+        if skill == "11-scrna-run-differential-analysis" and "low_replication_warning" not in (out / "RESULTS.md").read_text():
+            raise RuntimeError("Delivery omitted low-replication interpretation")
+        report["skills"][skill] = {"status": "passed", "artifacts": EXPECTED[skill], "delivery_status": delivery["status"]}
 
     report["fixture_sha256_after"] = sha256(fixture)
     if report["fixture_sha256_after"] != fixture_hash:

@@ -84,7 +84,8 @@ class OutputLayoutTests(unittest.TestCase):
                 record = json.loads((output / "_provenance/run_manifest.json").read_text())
                 self.assertNotEqual(record["exit_status"], 0)
                 self.assertTrue((output / "_provenance/run.log").read_text())
-                self.assertEqual([p.name for p in output.iterdir()], ["_provenance"])
+                self.assertEqual({p.name for p in output.iterdir()}, {"_provenance", "RESULTS.md"})
+                self.assertIn("**failed**", (output / "RESULTS.md").read_text())
 
 
 if __name__ == "__main__":

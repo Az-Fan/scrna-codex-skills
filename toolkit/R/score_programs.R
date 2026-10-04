@@ -87,6 +87,7 @@ resolve_gene_sets <- function(spec, species, resource_dir, task_name) {
     provenance$path <- normalizePath(path, mustWork = TRUE)
     provenance$md5 <- unname(tools::md5sum(provenance$path))
   } else if (source == "msigdb") {
+    dir.create(resource_dir, recursive = TRUE, showWarnings = FALSE)
     require_pkg("msigdbr", "Provide a cached GMT with source=gmt if msigdbr is unavailable.")
     collection <- cfg_get(spec, "collection", if (species == "mouse") "MH" else "H")
     subcollection <- cfg_get(spec, "subcollection")
@@ -227,6 +228,7 @@ summarize_scores <- function(scores, meta, groups, task_name) {
 
 save_ggplot <- function(plot, path, width, height, dpi) {
   require_pkg("ggplot2", "Set visualization.enabled=false to run without figures.")
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
   ggplot2::ggsave(path, plot = plot, width = width, height = height, units = "in",
                   dpi = dpi, limitsize = FALSE, bg = "white")
 }
@@ -322,9 +324,7 @@ obj_path <- cfg_get(config, "input.object", required = TRUE)
 obj <- load_scrna_object(obj_path, "auto")
 out <- prepare_output(config)
 dir.create(file.path(out, "scores"), showWarnings = FALSE)
-dir.create(file.path(out, "figures"), showWarnings = FALSE)
-resource_dir <- cfg_get(config, "resources.cache_dir", file.path(out, "resource_cache"))
-dir.create(resource_dir, recursive = TRUE, showWarnings = FALSE)
+resource_dir <- cfg_get(config, "resources.cache_dir", file.path(out, "_provenance", "resource_cache"))
 
 species <- tolower(cfg_get(config, "species", required = TRUE))
 if (!species %in% c("human", "mouse")) stop("species must be human or mouse")
@@ -394,7 +394,7 @@ for (i in seq_along(tasks)) {
   task_key <- digest_value(list(input = input_fingerprint, cells = colnames(mat), features = rownames(mat),
                                 species = species, assay = assay, layer = layer, seed = seed, gene_sets = gene_sets,
                                 task = task, provenance = provenance, package = method_package, package_version = method_version))
-  cache_file <- file.path(out, "scores", paste0(task_name, "_", task_key, ".rds"))
+  cache_file <- file.path(out, "_provenance", "score_cache", paste0(task_name, "_", task_key, ".rds"))
   cache_hit <- isTRUE(cfg_get(config, "cache.enabled", TRUE)) && file.exists(cache_file)
   if (cache_hit) {
     scores <- readRDS(cache_file)
@@ -415,6 +415,7 @@ for (i in seq_along(tasks)) {
     scores <- as.matrix(scores)
     if (!identical(colnames(scores), colnames(obj))) scores <- scores[, colnames(obj), drop = FALSE]
     if (any(!is.finite(scores))) stop("Non-finite scores produced for task ", task_name)
+    dir.create(dirname(cache_file), recursive = TRUE, showWarnings = FALSE)
     saveRDS(scores, cache_file, compress = FALSE)
   }
   if (!is.null(coverage)) {

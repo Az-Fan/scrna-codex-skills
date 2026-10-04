@@ -25,3 +25,5 @@ Pseudobulk `coldata` row names must match the normalized-count sample IDs; metad
 ## Provenance
 
 `_provenance/` contains `run_manifest.json`, `session_info.txt`, `figure_colors.tsv`, and the shared figure status record. Figures are deterministic for a fixed object, config, and software environment.
+
+`RESULTS.md` is the portable result entry point; `_provenance/result_delivery.json` records the current run and explicitly retained review-stage files. Comparison task directories have their own linked entry points when present.

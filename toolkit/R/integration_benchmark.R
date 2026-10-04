@@ -67,7 +67,7 @@ ids <- vapply(scenarios, function(x) x$id, character(1))
 if (any(!nzchar(ids)) || anyDuplicated(ids)) stop("Integration scenario IDs must be non-empty and unique after sanitization")
 
 out <- prepare_output(config)
-exchange <- file.path(out, "exchange"); embeddings_dir <- file.path(exchange, "embeddings")
+exchange <- file.path(out, "_provenance", "exchange"); embeddings_dir <- file.path(exchange, "embeddings")
 dir.create(embeddings_dir, recursive = TRUE, showWarnings = FALSE)
 run_rows <- list(); embedding_rows <- list()
 for (scenario in scenarios[vapply(scenarios, function(x) x$name %in% c("none", "harmony", "rpca", "precomputed"), logical(1))]) {

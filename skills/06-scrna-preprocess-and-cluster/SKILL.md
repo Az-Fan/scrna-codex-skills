@@ -94,3 +94,5 @@ Keep primary figures, complete scientific tables, and review decisions directly 
 ## Fixed figures
 
 Read [references/figure-style.md](references/figure-style.md) before plotting or configuring figure outputs. Use the bundled paper_v1 templates with PNG 300 dpi by default and deterministic pagination/colours. Preserve the existing figure families listed in [references/figure-catalog.md](references/figure-catalog.md); do not choose new chart styles on each run.
+
+Result handoff: start with `<output_dir>/RESULTS.md` from the execute runner. It links scientific deliverables and reports current run status and limitations; follow [output-layout.md](references/output-layout.md) for retained results and technical records.

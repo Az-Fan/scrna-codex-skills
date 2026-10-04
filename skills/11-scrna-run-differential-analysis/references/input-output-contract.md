@@ -18,13 +18,15 @@ Optional `analysis.counts_source.reference_object` points to an original Seurat 
 
 ## Outputs
 
-Write root-level `design_audit.tsv`, `task_status.tsv`, `all_comparisons.tsv`, `significant_all_comparisons.tsv`, an optional `enrichment_all_comparisons.tsv`, `DEG_count_summary.pdf`. Technical records are `_provenance/session_info.txt` and `_provenance/run_manifest.json`.
+Write root-level `design_audit.tsv`, `task_status.tsv`, `all_comparisons.tsv`, `significant_all_comparisons.tsv`, an optional `enrichment_all_comparisons.tsv`, `DEG_count_summary.png`. Technical records are `_provenance/session_info.txt` and `_provenance/run_manifest.json`.
+
+Figures default to PNG; `output.figure_format=png|pdf|both` can request other supported formats.
 
 For every `population × comparison`, write a directory below `comparisons/` containing:
 
 - `sample_cell_counts.tsv` and, for pseudobulk, `sample_design.tsv`, `effect_size_audit.tsv`, `replication_audit.tsv`, `pseudobulk_transform_audit.tsv`, `gene_filter_audit.tsv`, `deseq2_results_audit.json`, and `pseudobulk_data.rds`.
 - `all_genes.tsv`, `significant_genes.tsv`, `upregulated_genes.tsv`, and `downregulated_genes.tsv`.
-- `volcano.pdf`, optional `MA_plot.pdf`, and pseudobulk `pseudobulk_PCA.pdf` and `top_DE_heatmap.pdf`.
+- `volcano.png`, optional `MA_plot.png`, and pseudobulk `pseudobulk_PCA.png` and `top_DE_heatmap.png`.
 - Optional `enrichment/` identifier mapping, database-level status audit, full GO-BP/MF/CC, KEGG, Reactome, and Hallmark ORA/GSEA tables, and summary plots.
 - `ERROR.txt` when that task cannot run.
 
@@ -37,3 +39,5 @@ Table import preserves supplied `tested`, `wald_tested`, `multiple_testing_eligi
 PCA and the diagnostic heatmap default to actual DESeq2 VST (`varianceStabilizingTransformation(dds, blind=false)`), including small gene sets that cannot use the fast `vst()` default subsample. Set `analysis.pca_transform=log2_normalized` only to request the explicitly named `log2(normalized_counts+1)` alternative. Record the transform in the TSV audit, PCA subtitle, and `pseudobulk_data.rds`; neither transform replaces the raw counts used for DE. No silent transform fallback is performed.
 
 Formal results from fewer than three retained samples in either group carry `low_replication_warning=true` and `inference_qualification=exploratory_low_confidence`. Two per group remains a technical minimum; `replication_audit.tsv` records actual retained replication and task status also carries the warning. This qualification describes evidence strength, while `inference_level` retains the statistical unit/method.
+
+`RESULTS.md` is the portable result entry point; `_provenance/result_delivery.json` records the current run and explicitly retained review-stage files. Comparison task directories have their own linked entry points when present.

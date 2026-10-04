@@ -32,3 +32,5 @@ Descriptive figures are bounded multipage PDFs: `sample_composition.pdf`, `cell_
 Under `comparisons/<comparison>/<method>/`, retain the official raw table, standardized `all_results.tsv`, `significant_results.tsv`, and `effect_summary.pdf`. Extra outputs include scCODA per-reference tables and posterior diagnostics, sccomp draws and optional fit, DCATS coefficients, and Milo neighborhood tables, object and DA plots.
 
 Standardized scales remain explicit: propeller descriptive log2 mean-proportion ratio, sccomp logit composition effect, scCODA selected log2 fold change relative to its reference, DCATS beta-binomial log odds, and Milo neighborhood-count log2 fold change. Never average these scales.
+
+`RESULTS.md` is the portable result entry point; `_provenance/result_delivery.json` records the current run and explicitly retained review-stage files. Comparison task directories have their own linked entry points when present.

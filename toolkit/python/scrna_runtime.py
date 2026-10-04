@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Dependency-free runtime contract for the reusable scRNA-seq skills."""
 
+import importlib.util
 import argparse
 import datetime as dt
 import hashlib
@@ -14,6 +15,11 @@ import re
 import itertools
 from decimal import Decimal
 from pathlib import Path
+
+
+_delivery_spec = importlib.util.spec_from_file_location("scrna_result_delivery", Path(__file__).with_name("result_delivery.py"))
+_delivery = importlib.util.module_from_spec(_delivery_spec)
+_delivery_spec.loader.exec_module(_delivery)
 
 
 SPECS = {
@@ -720,6 +726,7 @@ def main(skill):
     if previous_output and output_dir.resolve() in manifest_path.resolve().parents:
         manifest_path.parent.mkdir(parents=True, exist_ok=True)
         manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    delivery_before = _delivery.snapshot(output_dir)
     technical_dir = output_dir / "_provenance"
     technical_dir.mkdir(parents=True, exist_ok=True)
     log_path = technical_dir / "run.log"
@@ -770,5 +777,6 @@ def main(skill):
         record.update(run_id=run_id, status="completed" if returncode == 0 else "failed", exit_status=returncode,
             executor_started_at=started, executor_finished_at=finished, executor_argv=command, previous_output=previous_output,
             environment=manifest["environment"])
+        returncode = _delivery.supervise(output_dir, delivery_before, skill, config, returncode, record, run_id)
         write_execution_manifest(execution_path, record)
     return returncode

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import importlib.util
 import argparse
 import hashlib
 import json
@@ -6,6 +7,17 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+
+
+_script = Path(__file__).resolve()
+_delivery_candidates = [_script.with_name("result_delivery.py")]
+_delivery_candidates.extend(parent / "toolkit/python/result_delivery.py" for parent in _script.parents)
+_delivery_path = next((path for path in _delivery_candidates if path.is_file()), None)
+if _delivery_path is None:
+    raise SystemExit("result_delivery.py not found; install a self-contained skill bundle")
+_delivery_spec = importlib.util.spec_from_file_location("scrna_result_delivery", _delivery_path)
+_delivery = importlib.util.module_from_spec(_delivery_spec)
+_delivery_spec.loader.exec_module(_delivery)
 
 
 def fail(message):
@@ -120,18 +132,29 @@ def main():
     print(json.dumps(plan, ensure_ascii=False, indent=2))
     if not args.execute:
         return
+    delivery_before = _delivery.snapshot(output)
     output.mkdir(parents=True, exist_ok=True)
     provenance.mkdir(parents=True, exist_ok=True)
     execution_env = os.environ.copy()
     if workers > 1:
         for variable in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
             execution_env[variable] = "1"
-    with (provenance / "run.log").open("a", encoding="utf-8") as log:
-        result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, env=execution_env)
-    plan["exit_status"] = result.returncode
-    (provenance / "run_manifest.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")
-    if result.returncode:
-        fail(f"QC metrics failed (exit {result.returncode}); see {provenance / 'run.log'}")
+    exit_status = 1
+    try:
+        with (provenance / "run.log").open("a", encoding="utf-8") as log:
+            result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, env=execution_env)
+            exit_status = result.returncode
+    except OSError as exc:
+        plan["launch_error"] = str(exc)
+        with (provenance / "run.log").open("a", encoding="utf-8") as log:
+            log.write(f"Executor launch failed: {exc}\n")
+    finally:
+        plan["exit_status"] = exit_status
+        plan["status"] = "completed" if exit_status == 0 else "failed"
+        exit_status = _delivery.supervise(output, delivery_before, "02-scrna-calculate-qc-metrics", config, exit_status, plan)
+        (provenance / "run_manifest.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")
+    if exit_status:
+        fail(f"QC metrics failed (exit {exit_status}); see {provenance / 'run.log'}")
 
 
 if __name__ == "__main__":

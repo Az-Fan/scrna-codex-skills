@@ -4,9 +4,17 @@ For figure families and rollout status, read [figure-catalog.md](figure-catalog.
 
 The stage output directory is the browsing surface for scientific results. Keep primary figures, complete scientific tables, summaries, and human review decisions accessible there. Do not create empty category directories or duplicate every table and figure in a second format.
 
+## Result entry point
+
+Executing `scripts/run.py --execute` writes `RESULTS.md` in every stage output root, with relative links grouped as main figures, complete tables and summaries, review decisions, and downstream objects/matrices. Comparison directories receive their own `RESULTS.md`, linked from the root. Copying the output directory preserves these links. Dry runs only validate and plan; they do not create a result entry point.
+
+The entry point reports completed, partial, failed, or awaiting-confirmation state from the actual executor outcome and current status audits. Optional metric/plot skips remain visible as limitations without turning successful execution into failure. Empty enrichment, missing genes, low replication, and unresolved recommendations must remain visible. A successful process does not imply that every scientific task succeeded.
+
+Each execution records the files written or changed during that run in `_provenance/result_delivery.json`. Unchanged files retained on disk from earlier runs are excluded from current deliverables and counted in the entry point. The guided clustering finalization and annotation apply stages explicitly inherit the preceding stage's registered review material, label those links as retained, and update the root entry point. Legacy two-stage outputs without a delivery registry identify pre-existing files as preceding-stage material. Scientific paths and files are preserved; the index does not certify historical results.
+
 ## Technical records
 
-New runs write execution manifests, session information, workflow state, task manifests, and runner logs under `<output_dir>/_provenance/`. Session files use `session_info.txt`. The shared runner writes default validation plans under `<config-directory>/_provenance/`; an explicit `--manifest` path is respected. Place tmux supervisor logs/status there too using the launcher's explicit `--log` and `--status` arguments.
+New runs write execution manifests, session information, workflow state, task manifests, and runner logs under `<output_dir>/_provenance/`. Session files use `session_info.txt`. Integration exchange matrices live in `_provenance/exchange/`; scoring hash caches live in `_provenance/score_cache/` while complete score TSV matrices remain in `scores/`. Default resource downloads use `_provenance/resource_cache/`, created only when a resource requires caching; explicit external cache directories are respected. Figures directories are created when figures are saved. The shared runner writes default validation plans under `<config-directory>/_provenance/`; an explicit `--manifest` path is respected. Place tmux supervisor logs/status there too using the launcher's explicit `--log` and `--status` arguments.
 
 Custom follow-up plots follow the same rule: the figure and any useful scientific summary belong in the result directory, while the plot's manifest/session record belongs in `_provenance/`. Avoid treating all JSON or all TSV files alike: recommendation status, design audits, coverage, and missing/failed task reports can be essential to interpreting results. Surface material failures or limitations in the handoff even when their technical details are stored below `_provenance/`.
 
@@ -24,4 +32,4 @@ Do not delete manifests, sessions, workflow state, or large objects as cosmetic 
 
 ## Handoff
 
-Link the main figures, complete result tables, necessary decisions, and downstream object. Mention `_provenance/` once as the troubleshooting location; do not enumerate its files as deliverables. Report validation and any material failures honestly.
+Lead the handoff with `RESULTS.md`. Link the main figures, complete result tables, necessary decisions, and downstream object. Mention `_provenance/` once as the troubleshooting location; do not enumerate its files as deliverables. Report validation and any material failures honestly.

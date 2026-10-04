@@ -46,3 +46,5 @@ Keep primary figures, complete scientific tables, and review decisions directly 
 ## Fixed figures
 
 Volcano, MA, pseudobulk PCA, top-DE heatmap, and batch DEG-summary figures use the fixed `paper_v1` theme: white background, stable condition colours, readable subtitles, and PNG at 300 dpi by default. Read [references/figure-style.md](references/figure-style.md) for the output-format and colour-map contract.
+
+Result handoff: start with `<output_dir>/RESULTS.md` from the execute runner. It links scientific deliverables and reports current run status and limitations; follow [output-layout.md](references/output-layout.md) for retained results and technical records.

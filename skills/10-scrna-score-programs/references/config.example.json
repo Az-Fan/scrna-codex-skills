@@ -50,7 +50,7 @@
   "random_seed": 1,
   "cores": 8,
   "cache": {"enabled": true},
-  "resources": {"cache_dir": "results/program_scores/resource_cache"},
+  "resources": {"cache_dir": "results/program_scores/_provenance/resource_cache"},
   "output": {"object_format": "qs"},
   "output_dir": "results/program_scores"
 }
