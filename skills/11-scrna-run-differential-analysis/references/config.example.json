@@ -15,6 +15,7 @@
     "stage": "differential",
     "method": "pseudobulk_deseq2",
     "assay": "RNA",
+    "counts_source": {"kind": "raw_umi"},
     "design": "~ batch + condition",
     "min_cells_per_sample_population": 20,
     "min_samples_per_group": 2,
@@ -23,11 +24,13 @@
     "min_samples_expressed": 2,
     "padj_threshold": 0.05,
     "lfc_threshold": 0.25,
-    "lfc_shrink": true
+    "lfc_shrink": true,
+    "pca_transform": "vst"
   },
   "plots": {"top_genes": 30},
   "enrichment": {
     "enabled": false,
+    "universe_mode": "multiple_testing_eligible",
     "species": "mouse",
     "gene_id_type": "SYMBOL",
     "databases": ["GO_BP", "GO_MF", "GO_CC", "KEGG", "REACTOME", "HALLMARK"],

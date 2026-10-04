@@ -168,15 +168,17 @@ get_raw_counts <- function(obj, assay = NULL) {
   if (!requireNamespace("SeuratObject", quietly = TRUE)) stop("Package 'SeuratObject' is required")
   assay <- assay %||% Seurat::DefaultAssay(obj)
   if (!assay %in% names(obj@assays)) stop("Assay not found: ", assay)
-  if (utils::packageVersion("SeuratObject") >= "5.0.0") {
-    selected <- obj[[assay]]
+  selected <- obj[[assay]]
+  if (inherits(selected, "Assay5")) {
     layers <- SeuratObject::Layers(selected, search = "^counts($|[.])")
     if (!length(layers)) stop("No raw counts layer in assay: ", assay)
     # 只在内存中合并，保证导出的矩阵覆盖全部对象细胞。
     if (length(layers) > 1L) selected <- SeuratObject::JoinLayers(selected, layers = "counts", new = "counts")
     counts <- SeuratObject::LayerData(selected, layer = if (length(layers) > 1L) "counts" else layers[[1]])
   } else {
-    counts <- SeuratObject::GetAssayData(obj, assay = assay, slot = "counts")
+    counts <- if (utils::packageVersion("SeuratObject") >= "5.0.0") {
+      SeuratObject::GetAssayData(selected, layer = "counts")
+    } else SeuratObject::GetAssayData(selected, slot = "counts")
   }
   cells <- colnames(obj)
   if (!nrow(counts) || !ncol(counts)) stop("Raw counts matrix is empty: ", assay)
@@ -188,6 +190,35 @@ get_raw_counts <- function(obj, assay = NULL) {
     stop("Raw counts must be finite non-negative integers: ", assay)
   }
   counts[, cells, drop = FALSE]
+}
+
+assert_pseudobulk_counts_source <- function(obj, assay, config) {
+  source <- cfg_get(config, "analysis.counts_source", list())
+  if (!is.list(source)) stop("analysis.counts_source must be an object")
+  kind <- source$kind %||% ""
+  if (length(kind) != 1L || is.na(kind) || !kind %in% c("raw_umi", "raw_read")) stop("Formal pseudobulk requires analysis.counts_source.kind = raw_umi or raw_read")
+  if (inherits(obj[[assay]], "SCTAssay") || grepl("(^|[._-])(integrated|sct|harmony|corrected|scaled|normalized)([._-]|$)", assay, ignore.case = TRUE)) {
+    stop("Formal pseudobulk cannot use an integrated, SCT, corrected or normalized assay: ", assay)
+  }
+  counts <- get_raw_counts(obj, assay)
+  reference_path <- source$reference_object
+  if (!is.null(reference_path) && (length(reference_path) != 1L || is.na(reference_path) || !is.character(reference_path))) stop("counts_source.reference_object must be a path string")
+  evidence <- "user_declared; original source is not independently authenticated"
+  reference_hash <- NA_character_
+  if (!is.null(reference_path) && nzchar(reference_path)) {
+    reference_path <- normalizePath(scrna_expand_path(reference_path), mustWork = TRUE)
+    reference <- load_scrna_object(reference_path)
+    reference_assay <- source$reference_assay %||% "RNA"
+    if (inherits(reference[[reference_assay]], "SCTAssay") || grepl("(^|[._-])(integrated|sct|harmony|corrected|scaled|normalized)([._-]|$)", reference_assay, ignore.case = TRUE)) stop("Raw-count reference must use an uncorrected assay")
+    reference_counts <- get_raw_counts(reference, reference_assay)
+    if (!all(rownames(counts) %in% rownames(reference_counts)) || !all(colnames(counts) %in% colnames(reference_counts))) stop("Raw-count reference does not cover every selected gene and cell")
+    if (any(counts != reference_counts[rownames(counts), colnames(counts), drop = FALSE])) stop("Selected counts differ from the supplied raw-count reference")
+    reference_hash <- .scrna_sha256(reference_path)
+    evidence <- "matched_supplied_reference; reference origin is user_declared"
+  }
+  data.frame(assay = assay, assay_class = class(obj[[assay]])[[1]], counts_kind = kind,
+    evidence = evidence, reference_object = reference_path %||% "", reference_sha256 = reference_hash,
+    n_genes = nrow(counts), n_cells = ncol(counts), stringsAsFactors = FALSE)
 }
 
 technical_path <- function(out, name) {

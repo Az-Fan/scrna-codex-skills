@@ -4,7 +4,7 @@
 
 Record the biological replicate, numerator, denominator, population column, selected populations, minimum cells per sample-population, excluded samples, covariates, pairing or blocking, count assay, model formula, multiple-testing method, and whether inference is formal or exploratory.
 
-Use raw counts aggregated by `sample × population` for formal condition inference. Require both groups after minimum-cell filtering and at least `analysis.min_samples_per_group` independent samples per group. Filter genes by both total count and expression of at least `analysis.min_count_per_sample` counts in `analysis.min_samples_expressed` samples. Two samples per group is a technical minimum, not a guarantee of useful power; prefer three or more.
+Use raw counts aggregated by `sample × population` for formal condition inference. Require both groups after minimum-cell filtering and at least `analysis.min_samples_per_group` independent samples per group. Filter genes by both total count and expression of at least `analysis.min_count_per_sample` counts in `analysis.min_samples_expressed` samples. Two samples per group is a technical minimum, not a guarantee of useful power; prefer three or more. Results with fewer than three retained samples in either group must report `low_replication_warning=true` and `exploratory_low_confidence`; inspect `replication_audit.tsv`.
 
 Keep one condition and one value for every modeled covariate per sample. Use a paired formula such as `~ patient + condition` only when patients contribute the required conditions. Reject a rank-deficient model rather than silently dropping terms. Do not include a batch term that is perfectly confounded with condition.
 

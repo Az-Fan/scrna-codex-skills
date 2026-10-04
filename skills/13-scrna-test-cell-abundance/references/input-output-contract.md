@@ -25,6 +25,8 @@ Numeric covariates remain continuous by default; character/factor covariates are
 
 Root outputs include complete `sample_cell_counts.tsv`, `sample_cell_proportions.tsv`, `design_audit.tsv`, `cell_type_eligibility.tsv`, `task_status.tsv`, `all_method_results.tsv`, `significant_method_results.tsv`, `method_concordance.tsv`. Technical records are `_provenance/session_info.txt`, `_provenance/run.log`, and `_provenance/run_manifest.json`.
 
+Every standardized result carries `estimand=relative_abundance` for cell-type composition methods or `neighborhood_abundance` for Milo. These methods do not estimate absolute tissue cell counts. Preserve the estimand in reports: a larger relative proportion does not establish an increase in absolute cell number.
+
 Descriptive figures are bounded multipage PDFs: `sample_composition.pdf`, `cell_type_proportions_by_condition.pdf`, and `sample_proportion_heatmap.pdf`. Every sample-level point is labelled.
 
 Under `comparisons/<comparison>/<method>/`, retain the official raw table, standardized `all_results.tsv`, `significant_results.tsv`, and `effect_summary.pdf`. Extra outputs include scCODA per-reference tables and posterior diagnostics, sccomp draws and optional fit, DCATS coefficients, and Milo neighborhood tables, object and DA plots.

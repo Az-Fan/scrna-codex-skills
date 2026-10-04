@@ -118,6 +118,7 @@ class ExecutorAuditTests(unittest.TestCase):
             config = {"project": {"id": "test"}, "input": {"object": str(obj)},
                 "metadata": {"sample": "sample", "condition": "condition"},
                 "comparison": {"numerator": "case", "denominator": "control"}, "output_dir": str(output),
+                "analysis": {"counts_source": {"kind": "raw_umi"}},
                 "executor": {"argv": [sys.executable, "-c", "import json,sys; from pathlib import Path; p=Path(sys.argv[1]); p.write_text(json.dumps({'exit_status':0,'skill':'11-scrna-run-differential-analysis'})); sys.exit(3)", str(output / "_provenance/run_manifest.json")]}}
             config_path = root / "config.json"; config_path.write_text(json.dumps(config))
             done = subprocess.run([sys.executable, str(ROOT / "skills/11-scrna-run-differential-analysis/scripts/run.py"), "--config", str(config_path), "--execute"], capture_output=True, text=True)
@@ -194,6 +195,42 @@ class V3WorkflowContractTests(unittest.TestCase):
             }
             errors, _ = RUNTIME.validate("12-scrna-run-pathway-enrichment", config, config_path)
             self.assertIn("12-scrna-run-pathway-enrichment requires analysis.stage=enrichment_only", errors)
+
+    def test_formal_de_requires_raw_count_declaration(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            obj = root / "object.rds"; obj.write_bytes(b"fixture")
+            cfg_path = root / "config.json"; cfg_path.write_text("{}")
+            config = {"project": {"id": "test"}, "input": {"object": str(obj)},
+                      "metadata": {"sample": "sample", "condition": "condition"},
+                      "output_dir": str(root / "out"), "analysis": {},
+                      "comparisons": [{"numerator": "B", "denominator": "A"}]}
+            skill = "11-scrna-run-differential-analysis"
+            errors, _ = RUNTIME.validate(skill, config, cfg_path)
+            self.assertTrue(any("counts_source.kind" in error for error in errors))
+            config["analysis"]["counts_source"] = {"kind": "raw_umi"}
+            errors, _ = RUNTIME.validate(skill, config, cfg_path)
+            self.assertFalse(errors)
+            for assay in ["integrated", "SCT", "harmony", "RNA.corrected"]:
+                config["analysis"]["assay"] = assay
+                errors, _ = RUNTIME.validate(skill, config, cfg_path)
+                self.assertTrue(any("uncorrected" in error for error in errors))
+            config["analysis"] = {"method": "seurat_wilcox"}
+            errors, _ = RUNTIME.validate(skill, config, cfg_path)
+            self.assertFalse(errors)
+
+    def test_de_rejects_invalid_alpha_and_background(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            obj = root / "object.rds"; obj.write_bytes(b"fixture")
+            cfg_path = root / "config.json"; cfg_path.write_text("{}")
+            config = {"project": {"id": "test"}, "input": {"object": str(obj)},
+                      "metadata": {"sample": "sample", "condition": "condition"},
+                      "output_dir": str(root / "out"), "analysis": {"counts_source": {"kind": "raw_read"}, "padj_threshold": 1},
+                      "comparisons": [{"numerator": "B", "denominator": "A"}], "enrichment": {"universe_mode": "all_expressed"}}
+            errors, _ = RUNTIME.validate("11-scrna-run-differential-analysis", config, cfg_path)
+            self.assertTrue(any("padj_threshold" in error for error in errors))
+            self.assertTrue(any("universe_mode" in error for error in errors))
 
     def test_cell_abundance_requires_explicit_denominator(self):
         with tempfile.TemporaryDirectory() as temporary:

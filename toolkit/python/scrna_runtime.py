@@ -306,6 +306,22 @@ def validate(skill, config, config_path):
         if not path.exists():
             errors.append(f"input does not exist in this execution context: {path}")
     if skill == "11-scrna-run-differential-analysis" and stage != "enrichment_only":
+        transform = nested_get(config, "analysis.pca_transform") or "vst"
+        if transform not in ("vst", "log2_normalized"):
+            errors.append("analysis.pca_transform must be vst or log2_normalized")
+        alpha = nested_get(config, "analysis.padj_threshold")
+        if alpha is not None and (isinstance(alpha, bool) or not isinstance(alpha, (int, float)) or not 0 < alpha < 1):
+            errors.append("analysis.padj_threshold must be between 0 and 1 for differential analysis")
+        if (nested_get(config, "analysis.method") or "pseudobulk_deseq2") == "pseudobulk_deseq2":
+            kind = nested_get(config, "analysis.counts_source.kind")
+            if kind not in ("raw_umi", "raw_read"):
+                errors.append("formal pseudobulk requires analysis.counts_source.kind = raw_umi or raw_read")
+            assay = str(nested_get(config, "analysis.assay") or "RNA")
+            if re.search(r"(^|[._-])(integrated|sct|harmony|corrected|scaled|normalized)([._-]|$)", assay, re.IGNORECASE):
+                errors.append("formal pseudobulk requires an uncorrected raw-count assay")
+            reference = nested_get(config, "analysis.counts_source.reference_object")
+            if reference and not Path(os.path.expandvars(os.path.expanduser(str(reference)))).is_file():
+                errors.append(f"raw-count reference does not exist in this execution context: {reference}")
         comparisons = config.get("comparisons")
         if comparisons is None:
             comparison = config.get("comparison")
@@ -318,6 +334,10 @@ def validate(skill, config, config_path):
                     errors.append(f"comparison {index + 1} requires numerator and denominator")
                 elif comparison["numerator"] == comparison["denominator"]:
                     errors.append(f"comparison {index + 1} numerator and denominator must differ")
+    if skill in {"11-scrna-run-differential-analysis", "12-scrna-run-pathway-enrichment"}:
+        universe_mode = nested_get(config, "enrichment.universe_mode") or "multiple_testing_eligible"
+        if universe_mode not in ("multiple_testing_eligible", "tested"):
+            errors.append("enrichment.universe_mode must be multiple_testing_eligible or tested")
     if skill == "13-scrna-test-cell-abundance":
         has_object = bool(nested_get(config, "input.object"))
         has_counts = bool(nested_get(config, "input.counts_table"))

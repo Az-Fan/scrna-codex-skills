@@ -224,7 +224,7 @@ standard_result <- function(method, comparison, feature_id, effect, effect_scale
                             ci_lower = NA_real_, ci_upper = NA_real_, posterior_probability = NA_real_, evidence_type = "",
                             credible = FALSE, significant = FALSE, reference = "", annotation = feature_id, note = "") {
   data.frame(
-    method = method, comparison_id = comparison$id, feature_type = "cell_type", feature_id = as.character(feature_id),
+    method = method, comparison_id = comparison$id, feature_type = "cell_type", estimand = "relative_abundance", feature_id = as.character(feature_id),
     annotation = as.character(annotation), numerator = comparison$numerator, denominator = comparison$denominator,
     effect = as.numeric(effect), effect_scale = effect_scale, ci_lower = as.numeric(ci_lower), ci_upper = as.numeric(ci_upper),
     p_value = as.numeric(p_value), adjusted_p_value = as.numeric(adjusted_p_value), posterior_probability = as.numeric(posterior_probability),
@@ -474,6 +474,7 @@ run_milo <- function(comparison, task_dir) {
     significant = !is.na(annotated[[adj_col]]) & annotated[[adj_col]] <= fdr,
     annotation = annotated[[label_col]], note = paste0("KNN neighborhoods from explicit reduction '", reduction, "'; k=", k, ", d=", d, "."))
   standardized$feature_type <- "neighborhood"
+  standardized$estimand <- "neighborhood_abundance"
   try({
     p <- miloR::plotDAbeeswarm(annotated, group.by = label_col, alpha = fdr)
     ggplot2::ggsave(file.path(task_dir, "milo_da_beeswarm.pdf"), p, width = 9, height = 6, units = "in")

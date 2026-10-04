@@ -28,6 +28,42 @@ read_de_table <- function(path, sheet = NULL) {
   utils::read.delim(path, check.names = FALSE, stringsAsFactors = FALSE)
 }
 
+parse_test_flag <- function(value, field) {
+  if (is.logical(value) && !anyNA(value)) return(value)
+  text <- tolower(trimws(as.character(value)))
+  if (anyNA(text) || any(!text %in% c("true", "false", "1", "0"))) stop("Invalid boolean in differential table column: ", field)
+  text %in% c("true", "1")
+}
+
+set_de_test_state <- function(x, wald = FALSE) {
+  if (!"tested" %in% names(x)) x$tested <- is.finite(x$pvalue) | is.finite(x$padj)
+  else x$tested <- parse_test_flag(x$tested, "tested")
+  if (!"multiple_testing_eligible" %in% names(x)) x$multiple_testing_eligible <- is.finite(x$padj)
+  else x$multiple_testing_eligible <- parse_test_flag(x$multiple_testing_eligible, "multiple_testing_eligible")
+  if (any(x$multiple_testing_eligible & (!x$tested | !is.finite(x$padj)))) stop("Inconsistent multiple-testing eligibility: eligible rows require a tested gene and finite padj")
+  if (wald) x$wald_tested <- is.finite(x$pvalue)
+  else if (!"wald_tested" %in% names(x)) x$wald_tested <- NA
+  else {
+    known <- !is.na(x$wald_tested)
+    x$wald_tested[known] <- parse_test_flag(x$wald_tested[known], "wald_tested")
+    x$wald_tested <- as.logical(x$wald_tested)
+  }
+  x$test_status <- ifelse(x$multiple_testing_eligible, "multiple_testing_eligible", ifelse(x$tested, "filtered", "not_tested"))
+  if (!"filter_reason" %in% names(x)) x$filter_reason <- ""
+  x$filter_reason <- as.character(x$filter_reason)
+  missing <- is.na(x$filter_reason) | !nzchar(x$filter_reason)
+  x$filter_reason[missing & !x$multiple_testing_eligible & x$tested] <- "adjusted_p_unavailable"
+  x$filter_reason[missing & !x$tested] <- "test_unavailable"
+  x
+}
+
+de_significance <- function(x, thresholds) {
+  ifelse(!x$tested, "Not_tested", ifelse(!x$multiple_testing_eligible, "Filtered",
+    ifelse(!is.finite(x$log2FoldChange), "Effect_unavailable",
+      ifelse(x$padj <= thresholds$padj & x$log2FoldChange >= thresholds$lfc, "Up",
+        ifelse(x$padj <= thresholds$padj & x$log2FoldChange <= -thresholds$lfc, "Down", "NS")))))
+}
+
 standardize_de_table <- function(x, config) {
   cols <- cfg_get(config, "enrichment.table_columns", list())
   gene_col <- first_column(x, cols$gene, c("gene", "gene_symbol", "symbol", "SYMBOL", "Gene", "genes"), TRUE)
@@ -42,17 +78,20 @@ standardize_de_table <- function(x, config) {
   out$pvalue <- if (is.null(p_col)) NA_real_ else suppressWarnings(as.numeric(x[[p_col]]))
   out$padj <- if (is.null(padj_col)) NA_real_ else suppressWarnings(as.numeric(x[[padj_col]]))
   out$stat <- if (is.null(stat_col)) out$log2FoldChange else suppressWarnings(as.numeric(x[[stat_col]]))
+  if (!"tested" %in% names(out) && is.null(p_col) && is.null(padj_col)) out$tested <- is.finite(out$stat)
+  out <- set_de_test_state(out)
   if (anyDuplicated(out$gene)) warning("Differential table contains duplicate gene identifiers; GSEA will retain the statistic with greatest absolute magnitude")
   thresholds <- list(padj = as.numeric(cfg_get(config, "analysis.padj_threshold", 0.05)), lfc = as.numeric(cfg_get(config, "analysis.lfc_threshold", 0.25)))
   if (is.null(sig_col)) {
-    out$significance <- ifelse(!is.na(out$padj) & out$padj <= thresholds$padj & out$log2FoldChange >= thresholds$lfc, "Up",
-                               ifelse(!is.na(out$padj) & out$padj <= thresholds$padj & out$log2FoldChange <= -thresholds$lfc, "Down", "NS"))
+    out$significance <- de_significance(out, thresholds)
   } else {
     raw <- tolower(trimws(as.character(x[[sig_col]])))
-    out$significance <- ifelse(raw %in% c("up", "upregulated", "up-regulated", "significant up"), "Up",
-                               ifelse(raw %in% c("down", "downregulated", "down-regulated", "significant down"), "Down", "NS"))
+    out$significance <- de_significance(out, thresholds)
+    usable <- out$tested & (out$multiple_testing_eligible | identical(cfg_get(config, "enrichment.universe_mode", "multiple_testing_eligible"), "tested"))
+    out$significance[usable & raw %in% c("ns", "not significant", "nonsignificant")] <- "NS"
+    out$significance[usable & raw %in% c("up", "upregulated", "up-regulated", "significant up")] <- "Up"
+    out$significance[usable & raw %in% c("down", "downregulated", "down-regulated", "significant down")] <- "Down"
   }
-  out$tested <- if (!is.null(p_col)) !is.na(out$pvalue) else if (!is.null(padj_col)) !is.na(out$padj) else is.finite(out$stat)
   out <- out[!is.na(out$gene) & nzchar(out$gene), , drop = FALSE]
   attr(out, "column_mapping") <- data.frame(standard = c("gene", "log2FoldChange", "pvalue", "padj", "stat", "significance"), source = c(gene_col, lfc_col %||% "", p_col %||% "", padj_col %||% "", stat_col %||% if (is.null(lfc_col)) "" else lfc_col, sig_col %||% "derived"), stringsAsFactors = FALSE)
   out
@@ -156,7 +195,7 @@ validate_sample_mapping <- function(meta, sample_col, condition_col, covariates)
 }
 
 join_assay_layers <- function(obj, assay) {
-  if (requireNamespace("SeuratObject", quietly = TRUE) && utils::packageVersion("SeuratObject") >= "5.0.0") {
+  if (inherits(obj[[assay]], "Assay5")) {
     layers <- SeuratObject::Layers(obj[[assay]])
     if (sum(grepl("^counts(\\.|$)", layers)) > 1L || sum(grepl("^data(\\.|$)", layers)) > 1L) obj <- Seurat::JoinLayers(obj, assay = assay)
   }
@@ -207,6 +246,9 @@ run_pseudobulk <- function(obj, meta, assay, sample_col, condition_col, covariat
   mm <- Matrix::sparse.model.matrix(~ 0 + groups)
   pb <- counts %*% mm; colnames(pb) <- sub("^groups", "", colnames(pb))
   keep <- Matrix::rowSums(pb) >= thresholds$min_total_count & Matrix::rowSums(pb >= thresholds$min_count_per_sample) >= thresholds$min_samples_expressed
+  write_tsv(data.frame(gene = rownames(pb), total_count = Matrix::rowSums(pb), n_samples_expressed = Matrix::rowSums(pb >= thresholds$min_count_per_sample),
+    min_total_count = thresholds$min_total_count, min_count_per_sample = thresholds$min_count_per_sample, min_samples_expressed = thresholds$min_samples_expressed,
+    entered_deseq2 = keep, filter_reason = ifelse(keep, "", "count_prefilter")), file.path(task_dir, "gene_filter_audit.tsv"))
   pb <- pb[keep, , drop = FALSE]
   if (!nrow(pb)) stop("No genes passed minimum total count")
   coldata <- build_coldata(meta, sample_col, condition_col, covariates, colnames(pb), comparison$denominator)
@@ -216,7 +258,9 @@ run_pseudobulk <- function(obj, meta, assay, sample_col, condition_col, covariat
   if (qr(mm_design)$rank < ncol(mm_design)) stop("Design matrix is rank deficient")
   dds <- DESeq2::DESeqDataSetFromMatrix(as.matrix(pb), coldata, design)
   dds <- DESeq2::DESeq(dds, quiet = TRUE)
-  raw_res <- DESeq2::results(dds, contrast = c(condition_col, comparison$numerator, comparison$denominator), independentFiltering = TRUE)
+  contrast <- c(condition_col, comparison$numerator, comparison$denominator)
+  raw_res <- DESeq2::results(dds, contrast = contrast, alpha = thresholds$padj, independentFiltering = TRUE)
+  uncensored <- DESeq2::results(dds, contrast = contrast, alpha = thresholds$padj, independentFiltering = FALSE, cooksCutoff = FALSE)
   res <- raw_res
   shrink_requested <- isTRUE(cfg_get(config, "analysis.lfc_shrink", TRUE))
   allow_unshrunk <- isTRUE(cfg_get(config, "analysis.allow_unshrunk_lfc", FALSE))
@@ -259,18 +303,39 @@ run_pseudobulk <- function(obj, meta, assay, sample_col, condition_col, covariat
   )
   write_tsv(shrink_audit, file.path(task_dir, "effect_size_audit.tsv"))
   out <- as.data.frame(res); out$gene <- rownames(out)
+  out$tested <- is.finite(out$pvalue)
+  out$multiple_testing_eligible <- is.finite(out$padj)
+  out$filter_reason <- ifelse(out$tested & !out$multiple_testing_eligible, "independent_filtering",
+    ifelse(!out$tested & out$baseMean == 0, "zero_counts",
+      ifelse(!out$tested & is.finite(uncensored$pvalue), "cooks_outlier", ifelse(!out$tested, "test_unavailable", ""))))
+  out <- set_de_test_state(out, wald = TRUE)
+  filter_metadata <- S4Vectors::metadata(raw_res)
+  jsonlite::write_json(list(alpha = thresholds$padj, independent_filtering = TRUE, cooks_cutoff = "DESeq2_default",
+    filter_threshold = unname(filter_metadata$filterThreshold), filter_theta = filter_metadata$filterTheta,
+    state_counts = as.list(table(out$test_status)), reason_counts = as.list(table(out$filter_reason)),
+    cooks_reason_evidence = "missing primary pvalue but finite pvalue with cooksCutoff=false"), file.path(task_dir, "deseq2_results_audit.json"), auto_unbox = TRUE, pretty = TRUE, digits = NA)
   out$lfc_shrink_requested <- shrink_requested
   out$lfc_shrink_applied <- shrink_applied
   out$lfc_shrink_method <- if (shrink_applied) "apeglm" else "none"
   out$lfc_shrink_status <- shrink_status
   out$inferential_statistics_source <- "unshrunk_DESeq2_Wald"
   norm <- DESeq2::counts(dds, normalized = TRUE)
+  transform <- cfg_get(config, "analysis.pca_transform", "vst")
+  if (!transform %in% c("vst", "log2_normalized")) stop("analysis.pca_transform must be vst or log2_normalized")
+  diagnostic <- if (transform == "vst") {
+    SummarizedExperiment::assay(DESeq2::varianceStabilizingTransformation(dds, blind = FALSE))
+  } else log2(norm + 1)
+  write_tsv(data.frame(transform = transform,
+    implementation = if (transform == "vst") "DESeq2::varianceStabilizingTransformation" else "log2(normalized_counts + 1)",
+    blind = if (transform == "vst") FALSE else NA, scope = "sample_PCA_and_top_DE_heatmap",
+    changes_inferential_counts = FALSE), file.path(task_dir, "pseudobulk_transform_audit.tsv"))
   gr <- coldata[[condition_col]]
   out$mean_numerator <- rowMeans(norm[, gr == comparison$numerator, drop = FALSE])
   out$mean_denominator <- rowMeans(norm[, gr == comparison$denominator, drop = FALSE])
   write_tsv(data.frame(sample = colnames(pb), condition = as.character(gr), coldata, check.names = FALSE), file.path(task_dir, "sample_design.tsv"))
-  saveRDS(list(counts = pb, normalized_counts = norm, coldata = coldata, design = design_text), file.path(task_dir, "pseudobulk_data.rds"))
-  plot_pseudobulk(norm, coldata, condition_col, out, task_dir, config)
+  saveRDS(list(counts = pb, normalized_counts = norm, diagnostic_expression = diagnostic, diagnostic_transform = transform,
+    coldata = coldata, design = design_text), file.path(task_dir, "pseudobulk_data.rds"))
+  plot_pseudobulk(norm, coldata, condition_col, out, task_dir, config, diagnostic, transform)
   out
 }
 
@@ -289,13 +354,16 @@ annotate_de_result <- function(x, population, comparison, method, thresholds, me
   if (!"pvalue" %in% names(x)) x$pvalue <- NA_real_; if (!"padj" %in% names(x)) x$padj <- NA_real_
   x$population <- population; x$comparison_id <- comparison$id; x$numerator <- comparison$numerator; x$denominator <- comparison$denominator
   x$direction <- ifelse(is.na(x$log2FoldChange), "Not_tested", ifelse(x$log2FoldChange > 0, "Up", ifelse(x$log2FoldChange < 0, "Down", "Stable")))
-  x$significance <- ifelse(is.na(x$padj), "Not_tested", ifelse(x$padj <= thresholds$padj & x$log2FoldChange >= thresholds$lfc, "Up", ifelse(x$padj <= thresholds$padj & x$log2FoldChange <= -thresholds$lfc, "Down", "NS")))
-  x$tested <- !is.na(x$pvalue); x$filter_reason <- ifelse(x$tested, "", "independent_filtering_or_unavailable")
+  x <- set_de_test_state(x, wald = method == "pseudobulk_deseq2")
+  x$significance <- de_significance(x, thresholds)
   x$method <- method; x$inference_level <- if (method == "pseudobulk_deseq2") "sample_level_formal" else "cell_level_exploratory"
   tab <- table(meta[[condition_col]]); smp <- unique(meta[c(sample_col, condition_col)]); stab <- table(smp[[condition_col]])
   x$n_cells_numerator <- unname(tab[comparison$numerator]); x$n_cells_denominator <- unname(tab[comparison$denominator])
   x$n_samples_numerator <- unname(stab[comparison$numerator]); x$n_samples_denominator <- unname(stab[comparison$denominator])
-  front <- c("gene", "population", "comparison_id", "numerator", "denominator", "log2FoldChange", "pvalue", "padj", "direction", "significance", "tested", "filter_reason", "method", "inference_level")
+  x$low_replication_warning <- method == "pseudobulk_deseq2" & (x$n_samples_numerator < 3 | x$n_samples_denominator < 3)
+  x$inference_qualification <- ifelse(x$low_replication_warning, "exploratory_low_confidence",
+    ifelse(method == "pseudobulk_deseq2", "replicated_sample_level", "cell_level_exploratory"))
+  front <- c("gene", "population", "comparison_id", "numerator", "denominator", "log2FoldChange", "pvalue", "padj", "direction", "significance", "tested", "wald_tested", "multiple_testing_eligible", "test_status", "filter_reason", "method", "inference_level")
   x[, c(front, setdiff(names(x), front)), drop = FALSE]
 }
 
@@ -308,26 +376,26 @@ plot_de_results <- function(x, out, population, comparison, config) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) return(invisible(NULL))
   x$plot_p <- -log10(pmax(x$padj, .Machine$double.xmin)); x$plot_p[!is.finite(x$plot_p)] <- 0
   p <- ggplot2::ggplot(x, ggplot2::aes(log2FoldChange, plot_p, color = significance)) + ggplot2::geom_point(alpha = .65, size = .9) +
-    ggplot2::scale_color_manual(values = c(Up = "#D73027", Down = "#4575B4", NS = "grey70", Not_tested = "grey90"), drop = FALSE) +
+    ggplot2::scale_color_manual(values = c(Up = "#D73027", Down = "#4575B4", NS = "grey70", Filtered = "grey80", Effect_unavailable = "grey85", Not_tested = "grey90"), drop = FALSE) +
     ggplot2::geom_vline(xintercept = 0, linewidth = .3, colour = "grey55") +
     ggplot2::labs(title = gsub("_+", " ", paste(population, comparison$id)), subtitle = "Point colour: adjusted-significance class", x = paste0("log2FC (", comparison$numerator, " vs ", comparison$denominator, ")"), y = "-log10 adjusted P") + paper_theme()
   paper_save(p, file.path(out, "volcano"), 7, 6, config, out, "volcano")
   if ("baseMean" %in% names(x)) {
-    ma <- ggplot2::ggplot(x, ggplot2::aes(log10(baseMean + 1), log2FoldChange, color = significance)) + ggplot2::geom_point(alpha = .6, size = .8) + ggplot2::geom_hline(yintercept = 0, linewidth = .3, colour = "grey55") + ggplot2::scale_color_manual(values = c(Up = "#D73027", Down = "#4575B4", NS = "grey70", Not_tested = "grey90"), drop = FALSE) + paper_theme() + ggplot2::labs(title = "MA plot", subtitle = "Point colour: adjusted-significance class", x = "log10(baseMean + 1)", y = "log2FC")
+    ma <- ggplot2::ggplot(x, ggplot2::aes(log10(baseMean + 1), log2FoldChange, color = significance)) + ggplot2::geom_point(alpha = .6, size = .8) + ggplot2::geom_hline(yintercept = 0, linewidth = .3, colour = "grey55") + ggplot2::scale_color_manual(values = c(Up = "#D73027", Down = "#4575B4", NS = "grey70", Filtered = "grey80", Effect_unavailable = "grey85", Not_tested = "grey90"), drop = FALSE) + paper_theme() + ggplot2::labs(title = "MA plot", subtitle = "Point colour: adjusted-significance class", x = "log10(baseMean + 1)", y = "log2FC")
     paper_save(ma, file.path(out, "MA_plot"), 7, 6, config, out, "MA_plot")
   }
 }
 
-plot_pseudobulk <- function(norm, coldata, condition_col, result, out, config) {
+plot_pseudobulk <- function(norm, coldata, condition_col, result, out, config, diagnostic = log2(norm + 1), transform = "log2_normalized") {
   if (!requireNamespace("ggplot2", quietly = TRUE)) return(invisible(NULL))
-  vst <- log2(norm + 1); pc <- stats::prcomp(t(vst), scale. = FALSE); pct <- round(100 * pc$sdev^2 / sum(pc$sdev^2), 1)
+  pc <- stats::prcomp(t(diagnostic), scale. = FALSE); pct <- round(100 * pc$sdev^2 / sum(pc$sdev^2), 1)
   d <- data.frame(sample = rownames(pc$x), PC1 = pc$x[,1], PC2 = pc$x[,2], condition = coldata[rownames(pc$x), condition_col])
   colors <- paper_colors(d$condition, "condition", config, out)
-  p <- ggplot2::ggplot(d, ggplot2::aes(PC1, PC2, color = condition, label = sample)) + ggplot2::geom_point(size = 3) + ggplot2::geom_text(vjust = -0.7, size = 3) + ggplot2::scale_color_manual(values = colors) + paper_theme() + ggplot2::labs(title = "Pseudobulk PCA", subtitle = "Each point is one biological sample", x = paste0("PC1 (", pct[1], "%)"), y = paste0("PC2 (", pct[2], "%)"))
+  p <- ggplot2::ggplot(d, ggplot2::aes(PC1, PC2, color = condition, label = sample)) + ggplot2::geom_point(size = 3) + ggplot2::geom_text(vjust = -0.7, size = 3) + ggplot2::scale_color_manual(values = colors) + paper_theme() + ggplot2::labs(title = "Pseudobulk PCA", subtitle = paste("Each point is one biological sample;", transform), x = paste0("PC1 (", pct[1], "%)"), y = paste0("PC2 (", pct[2], "%)"))
   paper_save(p, file.path(out, "pseudobulk_PCA"), 7, 6, config, out, "pseudobulk_PCA")
   top_n <- as.integer(cfg_get(config, "plots.top_genes", 30)); ord <- order(result$padj, -abs(result$log2FoldChange), na.last = NA); genes <- head(result$gene[ord], top_n)
   if (length(genes) >= 2L) {
-    z <- t(scale(t(vst[genes, , drop = FALSE])))
+    z <- t(scale(t(diagnostic[genes, , drop = FALSE])))
     paper_base_save(function() stats::heatmap(z, Colv = NA, scale = "none", margins = c(8, 8), col = grDevices::colorRampPalette(c("#2166AC", "#F7F7F7", "#B2182B"))(101)), file.path(out, "top_DE_heatmap"), 8, max(5, length(genes) * .16 + 2), config, out, "top_DE_heatmap")
   }
 }
@@ -338,6 +406,14 @@ plot_batch_summary <- function(x, status, out, config) {
   if (!nrow(sig)) return(invisible(NULL))
   z <- aggregate(gene ~ population + comparison_id + significance, sig, length); names(z)[4] <- "n_genes"
   if (nrow(z)) { p <- ggplot2::ggplot(z, ggplot2::aes(population, n_genes, fill = significance)) + ggplot2::geom_col(position = "dodge") + ggplot2::facet_wrap(~comparison_id, scales = "free_x") + ggplot2::scale_fill_manual(values = c(Up = "#D73027", Down = "#4575B4")) + paper_theme() + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 60, hjust = 1)) + ggplot2::labs(title = "Differentially expressed genes", subtitle = "Counts passing the configured effect-size and adjusted-P thresholds", x = NULL, y = "Number of genes"); paper_save(p, file.path(out, "DEG_count_summary"), max(8, length(unique(z$population)) * .45 + 4), 6, config, out, "DEG_count_summary") }
+}
+
+ora_background <- function(result, config) {
+  mode <- cfg_get(config, "enrichment.universe_mode", "multiple_testing_eligible")
+  if (!mode %in% c("multiple_testing_eligible", "tested")) stop("enrichment.universe_mode must be multiple_testing_eligible or tested")
+  result <- set_de_test_state(result)
+  selected <- result[[mode]]
+  list(mode = mode, selected = selected, genes = unique(result$gene[selected]))
 }
 
 run_enrichment <- function(result, out, population, comparison, config) {
@@ -353,12 +429,17 @@ run_enrichment <- function(result, out, population, comparison, config) {
   org_pkg <- if (human) "org.Hs.eg.db" else "org.Mm.eg.db"
   msig_species <- if (human) "Homo sapiens" else "Mus musculus"
   if (!requireNamespace(org_pkg, quietly = TRUE)) stop("Required annotation package is unavailable: ", org_pkg)
-  orgdb <- get(org_pkg, envir = asNamespace(org_pkg)); universe <- result$gene[result$tested]
+  orgdb <- get(org_pkg, envir = asNamespace(org_pkg)); background <- ora_background(result, config); universe <- background$genes
   mapping <- clusterProfiler::bitr(unique(result$gene), fromType = id_type, toType = "ENTREZID", OrgDb = orgdb)
   mapping$ambiguous_input_id <- duplicated(mapping[[id_type]]) | duplicated(mapping[[id_type]], fromLast = TRUE)
   write_tsv(mapping, file.path(enr_dir, "gene_id_mapping.tsv")); mapping_one <- mapping[!duplicated(mapping[[id_type]]), , drop = FALSE]
   map <- setNames(mapping_one$ENTREZID, mapping_one[[id_type]])
   uni <- unique(stats::na.omit(unname(map[universe]))); min_input <- as.integer(cfg_get(config, "enrichment.min_input_genes", 5))
+  write_tsv(data.frame(gene = result$gene, selected_for_ora = background$selected,
+    mapped_id = unname(map[result$gene]), universe_mode = background$mode), file.path(enr_dir, "ora_universe_genes.tsv"))
+  write_tsv(data.frame(universe_mode = background$mode, n_input_genes = length(unique(result$gene)),
+    n_selected_genes = length(universe), n_mapped_genes = sum(universe %in% names(map)), n_mapped_ids = length(uni),
+    n_unmapped_genes = sum(!universe %in% names(map))), file.path(enr_dir, "ora_universe_audit.tsv"))
   requested <- toupper(as_chr(cfg_get(config, "enrichment.databases", c("GO_BP", "GO_MF", "GO_CC", "KEGG", "REACTOME", "HALLMARK"))))
   min_gs <- as.integer(cfg_get(config, "enrichment.min_gene_set_size", 10)); max_gs <- as.integer(cfg_get(config, "enrichment.max_gene_set_size", 500))
   rows <- list(); statuses <- list(); k <- 0L
@@ -374,13 +455,20 @@ run_enrichment <- function(result, out, population, comparison, config) {
   rank0 <- rank0[is.finite(rank0) & names(rank0) %in% names(map)]
   collapsed <- tapply(rank0, unname(map[names(rank0)]), function(v) v[which.max(abs(v))])
   rank <- as.numeric(collapsed); names(rank) <- names(collapsed); rank <- sort(rank, decreasing = TRUE)
+  write_tsv(data.frame(mapped_id = names(rank), signed_stat = rank), file.path(enr_dir, "gsea_ranked_genes.tsv"))
 
   run_one <- function(database, ont = NULL, term2gene = NULL) {
     for (direction in c("Up", "Down")) {
-      genes <- unique(stats::na.omit(unname(map[result$gene[result$significance == direction]])))
+      foreground <- result$gene[result$significance == direction & background$selected]
+      genes <- intersect(unique(stats::na.omit(unname(map[foreground]))), uni)
+      write_tsv(data.frame(mapped_id = genes), file.path(enr_dir, paste0("ora_", tolower(database), "_", tolower(direction), "_foreground.tsv")))
+      if (!length(uni)) { add_status(database, "ORA", direction, "skipped_empty_universe", length(genes), 0L); next }
       if (length(genes) < min_input) { add_status(database, "ORA", direction, "skipped_too_few_genes", length(genes), 0L); next }
       ans <- tryCatch({
         x <- if (!is.null(ont)) clusterProfiler::enrichGO(genes, OrgDb = orgdb, keyType = "ENTREZID", ont = ont, universe = uni, pAdjustMethod = "BH", pvalueCutoff = 1, qvalueCutoff = 1, minGSSize = min_gs, maxGSSize = max_gs, readable = TRUE) else clusterProfiler::enricher(genes, universe = uni, TERM2GENE = term2gene, pAdjustMethod = "BH", pvalueCutoff = 1, qvalueCutoff = 1, minGSSize = min_gs, maxGSSize = max_gs)
+        if (!is.null(x) && methods::is(x, "enrichResult")) {
+          write_tsv(data.frame(mapped_id = x@universe), file.path(enr_dir, paste0("ora_", tolower(database), "_", tolower(direction), "_effective_universe.tsv")))
+        }
         tab <- as.data.frame(x); add_result(tab, database, "ORA", direction); add_status(database, "ORA", direction, if (nrow(tab)) "completed" else "empty", length(genes), nrow(tab))
       }, error = function(e) add_status(database, "ORA", direction, "failed", length(genes), 0L, conditionMessage(e)))
     }

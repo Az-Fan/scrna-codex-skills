@@ -30,10 +30,10 @@ If execution may exceed 10 minutes, has uncertain duration, or could outlive the
 ## Guardrails
 
 - Never treat cells as independent biological replicates for formal condition claims.
-- Never use integrated assay values as pseudobulk counts; select a raw-count RNA-like assay.
+- Never use integrated assay values as pseudobulk counts; select a raw-count RNA-like assay and explicitly declare `analysis.counts_source.kind=raw_umi` or `raw_read`. SCT corrected counts are also prohibited. Integer validation alone does not authenticate count origin; record the user declaration and, when supplied, comparison with an original reference object.
 - Stop formal inference for rank-deficient designs, samples mapped to multiple conditions, nonconstant sample covariates, or insufficient independent samples.
-- Preserve every returned gene. Use thresholds to annotate `Up`, `Down`, `NS`, or `Not_tested`, not to truncate the full table.
-- Use tested genes as the ORA universe. Keep identifier mapping and unmapped genes auditable.
+- Preserve every returned gene. Use thresholds to annotate `Up`, `Down`, `NS`, `Filtered`, `Effect_unavailable`, or `Not_tested`, not to truncate the full table.
+- Default the ORA universe to genes eligible for the corresponding adjusted-P test (`multiple_testing_eligible=true`); require an explicit `enrichment.universe_mode=tested` to include independently filtered genes. Keep identifier mapping and unmapped genes auditable.
 - Prefer sample-level normalized expression for formal heatmaps and PCA. Treat cell-level plots as descriptive.
 - Do not overwrite the input Seurat object.
 

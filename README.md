@@ -495,7 +495,7 @@ guided 模式只给出稳定性推荐并暂停，必须由用户确认 resolutio
 - `metadata.sample`、`metadata.condition`，可选 `metadata.population` 和 covariates。
 - `population.mode=all|selected`、include/exclude labels。
 - 一个或多个 comparison：`id`、`numerator`、`denominator`。
-- `analysis.method=pseudobulk_deseq2`、assay、设计公式和样本/细胞/基因过滤下限。
+- `analysis.method=pseudobulk_deseq2`、assay、设计公式和样本/细胞/基因过滤下限。正式 DE 还需声明 `analysis.counts_source.kind=raw_umi` 或 `raw_read`；可提供原始对象做逐项 counts 核对。
 - `padj_threshold`、`lfc_threshold`。
 - 默认 `lfc_shrink=true`，要求 apeglm 成功；正 log2FC 始终表示 numerator 高于 denominator。
 
@@ -536,7 +536,7 @@ apeglm 只替换 log2FC 和 lfcSE；p 值、padj 和 Wald stat 仍来自未收�
 - `analysis.stage=enrichment_only`。
 - species 和 `gene_id_type`。
 - 明确的列映射：gene、log2FC、pvalue、padj、stat、population、comparison。
-- ORA 的 padj/LFC 阈值与最小输入基因数。
+- ORA 的 padj/LFC 阈值与最小输入基因数。背景默认采用 `multiple_testing_eligible`；完整状态与背景审计规则见 skill 11 的输入输出契约及共享 enrichment-design。
 - GSEA gene-set size 范围。
 - 请求的数据库，以及绘图 top-N、标签换行宽度和每页 term 数。
 
@@ -738,6 +738,8 @@ python3 tests/test_tmux_runner.py
 ```bash
 python3 tests/e2e/run_fixture_e2e.py
 ```
+
+统计契约专项回归使用已部署 `06-deg-analysis` 环境的 Rscript，运行 `tests/test_differential_statistics.R` 和 `tests/test_enrichment_statistics.R`；它们分别验证真实 DESeq2 的检验状态、VST、重复数提示，以及真实 GO ORA 背景和 GSEA 排序传递。
 
 生成 `.skill` 包：
 

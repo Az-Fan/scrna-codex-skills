@@ -49,7 +49,7 @@ EXPECTED = {
     "08-scrna-annotate-cells": ["clustered_object.qs", "cluster_markers.tsv", "annotation_review.tsv", "cluster_umap.png", "cluster_sample_umap.png", "canonical_marker_dotplot.png", "annotated_object.qs", "cell_annotations.tsv", "annotation_summary.tsv", "annotated_umap.png", "cluster_sample_condition_umap.png", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
     "09-scrna-export-subset": ["subset_object.qs", "subset_counts.mtx", "subset_metadata.tsv", "subset_summary.tsv", "features.tsv", "barcodes.tsv", "_provenance/run_manifest.json"],
     "10-scrna-score-programs": ["signature_coverage.tsv", "assay_feature_mapping.tsv", "score_summary.tsv", "_provenance/task_manifest.json", "_provenance/run_manifest.json"],
-    "11-scrna-run-differential-analysis": ["design_audit.tsv", "task_status.tsv", "all_comparisons.tsv", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
+    "11-scrna-run-differential-analysis": ["counts_source_audit.tsv", "design_audit.tsv", "task_status.tsv", "all_comparisons.tsv", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
     "12-scrna-run-pathway-enrichment": ["task_status.tsv", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
     "13-scrna-test-cell-abundance": ["sample_cell_counts.tsv", "sample_cell_proportions.tsv", "design_audit.tsv", "cell_type_eligibility.tsv", "task_status.tsv", "all_method_results.tsv", "method_concordance.tsv", "sample_composition.pdf", "cell_type_proportions_by_condition.pdf", "sample_proportion_heatmap.pdf", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
     "14-scrna-visualize-cell-composition": ["composition_counts.tsv", "composition_proportions.tsv", "sample_coverage.tsv", "composition_audit.tsv", "plot_status.tsv", "composition_overview_seurat_clusters.png", "composition_dotplot_seurat_clusters.png", "composition_heatmap_seurat_clusters.png", "composition_counts_seurat_clusters.png", "embedding_diagnostics_seurat_clusters.png", "_provenance/session_info.txt", "_provenance/run_manifest.json"],
@@ -150,7 +150,7 @@ def main() -> int:
         "08-scrna-annotate-cells": {**base, "workflow": {"action": "prepare_review"}, "input": {"object": str(fixture), "markers": str(output_root / "07-scrna-find-cluster-markers/cluster_markers.tsv")}, "metadata": {"sample": "sample_label", "condition": "condition", "cluster": "seurat_clusters", "reduction": "umap"}, "clustering": {"compute_if_missing": False}, "markers": {"assay": "RNA", "canonical": {"endothelial": ["Kdr", "Pecam1", "Cdh5"], "fibroblast": ["Col1a1", "Col3a1", "Dcn"]}}},
         "09-scrna-export-subset": {**base, "input": {"object": str(qc_fixture)}, "metadata": {"sample": "sample_label", "cell_type": "cell_type"}, "subset": {"include": ["Endothelial"]}},
         "10-scrna-score-programs": {**base, "input": {"object": str(fixture), "assay": "RNA", "layer": "counts"}, "species": "mouse", "tasks": [{"name": "vascular_program", "method": "addmodulescore", "gene_sets": {"source": "inline", "sets": {"vascular": ["Kdr", "Pecam1", "Cdh5"]}}, "coverage": {"min_genes": 3, "min_fraction": 1.0, "on_insufficient": "error"}, "parameters": {"normalize_if_missing": True, "nbin": 4, "ctrl": 2}}], "summarize_by": ["sample_label", "condition", "cell_type"], "random_seed": 1, "cores": 1, "cache": {"enabled": False}, "output": {"object_format": "rds"}},
-        "11-scrna-run-differential-analysis": {**base, "metadata": {"sample": "sample_label", "condition": "condition", "covariates": []}, "population": {"mode": "all", "include": [], "exclude": []}, "comparisons": [{"id": "stz_vs_control", "numerator": "stz", "denominator": "control"}], "analysis": {"stage": "differential", "method": "pseudobulk_deseq2", "assay": "RNA", "design": "~ condition", "min_cells_per_sample_population": 10, "min_samples_per_group": 2, "min_total_count": 1, "min_count_per_sample": 1, "min_samples_expressed": 2, "padj_threshold": 0.1, "lfc_threshold": 0.1, "lfc_shrink": False}, "plots": {"top_genes": 10}, "enrichment": {"enabled": False, "species": "mouse", "gene_id_type": "SYMBOL"}},
+        "11-scrna-run-differential-analysis": {**base, "metadata": {"sample": "sample_label", "condition": "condition", "covariates": []}, "population": {"mode": "all", "include": [], "exclude": []}, "comparisons": [{"id": "stz_vs_control", "numerator": "stz", "denominator": "control"}], "analysis": {"stage": "differential", "method": "pseudobulk_deseq2", "assay": "RNA", "counts_source": {"kind": "raw_umi"}, "design": "~ condition", "min_cells_per_sample_population": 10, "min_samples_per_group": 2, "min_total_count": 1, "min_count_per_sample": 1, "min_samples_expressed": 2, "padj_threshold": 0.1, "lfc_threshold": 0.1, "lfc_shrink": False}, "plots": {"top_genes": 10}, "enrichment": {"enabled": False, "species": "mouse", "gene_id_type": "SYMBOL"}},
         "12-scrna-run-pathway-enrichment": {"project": {"id": "tiny_fixture_enrichment"}, "random_seed": 1, "input": {"differential_table": str(output_root / "11-scrna-run-differential-analysis/all_comparisons.tsv")}, "analysis": {"stage": "enrichment_only", "padj_threshold": 1.0, "lfc_threshold": 0.0}, "enrichment": {"enabled": True, "species": "mouse", "gene_id_type": "SYMBOL", "databases": ["GO_BP"], "min_input_genes": 1, "min_gene_set_size": 1, "max_gene_set_size": 500, "plot_top_terms": 5, "plot_label_width": 30, "plot_terms_per_page": 8}},
         "13-scrna-test-cell-abundance": {
             "project": {"id": "tiny_fixture_abundance"},
@@ -354,7 +354,34 @@ def main() -> int:
                 statuses = [row["status"] for row in csv.DictReader(handle, delimiter="\t")]
             if not statuses or any(status != "completed" for status in statuses):
                 raise RuntimeError(f"{skill}: not every E2E task completed: {statuses}")
+            task_dir = out / "comparisons/all_cells__stz_vs_control"
+            for name in ["gene_filter_audit.tsv", "replication_audit.tsv", "pseudobulk_transform_audit.tsv", "deseq2_results_audit.json"]:
+                if not (task_dir / name).is_file():
+                    raise RuntimeError(f"{skill}: missing statistical audit {name}")
+            with (out / "all_comparisons.tsv").open(encoding="utf-8", newline="") as handle:
+                genes = list(csv.DictReader(handle, delimiter="\t"))
+            if not genes or any(row["low_replication_warning"] != "TRUE" for row in genes):
+                raise RuntimeError(f"{skill}: two-replicate inference lacks low-replication flags")
+            with (task_dir / "pseudobulk_transform_audit.tsv").open(encoding="utf-8", newline="") as handle:
+                transform = next(csv.DictReader(handle, delimiter="\t"))
+            if transform["transform"] != "vst" or transform["implementation"] != "DESeq2::varianceStabilizingTransformation":
+                raise RuntimeError(f"{skill}: default diagnostics do not use actual VST")
+            if json.loads((task_dir / "deseq2_results_audit.json").read_text())["alpha"] != config["analysis"]["padj_threshold"]:
+                raise RuntimeError(f"{skill}: independent filtering uses a different alpha")
+        if skill == "12-scrna-run-pathway-enrichment":
+            audits = list(out.glob("comparisons/*/enrichment/ora_universe_audit.tsv"))
+            if not audits:
+                raise RuntimeError(f"{skill}: missing ORA background audit")
+            for audit in audits:
+                with audit.open(encoding="utf-8", newline="") as handle:
+                    universe = next(csv.DictReader(handle, delimiter="\t"))
+                if universe["universe_mode"] != "multiple_testing_eligible":
+                    raise RuntimeError(f"{skill}: ORA background default was not retained")
         if skill == "13-scrna-test-cell-abundance":
+            with (out / "all_method_results.tsv").open(encoding="utf-8", newline="") as handle:
+                abundance_results = list(csv.DictReader(handle, delimiter="\t"))
+            if not abundance_results or any(row["estimand"] != "relative_abundance" for row in abundance_results):
+                raise RuntimeError(f"{skill}: composition results lack the relative-abundance estimand")
             with (out / "task_status.tsv").open(encoding="utf-8", newline="") as handle:
                 abundance_status = list(csv.DictReader(handle, delimiter="\t"))
             if {row["method"] for row in abundance_status} != {"propeller", "dcats"} or any(row["status"] != "completed" for row in abundance_status):

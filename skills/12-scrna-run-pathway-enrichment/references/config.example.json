@@ -5,6 +5,7 @@
   "analysis": {"stage": "enrichment_only", "padj_threshold": 0.05, "lfc_threshold": 0.25},
   "enrichment": {
     "enabled": true,
+    "universe_mode": "multiple_testing_eligible",
     "species": "mouse",
     "gene_id_type": "SYMBOL",
     "databases": ["GO_BP", "GO_MF", "GO_CC", "KEGG", "REACTOME", "HALLMARK"],
