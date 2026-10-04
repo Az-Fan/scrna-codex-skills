@@ -69,7 +69,8 @@ for (population in populations) for (comparison in comparisons) {
         low_replication_warning = low_replication,
         interpretation = if (low_replication) "exploratory_low_confidence" else if (method == "pseudobulk_deseq2") "replicated_sample_level" else "cell_level_exploratory"), file.path(task_dir, "replication_audit.tsv"))
       missing_groups <- setdiff(c(comparison$numerator, comparison$denominator), names(counts_by_group))
-      if (length(missing_groups) || any(counts_by_group[c(comparison$numerator, comparison$denominator)] < thresholds$min_samples)) {
+      required_samples <- if (method == "pseudobulk_deseq2") thresholds$min_samples else 1L
+      if (length(missing_groups) || any(replicate_counts < required_samples)) {
         stop("Insufficient independent samples after minimum-cell filtering")
       }
       sub <- subset(obj, cells = rownames(task_meta))

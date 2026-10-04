@@ -16,6 +16,8 @@ The apeglm resolver verifies that the numerator-minus-denominator contrast is ex
 
 Use `seurat_*` methods only as exploratory sensitivity analyses or when no valid sample-level design exists. Their adjusted P values do not account for biological replication.
 
+The `min_samples_per_group` gate applies to formal pseudobulk. Explicit exploratory cell-level methods can run with one retained sample in each condition, still require cells from both conditions after minimum-cell filtering, and always report `inference_level=cell_level_exploratory`. Such results cannot establish a replicated condition effect.
+
 Positive `log2FoldChange` always means numerator exceeds denominator. Thresholds annotate results but do not determine which rows are retained in `all_genes.tsv`.
 
 Use apeglm-shrunken log2 fold changes by default for stable effect-size reporting and visualization. `analysis.lfc_shrink=true` is a strict dependency contract: fail if `apeglm` is unavailable or the coefficient cannot be identified. Only fall back when `analysis.allow_unshrunk_lfc=true` is explicitly set, and record the fallback in `effect_size_audit.tsv` and result columns. Setting `analysis.lfc_shrink=false` is preferable when unshrunk effects are intentionally reported. Replace only `log2FoldChange` and `lfcSE` with apeglm estimates; retain Wald P values, adjusted P values, and signed Wald `stat` from the unshrunk DESeq2 result. Use that Wald statistic, not shrunken fold change, as the preferred GSEA ranking metric.

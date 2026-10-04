@@ -92,7 +92,9 @@ def main():
         (root / (label + '.log')).write_text(done.stdout + done.stderr)
         out = root / label
         if expected_error:
-            assert done.returncode != 0 and expected_error in done.stdout + done.stderr + (out / '_provenance/run.log').read_text(), (label, done.stdout, done.stderr)
+            log = out / '_provenance/run.log'
+            diagnostics = done.stdout + done.stderr + (log.read_text() if log.exists() else '')
+            assert done.returncode != 0 and expected_error in diagnostics, (label, diagnostics)
         else:
             assert done.returncode == 0, (label, done.stdout, done.stderr)
         manifest_path = out / '_provenance/run_manifest.json'
@@ -127,7 +129,7 @@ def main():
     cfg['benchmark']['methods'] = [{'name':'precomputed','reduction':'umap'},{'name':'precomputed','reduction':'alternate_embedding'}]
     cfg['metrics'] = {'batch_removal':[],'biological_conservation':[]}; cfg['plots'] = []
     out = run(skill,'precomputed_independent',cfg)
-    rows = tsv(out/'exchange/embedding_manifest.tsv'); assert len(rows) == 3
+    rows = tsv(out/'_provenance/exchange/embedding_manifest.tsv'); assert len(rows) == 3
     assert len({row['scenario'] for row in rows}) == len({row['path'] for row in rows}) == 3
     first, second = [row for row in rows if row['method']=='precomputed']
     assert sha(Path(first['path'])) != sha(Path(second['path']))
@@ -135,7 +137,12 @@ def main():
     skill = '08-scrna-annotate-cells'
     for kind in ['na','blank']:
         cfg = json.loads((baseline/'configs'/ (skill+'.apply.json')).read_text())
-        cfg['input']['object'] = str(fixture); cfg['input']['decisions'] = str(root/('annotation_'+kind+'.tsv'))
+        # Retain the prepared object and review binding from the baseline.
+        # Emulate approval of the invalid label table to exercise semantic checks.
+        # These are synthetic test declarations, not real human authorization.
+        cfg['input']['decisions'] = str(root/('annotation_'+kind+'.tsv'))
+        cfg['approval']['decision_sha256'] = sha(Path(cfg['input']['decisions']))
+        cfg['approval']['provenance'] = 'synthetic_automated_test_not_human_approval'
         cfg['annotation'] = {'broad_column':'broad','fine_column':'fine','decision_column':'decision'}
         run(skill,'annotation_'+kind,cfg,'labels cannot be missing or empty')
         assert not (root/('annotation_'+kind)/'annotated_object.qs').exists()
