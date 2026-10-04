@@ -7,6 +7,7 @@ Only changed files and explicitly inherited review stages are current deliverabl
 import csv
 import datetime as dt
 import json
+import re
 from pathlib import Path
 from urllib.parse import quote
 
@@ -32,6 +33,20 @@ def snapshot(output):
 
 def scientific(name):
     return not any(part in TECHNICAL for part in Path(name).parts) and Path(name).name != INDEX
+
+
+def legacy_review_files(skill, names):
+    """Recognize only documented review artifacts; filenames do not prove lineage."""
+    if skill.startswith("08-"):
+        patterns = (r"annotation_review\.tsv", r"cluster_markers\.tsv",
+                    r"(?:cluster_umap|cluster_sample_umap|canonical_marker_dotplot)\.(?:png|pdf)",
+                    r"clustered_object\.(?:qs|rds)")
+    else:
+        patterns = (r"scenario_(?:summary|cluster_similarity)\.tsv",
+                    r"preprocessed_clustered_object\.(?:qs|rds)",
+                    r"[A-Za-z0-9_.-]+_(?:resolution_stability|umap_clusters_by_resolution|clustree_resolution|elbow)\.(?:tsv|png|pdf)")
+    return {name for name in names if len(Path(name).parts) == 1
+            and any(re.fullmatch(pattern, name) for pattern in patterns)}
 
 
 def label(value):
@@ -149,7 +164,7 @@ def purpose(name):
     return "Complete scientific table or supporting result"
 
 
-def write_index(root, files, retained, status, evidence, run_id, skill, tasks=(), old_count=0, provenance="_provenance/", project=None):
+def write_index(root, files, retained, status, evidence, run_id, skill, tasks=(), old_count=0, provenance="_provenance/", project=None, legacy_retained=()):
     lines = ["# Results", "", f"Status: **{status}**", "", f"Project: **{label(project or skill)}**", "", f"Analysis: `{skill}`", ""]
     if status == "awaiting confirmation":
         lines += ["Review the decision material before confirming the next stage.", ""]
@@ -170,7 +185,8 @@ def write_index(root, files, retained, status, evidence, run_id, skill, tasks=()
         if names:
             lines += [f"## {title}", ""]
             for name in names:
-                suffix = " — retained from the preceding review stage" if name in retained else ""
+                suffix = (" — legacy review material; stage provenance unverified" if name in legacy_retained
+                          else " — retained from the preceding review stage" if name in retained else "")
                 lines.append(f"- {link(name)} — {purpose(name)}{suffix}")
             lines.append("")
     if not files and not tasks:
@@ -191,13 +207,23 @@ def finish(output, before, skill, config, returncode, run_id=None):
     action = config.get("workflow", {}).get("action", "run")
     inherit = (skill.startswith("06-") and action == "finalize_resolution") or (skill.startswith("08-") and action == "apply_confirmed")
     retained = set()
+    legacy_retained = set()
     if inherit:
         try:
             prior = json.loads((technical / REGISTRY).read_text(encoding="utf-8"))
+            if not isinstance(prior, dict) or prior.get("skill") != skill:
+                raise ValueError("Delivery registry is not for this skill")
+            for field in ("current_files", "retained_stage_files", "legacy_unverified_files"):
+                values = prior.get(field, [])
+                if not isinstance(values, list) or any(not isinstance(name, str) or Path(name).is_absolute()
+                                                     or ".." in Path(name).parts for name in values):
+                    raise ValueError("Delivery registry has invalid artifact paths")
             candidates = set(prior.get("current_files", [])) | set(prior.get("retained_stage_files", []))
-        except (OSError, ValueError):
-            # Legacy two-stage output has no delivery registry. Treat it explicitly as preceding-stage material.
-            candidates = set(before)
+            legacy_retained = set(prior.get("legacy_unverified_files", []))
+        except (OSError, ValueError, TypeError):
+            # Only known review filenames are eligible; never certify their history.
+            candidates = legacy_review_files(skill, before)
+            legacy_retained = candidates
         retained = {name for name in candidates if name in after and name not in current and scientific(name)}
     files = current | retained
     evidence, broken = read_evidence(root, changed)
@@ -232,11 +258,11 @@ def finish(output, before, skill, config, returncode, run_id=None):
         write_index(child, task_files, task_retained, task_status, task_evidence, run_id, skill, provenance="../../_provenance/", project=config.get("project", {}).get("id"))
         task_entries.append((name, task_status))
     root_files = {name for name in files if not name.startswith("comparisons/")}
-    write_index(root, root_files, retained, status, evidence, run_id, skill, task_entries, len(old), project=config.get("project", {}).get("id"))
+    write_index(root, root_files, retained, status, evidence, run_id, skill, task_entries, len(old), project=config.get("project", {}).get("id"), legacy_retained=legacy_retained)
     registry = {"schema_version": 1, "skill": skill, "run_id": run_id, "status": status,
                 "exit_status": returncode, "action": action,
                 "entrypoints": [INDEX] + [name + "/" + INDEX for name, _ in task_entries], "current_files": sorted(current),
-                "retained_stage_files": sorted(retained), "unclaimed_previous_files": sorted(old)}
+                "retained_stage_files": sorted(retained), "legacy_unverified_files": sorted(legacy_retained & retained), "unclaimed_previous_files": sorted(old)}
     (technical / REGISTRY).write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
     return registry
 

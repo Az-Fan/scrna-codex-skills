@@ -414,6 +414,7 @@ guided 模式只给出稳定性推荐并暂停，必须由用户确认 resolutio
 **输入**
 
 - 同一个聚类对象和 cluster/reduction 字段。
+- 必须使用 prepare 生成的 `clustered_object.qs` 和 `_provenance/annotation_review_record.json`，绑定最终人工批准的 TSV、review record SHA256 和 review run ID。原始输入可能在 prepare 时被标准化或聚类，不能代替绑定的派生对象。
 - 完整人工决策 TSV；每个对象 cluster 必须恰好出现一次。
 - broad、fine、可选 state 列，以及 `decision=confirmed`。
 
@@ -427,6 +428,8 @@ guided 模式只给出稳定性推荐并暂停，必须由用户确认 resolutio
 - `_provenance/session_info.txt`、`_provenance/run_manifest.json`。
 
 应用配置见 [config.apply.example.json](skills/08-scrna-annotate-cells/references/config.apply.example.json)，决策表要求见 [annotation-review.md](skills/08-scrna-annotate-cells/references/annotation-review.md)。部分、重复、空白或未确认的决策表会被拒绝；注释过程不删除细胞，也不覆盖 cluster ID。
+
+批准后修改表、审查记录或对象会被拒绝。审批绑定防止内容漂移，`source=human` 字段本身不证明人工授权；agent 必须依据用户对最终版本的实际明确确认。旧的无绑定审查需要重新 prepare。
 
 ### 09-scrna-export-subset：导出目标细胞子集
 
@@ -500,6 +503,8 @@ guided 模式只给出稳定性推荐并暂停，必须由用户确认 resolutio
 - 默认 `lfc_shrink=true`，要求 apeglm 成功；正 log2FC 始终表示 numerator 高于 denominator。
 
 配置模板：[config.example.json](skills/11-scrna-run-differential-analysis/references/config.example.json)，设计规则见 [statistical-design.md](skills/11-scrna-run-differential-analysis/references/statistical-design.md)。
+
+正式 DE 当前仅支持带截距的显式加性设计。交互、变换和无截距公式会被拒绝；数字参数由 Python 与 R 双层校验，具体范围与支持语法见上述设计规则。
 
 **主要输出**
 
@@ -750,3 +755,5 @@ python3 scripts/package_skills.py --output dist
 确定性 fixture 生成器位于 `tests/fixtures/create_fixture.R`，包含 80 个细胞、4 个样本、2 个 condition、2 个 batch、2 个 cell type、2 个 cluster、整数 counts、QC metadata 和 UMAP。测试必须保证 fixture 运行前后 SHA-256 不变。
 
 仓库同步、发布门禁和 tag 规则见 [AGENTS.md](AGENTS.md)。
+
+本机路径和开发主机可记录在忽略的 `local-development.json`，模板见 [local-development.example.json](local-development.example.json)。该文件只记录本机约定；不覆盖运行配置，也不自动选择发布目的地。

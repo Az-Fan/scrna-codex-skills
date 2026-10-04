@@ -12,6 +12,10 @@ if (stage == "enrichment_only") {
   run_enrichment_only_workflow(config)
   quit(save = "no", status = 0L)
 }
+thresholds <- validate_de_thresholds(config)
+if (cfg_get(config, "analysis.method", "pseudobulk_deseq2") == "pseudobulk_deseq2") {
+  validate_de_design(config, cfg_get(config, "metadata.condition", required = TRUE), as_chr(cfg_get(config, "metadata.covariates", list())))
+}
 if (!requireNamespace("Seurat", quietly = TRUE)) stop("Package 'Seurat' is required")
 if (!requireNamespace("Matrix", quietly = TRUE)) stop("Package 'Matrix' is required")
 
@@ -37,17 +41,6 @@ if (anyDuplicated(task_ids)) stop("Differential task IDs collide after sanitizat
 out <- prepare_output(config)
 if (!is.null(counts_source_audit)) write_tsv(counts_source_audit, file.path(out, "counts_source_audit.tsv"))
 dir.create(file.path(out, "comparisons"), showWarnings = FALSE, recursive = TRUE)
-thresholds <- list(
-  padj = as.numeric(cfg_get(config, "analysis.padj_threshold", 0.05)),
-  lfc = as.numeric(cfg_get(config, "analysis.lfc_threshold", 0.25)),
-  min_cells = as.integer(cfg_get(config, "analysis.min_cells_per_sample_population", 10)),
-  min_samples = as.integer(cfg_get(config, "analysis.min_samples_per_group", 2)),
-  min_total_count = as.integer(cfg_get(config, "analysis.min_total_count", 10)),
-  min_count_per_sample = as.integer(cfg_get(config, "analysis.min_count_per_sample", 10)),
-  min_samples_expressed = as.integer(cfg_get(config, "analysis.min_samples_expressed", cfg_get(config, "analysis.min_samples_per_group", 2)))
-)
-if (!is.finite(thresholds$padj) || thresholds$padj <= 0 || thresholds$padj >= 1) stop("analysis.padj_threshold must be between 0 and 1 for differential analysis")
-
 audit <- make_design_audit(meta, sample_col, condition_col, population_col, populations, comparisons)
 write_tsv(audit, file.path(out, "design_audit.tsv"))
 all_results <- list(); status_rows <- list(); enrichment_rows <- list(); task_index <- 0L

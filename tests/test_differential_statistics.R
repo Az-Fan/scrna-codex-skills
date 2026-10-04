@@ -2,7 +2,7 @@ source("toolkit/R/runtime.R")
 source("toolkit/R/differential_utils.R")
 root <- tempfile("scrna-statistics-"); dir.create(root)
 comparison <- list(id = "B_vs_A", numerator = "B", denominator = "A")
-thresholds <- list(padj = .05, lfc = .25, min_total_count = 0, min_count_per_sample = 0, min_samples_expressed = 0)
+thresholds <- list(padj = .05, lfc = .25, min_total_count = 0, min_count_per_sample = 0, min_samples_expressed = 1)
 
 # Real fitted model with low-expression genes, a zero row and a Cook outlier.
 set.seed(42)

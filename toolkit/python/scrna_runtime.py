@@ -275,6 +275,56 @@ def validate(skill, config, config_path):
             decisions = nested_get(config, "input.decisions")
             if decisions and not Path(os.path.expandvars(os.path.expanduser(str(decisions)))).exists():
                 errors.append(f"annotation decisions do not exist in this execution context: {decisions}")
+            for field in ("input.review_record", "approval.review_run_id", "approval.decision_sha256", "approval.review_record_sha256", "metadata.cluster"):
+                if is_blank(nested_get(config, field)):
+                    errors.append(f"apply_confirmed requires {field}")
+            if nested_get(config, "approval.status") != "approved":
+                errors.append("annotation approval.status must be exactly 'approved'")
+            if nested_get(config, "approval.source") != "human":
+                errors.append("annotation approval.source must be exactly 'human'")
+            approved_hash = nested_get(config, "approval.decision_sha256")
+            if approved_hash is not None and (not isinstance(approved_hash, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", approved_hash)):
+                errors.append("annotation approval.decision_sha256 must be a SHA256 hex digest")
+            review_hash = nested_get(config, "approval.review_record_sha256")
+            if not isinstance(review_hash, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", review_hash):
+                errors.append("annotation approval.review_record_sha256 must be a SHA256 hex digest")
+            review_value = nested_get(config, "input.review_record")
+            if review_value:
+                review_path = Path(os.path.expandvars(os.path.expanduser(str(review_value))))
+                try:
+                    review = json.loads(review_path.read_text(encoding="utf-8"))
+                    if isinstance(review_hash, str) and sha256(review_path) != review_hash.lower():
+                        errors.append("annotation review record SHA256 does not match the approved review version")
+                    if not isinstance(review, dict) or review.get("schema_version") != 1 or review.get("kind") != "annotation_review":
+                        errors.append("annotation review record has an unsupported schema or kind")
+                    else:
+                        if not review.get("review_run_id") or review.get("review_run_id") != nested_get(config, "approval.review_run_id"):
+                            errors.append("annotation approval.review_run_id does not match the review record")
+                        if review.get("cluster_column") != nested_get(config, "metadata.cluster"):
+                            errors.append("annotation metadata.cluster does not match the reviewed cluster column")
+                        bound_object = review.get("apply_object", {})
+                        object_value = nested_get(config, "input.object")
+                        object_path = Path(os.path.expandvars(os.path.expanduser(str(object_value)))) if object_value else None
+                        if not isinstance(bound_object, dict) or not re.fullmatch(r"[0-9a-f]{64}", str(bound_object.get("sha256", ""))):
+                            errors.append("annotation review record requires the reviewed apply_object SHA256")
+                        elif object_path and object_path.is_file() and sha256(object_path) != bound_object["sha256"]:
+                            errors.append("annotation input.object SHA256 does not match the reviewed apply object")
+                        decision_path = Path(os.path.expandvars(os.path.expanduser(str(decisions)))) if decisions else None
+                        if decision_path and decision_path.is_file():
+                            if isinstance(approved_hash, str) and sha256(decision_path) != approved_hash.lower():
+                                errors.append("annotation decisions SHA256 does not match the approved final decision version")
+                            import csv
+                            with decision_path.open(encoding="utf-8-sig", newline="") as stream:
+                                decision_rows = list(csv.DictReader(stream, delimiter="\t"))
+                            actual_clusters = [row.get("cluster") for row in decision_rows]
+                            reviewed_clusters = review.get("cluster_ids")
+                            if not isinstance(reviewed_clusters, list) or not reviewed_clusters or any(not isinstance(value, str) for value in reviewed_clusters):
+                                errors.append("annotation review record requires string cluster_ids")
+                            elif len(actual_clusters) != len(set(actual_clusters)) or set(actual_clusters) != set(reviewed_clusters):
+                                errors.append("annotation decisions must cover exactly the reviewed clusters")
+                except (OSError, ValueError, UnicodeError) as exc:
+                    errors.append(f"annotation review binding cannot be read: {exc}")
+            warnings.append("Annotation approval fields prevent content drift; they do not authenticate human authorization. Apply requires the user's explicit approval of this final decision version.")
     if skill == "06-scrna-preprocess-and-cluster":
         action = nested_get(config, "workflow.action") or "run"
         qc_status = str(nested_get(config, "input.qc_status") or "").lower()
@@ -315,10 +365,45 @@ def validate(skill, config, config_path):
         transform = nested_get(config, "analysis.pca_transform") or "vst"
         if transform not in ("vst", "log2_normalized"):
             errors.append("analysis.pca_transform must be vst or log2_normalized")
-        alpha = nested_get(config, "analysis.padj_threshold")
-        if alpha is not None and (isinstance(alpha, bool) or not isinstance(alpha, (int, float)) or not 0 < alpha < 1):
-            errors.append("analysis.padj_threshold must be between 0 and 1 for differential analysis")
+        analysis = config.get("analysis", {})
+        if not isinstance(analysis, dict):
+            errors.append("analysis must be an object")
+            analysis = {}
+        for field, minimum in (("min_samples_per_group", 2), ("min_cells_per_sample_population", 1),
+                               ("min_total_count", 0), ("min_count_per_sample", 0), ("min_samples_expressed", 1)):
+            if field in analysis:
+                value = analysis[field]
+                if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+                    errors.append(f"analysis.{field} must be an integer of at least {minimum}")
+        for field in ("padj_threshold", "lfc_threshold"):
+            if field in analysis:
+                value = analysis[field]
+                valid = (not isinstance(value, bool) and isinstance(value, (int, float))
+                         and value == value and value not in (float("inf"), -float("inf")))
+                if not valid or (not 0 < value < 1 if field == "padj_threshold" else value < 0):
+                    errors.append(f"analysis.{field} must be a finite scalar " +
+                                  ("between 0 and 1" if field == "padj_threshold" else "of at least 0"))
         if (nested_get(config, "analysis.method") or "pseudobulk_deseq2") == "pseudobulk_deseq2":
+            if "design" in analysis:
+                # Parse the complete supported grammar; operators inside quoted column
+                # names are data, while ^, calls, dot expansion and interactions fail.
+                design = analysis["design"]
+                token = r"(?:`(?:[^`\\]|\\.)+`|(?:[A-Za-z]|\.(?![0-9]))[A-Za-z0-9._]*|1)"
+                if not isinstance(design, str) or not re.fullmatch(r"\s*~\s*" + token + r"(?:\s*\+\s*" + token + r")*\s*", design):
+                    errors.append("analysis.design supports only an intercept and explicit additive column main effects")
+                else:
+                    columns = []
+                    for match in re.finditer(token, design[design.index("~") + 1:]):
+                        column = match.group()
+                        if column.startswith("`"):
+                            column = re.sub(r"\\(.)", r"\1", column[1:-1])
+                        elif column == "1":
+                            continue
+                        columns.append(column)
+                    condition = nested_get(config, "metadata.condition")
+                    declared = [condition] + (nested_get(config, "metadata.covariates") or [])
+                    if condition not in columns or any(column not in declared or column == "." for column in columns):
+                        errors.append("analysis.design requires metadata.condition as an independent main effect and only declared covariates")
             kind = nested_get(config, "analysis.counts_source.kind")
             if kind not in ("raw_umi", "raw_read"):
                 errors.append("formal pseudobulk requires analysis.counts_source.kind = raw_umi or raw_read")

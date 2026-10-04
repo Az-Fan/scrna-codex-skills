@@ -112,6 +112,42 @@ class DeliveryTests(unittest.TestCase):
             self.assertIn("No scientific deliverables", (root / "RESULTS.md").read_text())
             check_links(self, root)
 
+    def test_legacy_inheritance_whitelist_and_unverified_label_persist(self):
+        for skill, action, approved_name in (("08-annotation", "apply_confirmed", "annotation_review.tsv"),
+                                              ("06-cluster", "finalize_resolution", "standard_resolution_stability.png")):
+            with self.subTest(skill=skill), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                put(root, approved_name)
+                put(root, "old_umap.pdf")
+                put(root, "old_marker.tsv")
+                put(root, "old_annotation.tsv")
+                before = DELIVERY.snapshot(root)
+                put(root, "final_object.qs")
+                config = {"workflow": {"action": action}}
+                record = DELIVERY.finish(root, before, skill, config, 0)
+                self.assertEqual(record["retained_stage_files"], [approved_name])
+                self.assertEqual(record["legacy_unverified_files"], [approved_name])
+                index = (root / "RESULTS.md").read_text()
+                self.assertIn("stage provenance unverified", index)
+                self.assertNotIn("retained from the preceding review stage", index)
+                self.assertNotIn("[old_umap.pdf]", index)
+                before = DELIVERY.snapshot(root)
+                DELIVERY.finish(root, before, skill, config, 0)
+                self.assertIn("stage provenance unverified", (root / "RESULTS.md").read_text())
+                check_links(self, root)
+
+    def test_corrupt_or_other_skill_registry_does_not_claim_arbitrary_files(self):
+        for content in ("[]", "not json", json.dumps({"skill": "other", "current_files": ["old.pdf"]}),
+                        json.dumps({"skill": "08-annotation", "current_files": "old.pdf"}),
+                        json.dumps({"skill": "08-annotation", "current_files": ["../old.pdf"]})):
+            with self.subTest(content=content), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                put(root, "old.pdf")
+                put(root, "_provenance/result_delivery.json", content)
+                before = DELIVERY.snapshot(root)
+                record = DELIVERY.finish(root, before, "08-annotation", {"workflow": {"action": "apply_confirmed"}}, 0)
+                self.assertEqual(record["retained_stage_files"], [])
+
     def test_unresolved_recommendation_and_compressed_decisions(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

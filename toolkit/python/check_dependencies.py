@@ -15,7 +15,7 @@ PROFILES = {
     "05-scrna-benchmark-integration": (CORE + ["qs"], ["harmony"]),
     "06-scrna-preprocess-and-cluster": (CORE + ["ggplot2", "patchwork"], ["qs", "harmony", "clustree"]),
     "07-scrna-find-cluster-markers": (CORE + ["ggplot2", "patchwork"], ["qs"]),
-    "08-scrna-annotate-cells": (CORE + ["qs", "ggplot2", "patchwork"], []),
+    "08-scrna-annotate-cells": (CORE + ["qs", "ggplot2", "patchwork", "digest"], []),
     "09-scrna-export-subset": (CORE + ["qs"], []),
     "10-scrna-score-programs": (CORE, ["qs", "ggplot2", "VISION", "AUCell", "UCell", "progeny", "scMetabolism", "msigdbr"]),
     "11-scrna-run-differential-analysis": (CORE + ["DESeq2", "ggplot2"], ["qs", "clusterProfiler", "msigdbr", "apeglm"]),

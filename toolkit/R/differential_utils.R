@@ -232,6 +232,88 @@ sample_population_audit <- function(meta, sample_col, condition_col, min_cells) 
   names(x)[3] <- "n_cells"; x <- x[x$n_cells > 0, , drop = FALSE]; x$passes_min_cells <- x$n_cells >= min_cells; x
 }
 
+validate_de_thresholds <- function(config) {
+  analysis <- config[["analysis"]] %||% list()
+  if (!is.list(analysis)) stop("analysis must be an object")
+  scalar <- function(field, default, minimum = NULL, integer = FALSE, probability = FALSE) {
+    value <- if (field %in% names(analysis)) analysis[[field]] else default
+    if (!is.numeric(value) || length(value) != 1L || !is.finite(value) ||
+        (integer && value != floor(value)) || (!is.null(minimum) && value < minimum) ||
+        (probability && (value <= 0 || value >= 1))) {
+      stop("analysis.", field, " must be a finite numeric scalar", if (integer) " integer" else "",
+           if (probability) " between 0 and 1" else paste0(" of at least ", minimum))
+    }
+    value
+  }
+  min_samples <- scalar("min_samples_per_group", 2, 2, integer = TRUE)
+  list(padj = scalar("padj_threshold", .05, probability = TRUE), lfc = scalar("lfc_threshold", .25, 0),
+       min_cells = scalar("min_cells_per_sample_population", 10, 1, integer = TRUE), min_samples = min_samples,
+       min_total_count = scalar("min_total_count", 10, 0, integer = TRUE),
+       min_count_per_sample = scalar("min_count_per_sample", 10, 0, integer = TRUE),
+       min_samples_expressed = scalar("min_samples_expressed", min_samples, 1, integer = TRUE))
+}
+
+validate_de_design <- function(config, condition_col, covariates) {
+  text <- cfg_get(config, "analysis.design")
+  if (is.null(text)) text <- paste("~", paste(vapply(unique(c(covariates, condition_col)),
+    function(column) paste(deparse(as.name(column), backtick = TRUE), collapse = ""), character(1)), collapse = " + "))
+  if (!is.character(text) || length(text) != 1L || is.na(text)) stop("analysis.design must be one formula string")
+  design <- tryCatch(stats::as.formula(text), error = function(e) stop("Unsupported analysis.design: ", conditionMessage(e)))
+  terms <- tryCatch(stats::terms(design), error = function(e) stop("Unsupported analysis.design: ", conditionMessage(e)))
+  if (length(design) != 2L || attr(terms, "intercept") != 1L || any(attr(terms, "order") != 1L)) {
+    stop("Unsupported analysis.design: require an intercept and additive independent column main effects")
+  }
+  columns <- character()
+  visit <- function(node) {
+    if (is.symbol(node)) columns <<- c(columns, as.character(node))
+    else if (is.numeric(node) && length(node) == 1L && identical(as.numeric(node), 1)) invisible(NULL)
+    else if (is.call(node) && identical(node[[1]], as.name("+")) && length(node) == 3L) {
+      visit(node[[2]]); visit(node[[3]])
+    } else stop("Unsupported analysis.design: use explicit column names joined by +; interactions, transformations and formula expansion are unsupported")
+  }
+  visit(design[[2]])
+  if (!condition_col %in% columns || any(!columns %in% c(condition_col, covariates)) || "." %in% columns) {
+    stop("analysis.design requires metadata.condition as an independent main effect and only declared covariates")
+  }
+  design
+}
+
+resolve_apeglm_coefficient <- function(dds, condition_col, comparison) {
+  design <- DESeq2::design(dds)
+  data <- as.data.frame(SummarizedExperiment::colData(dds))
+  condition <- data[[condition_col]]
+  if (!is.factor(condition) || !identical(levels(condition), c(comparison$denominator, comparison$numerator))) {
+    stop("apeglm requires the denominator reference and exactly the two tested condition levels")
+  }
+  mm <- stats::model.matrix(design, data)
+  fitted_mm <- attr(dds, "modelMatrix")
+  if (is.null(fitted_mm) || !isTRUE(all.equal(unname(mm), unname(fitted_mm), check.attributes = FALSE))) {
+    stop("Could not verify the fitted model matrix for apeglm")
+  }
+  numerator <- denominator <- data
+  numerator[[condition_col]][] <- comparison$numerator
+  denominator[[condition_col]][] <- comparison$denominator
+  difference <- stats::model.matrix(design, numerator) - stats::model.matrix(design, denominator)
+  indices <- which(vapply(seq_len(ncol(mm)), function(index) {
+    unit <- rep(0, ncol(mm)); unit[index] <- 1
+    all(abs(sweep(difference, 2, unit, "-")) < 1e-10)
+  }, logical(1)))
+  if (length(indices) != 1L) stop("The tested condition contrast is not exactly one positive model coefficient for apeglm")
+  # DESeq2 sanitizes model columns, then renames treatment-coded factors.
+  # Match literal names, never interpret metadata or condition levels as regex.
+  mapped <- make.names(colnames(mm)); mapped[mapped == "X.Intercept."] <- "Intercept"
+  for (column in all.vars(design)) if (is.factor(data[[column]])) {
+    levels <- levels(data[[column]])
+    from <- make.names(paste0(column, levels[-1]))
+    to <- make.names(paste0(column, "_", levels[-1], "_vs_", levels[1]))
+    positions <- match(mapped, from)
+    mapped[!is.na(positions)] <- to[positions[!is.na(positions)]]
+  }
+  names <- DESeq2::resultsNames(dds)
+  if (anyDuplicated(mapped) || !identical(mapped, names)) stop("Could not verify DESeq2 coefficient names against the fitted model columns")
+  names[[indices]]
+}
+
 build_coldata <- function(meta, sample_col, condition_col, covariates, samples, denominator) {
   fields <- unique(c(sample_col, condition_col, covariates)); x <- unique(meta[fields])
   if (anyDuplicated(x[[sample_col]])) stop("Sample-level covariates are not constant within sample")
@@ -240,6 +322,7 @@ build_coldata <- function(meta, sample_col, condition_col, covariates, samples, 
 }
 
 run_pseudobulk <- function(obj, meta, assay, sample_col, condition_col, covariates, comparison, thresholds, config, task_dir) {
+  design <- validate_de_design(config, condition_col, covariates)
   if (!requireNamespace("DESeq2", quietly = TRUE)) stop("Package 'DESeq2' is required for pseudobulk")
   counts <- get_raw_counts(obj, assay)
   groups <- factor(meta[colnames(counts), sample_col])
@@ -252,9 +335,8 @@ run_pseudobulk <- function(obj, meta, assay, sample_col, condition_col, covariat
   pb <- pb[keep, , drop = FALSE]
   if (!nrow(pb)) stop("No genes passed minimum total count")
   coldata <- build_coldata(meta, sample_col, condition_col, covariates, colnames(pb), comparison$denominator)
-  design_text <- cfg_get(config, "analysis.design")
-  if (is.null(design_text)) design_text <- paste("~", paste(c(covariates, condition_col), collapse = " + "))
-  design <- stats::as.formula(design_text); mm_design <- stats::model.matrix(design, coldata)
+  design_text <- paste(deparse(design), collapse = " ")
+  mm_design <- stats::model.matrix(design, coldata)
   if (qr(mm_design)$rank < ncol(mm_design)) stop("Design matrix is rank deficient")
   dds <- DESeq2::DESeqDataSetFromMatrix(as.matrix(pb), coldata, design)
   dds <- DESeq2::DESeq(dds, quiet = TRUE)
@@ -276,14 +358,16 @@ run_pseudobulk <- function(obj, meta, assay, sample_col, condition_col, covariat
       }
       warning(shrink_reason, "; explicit analysis.allow_unshrunk_lfc=true permits unshrunk DESeq2 effect sizes")
     } else {
-      coef_name <- grep(paste0("^", condition_col, "_", comparison$numerator, "_vs_", comparison$denominator, "$"), DESeq2::resultsNames(dds), value = TRUE)
-      if (length(coef_name) != 1L) {
+      coef_resolution <- tryCatch(list(name = resolve_apeglm_coefficient(dds, condition_col, comparison)),
+                                  error = function(e) list(error = conditionMessage(e)))
+      if (!is.null(coef_resolution$error)) {
         shrink_status <- "coefficient_not_identified"
-        shrink_reason <- "Could not identify exactly one DESeq2 coefficient for apeglm shrinkage"
+        shrink_reason <- paste("Could not identify exactly one DESeq2 coefficient for apeglm shrinkage:", coef_resolution$error)
         if (!allow_unshrunk) stop(shrink_reason, "; set analysis.allow_unshrunk_lfc=true only if the fallback is intentional")
         warning(shrink_reason, "; explicit analysis.allow_unshrunk_lfc=true permits unshrunk DESeq2 effect sizes")
       } else {
-        shrunken <- DESeq2::lfcShrink(dds, coef = coef_name, type = "apeglm")
+        shrunken <- DESeq2::lfcShrink(dds, coef = coef_resolution$name, type = "apeglm")
+        if (!identical(rownames(shrunken), rownames(res))) stop("apeglm returned a different gene order from the tested contrast")
         res$log2FoldChange <- shrunken$log2FoldChange
         res$lfcSE <- shrunken$lfcSE
         shrink_applied <- TRUE

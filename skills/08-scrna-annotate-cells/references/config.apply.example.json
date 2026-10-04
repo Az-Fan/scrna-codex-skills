@@ -1,9 +1,14 @@
 {
-  "project": {"id": "project_id"},
-  "workflow": {"action": "apply_confirmed"},
+  "project": {
+    "id": "project_id"
+  },
+  "workflow": {
+    "action": "apply_confirmed"
+  },
   "input": {
-    "object": "/path/to/clustered_object.qs",
-    "decisions": "/path/to/confirmed_annotation_decisions.tsv"
+    "object": "/path/to/results/08_annotation_review/clustered_object.qs",
+    "decisions": "/path/to/confirmed_annotation_decisions.tsv",
+    "review_record": "/path/to/results/08_annotation_review/_provenance/annotation_review_record.json"
   },
   "metadata": {
     "sample": "sample_id",
@@ -16,7 +21,17 @@
     "fine_column": "annotation_fine",
     "state_column": "annotation_state",
     "decision_column": "decision",
-    "confirmed_values": ["confirmed"]
+    "confirmed_values": [
+      "confirmed"
+    ]
   },
-  "output_dir": "/path/to/results/08_annotation"
+  "output_dir": "/path/to/results/08_annotation",
+  "approval": {
+    "status": "approved",
+    "source": "human",
+    "review_run_id": "COPY_FROM_PREPARE_REVIEW_RECORD",
+    "decision_sha256": "REPLACE_WITH_SHA256_OF_THE_FINAL_USER_APPROVED_TSV",
+    "review_record_sha256": "REPLACE_WITH_SHA256_OF_THE_APPROVED_REVIEW_RECORD",
+    "reason": "Record the actual user approval of this final decision version"
+  }
 }

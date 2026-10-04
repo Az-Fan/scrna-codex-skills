@@ -255,10 +255,18 @@ def main() -> int:
                 writer.writerow(["cluster", "annotation_broad", "annotation_fine", "annotation_state", "decision", "confidence", "evidence", "conflicts", "sample_bias", "qc_flag"])
                 writer.writerow(["0", "Endothelial", "Endothelial", "baseline", "confirmed", "high", "Kdr;Pecam1;Cdh5", "none", "none", "none"])
                 writer.writerow(["1", "Stromal", "Fibroblast", "baseline", "confirmed", "high", "Col1a1;Col3a1;Dcn", "none", "none", "none"])
+            annotation_record_path = out / "_provenance/annotation_review_record.json"
+            annotation_record = json.loads(annotation_record_path.read_text(encoding="utf-8"))
+            # Synthetic contract fixture: these fields emulate the production declaration.
+            # No human approval is asserted for automated test execution.
             apply_config = {
                 "project": {"id": "tiny_fixture"},
                 "workflow": {"action": "apply_confirmed"},
-                "input": {"object": str(fixture), "decisions": str(decisions_path)},
+                "input": {"object": str(out / "clustered_object.qs"), "decisions": str(decisions_path), "review_record": str(annotation_record_path)},
+                "approval": {"status": "approved", "source": "human", "review_run_id": annotation_record["review_run_id"],
+                             "review_record_sha256": sha256(annotation_record_path),
+                             "decision_sha256": sha256(decisions_path), "reason": "Synthetic automated contract fixture; no real human approval",
+                             "provenance": "synthetic_automated_test_not_human_approval"},
                 "metadata": {"sample": "sample_label", "condition": "condition", "cluster": "seurat_clusters", "reduction": "umap"},
                 "annotation": {"broad_column": "annotation_broad", "fine_column": "annotation_fine", "state_column": "annotation_state", "decision_column": "decision", "confirmed_values": ["confirmed"]},
                 "output_dir": str(out),
@@ -354,6 +362,10 @@ def main() -> int:
                 raise RuntimeError(f"{skill}: compact output mismatch: expected {sorted(expected_files)}, got {sorted(actual_files)}")
             if manifest.get("output_detail_level") != "compact":
                 raise RuntimeError(f"{skill}: compact detail level missing from run manifest")
+        if skill == "08-scrna-annotate-cells":
+            applied = json.loads((out / "_provenance/annotation_approval_record.json").read_text())
+            if applied["decision_sha256"] != sha256(decisions_path) or applied["review_run_id"] != annotation_record["review_run_id"] or applied["provenance"] != "synthetic_automated_test_not_human_approval":
+                raise RuntimeError("Annotation synthetic approval binding was not preserved")
         if skill == "06-scrna-preprocess-and-cluster":
             with (out / "scenario_summary.tsv").open(encoding="utf-8", newline="") as handle:
                 rows = list(csv.DictReader(handle, delimiter="\t"))

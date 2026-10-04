@@ -7,3 +7,4 @@ test-output/
 .skill-tools/
 dist/
 tests/fixtures/*.rds
+local-development.json

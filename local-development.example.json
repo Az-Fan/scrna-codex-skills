@@ -1,0 +1,6 @@
+{
+  "checkout": "/path/to/scrna-codex-skills",
+  "runtime_root": "/path/to/scrna_envs",
+  "installed_skills": "/path/to/codex/skills",
+  "development_host": "optional-ssh-host"
+}
