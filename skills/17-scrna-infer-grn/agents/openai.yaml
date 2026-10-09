@@ -1,0 +1,4 @@
+interface:
+  display_name: "17 · GRN inference"
+  short_description: "Infer motif-supported regulons and score cell activity"
+  default_prompt: "Use $17-scrna-infer-grn to prepare a reviewed GRN input, infer regulons, and export single-cell AUCell activity."

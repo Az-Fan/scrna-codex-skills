@@ -1,0 +1,64 @@
+{
+  "project": {
+    "id": "grn_project"
+  },
+  "workflow": {
+    "action": "prepare",
+    "review_reason": null
+  },
+  "input": {
+    "type": "seurat",
+    "object": "data/annotated.qs",
+    "assay": "RNA",
+    "counts_source": "raw_umi",
+    "species": "mouse",
+    "genome": "mm10",
+    "gene_identifier": "MGI_symbol"
+  },
+  "metadata": {
+    "sample": "sample_label",
+    "condition": "condition",
+    "batch": "batch_id",
+    "cell_type": "annotation_manual"
+  },
+  "inference": {
+    "mode": "metacell"
+  },
+  "metacell": {
+    "column": "reviewed_metacell",
+    "min_cells": 1
+  },
+  "resources": {
+    "species": "mouse",
+    "genome": "mm10",
+    "gene_identifier": "MGI_symbol",
+    "tf_list": "resources/mmu_mgi_tfs.motifs-v10.txt",
+    "motif_annotations": "resources/motifs-v10nr_clust-nr.mgi-m0.001-o0.0.tbl",
+    "ranking_databases": [
+      "resources/mm10_500bp_up_100bp_down_full_tx_v10_clust.genes_vs_motifs.rankings.feather",
+      "resources/mm10_10kbp_up_10kbp_down_full_tx_v10_clust.genes_vs_motifs.rankings.feather"
+    ]
+  },
+  "grn": {
+    "method": "grnboost2",
+    "seed": 777,
+    "workers": 4
+  },
+  "ctx": {
+    "min_genes": 20,
+    "rank_threshold": 1500,
+    "auc_threshold": 0.05,
+    "nes_threshold": 3.0
+  },
+  "regulons": {
+    "min_genes": 20
+  },
+  "aucell": {
+    "batch_size": 500,
+    "rank_fraction": 0.05
+  },
+  "runtime": {
+    "pixi_root": "~/projects/scrna_envs"
+  },
+  "output_dir": "results/grn/core"
+}

@@ -4,10 +4,11 @@ import argparse
 import json
 import subprocess
 from pathlib import Path
-from scrna_runtime import nested_get, environment_project, environment_record, integration_python_prefix, sccoda_python, cnmf_python
+from scrna_runtime import nested_get, environment_project, environment_record, integration_python_prefix, sccoda_python, cnmf_python, pyscenic_python
 
 CORE = ["Seurat", "SeuratObject", "Matrix", "jsonlite"]
 PROFILES = {
+    "17-scrna-infer-grn": (CORE + ["AUCell"], ["qs"]),
     "16-scrna-discover-programs": (CORE, ["qs"]),
     "01-scrna-standardize-input": (CORE, ["qs", "hdf5r"]),
     "02-scrna-calculate-qc-metrics": (CORE + ["ggplot2"], ["qs", "RANN", "S4Vectors", "celda", "SingleCellExperiment"]),
@@ -172,6 +173,13 @@ def main():
         if error:
             report["errors"].append(error)
     report["compatible"] = not report["errors"]
+    if skill == "17-scrna-infer-grn":
+        python = pyscenic_python(config)
+        present, error, versions = probe_python([python], ["pyscenic", "ctxcore", "arboreto", "loompy", "numpy", "pandas", "scipy", "pyarrow"])
+        report.update(pyscenic_runtime=python, python_modules=present, python_versions=versions)
+        if error:
+            report["errors"].append(error)
+        report["compatible"] = not report["errors"]
     if report["errors"]:
         report["error"] = "; ".join(report["errors"])
     unavailable = [x for x, version in report["optional_packages"].items() if version is None]

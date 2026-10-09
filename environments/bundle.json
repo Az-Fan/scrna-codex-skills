@@ -60,6 +60,22 @@
         }
       }
     },
+    "04-grn": {
+      "environments": [
+        "default",
+        "pyscenic"
+      ],
+      "files": {
+        "pixi.toml": {
+          "source": "04-grn/pixi.toml",
+          "sha256": "a02a465f4038eb0c87ab0cdf148e12f9c9fe28857a440882f5963de5163852ec"
+        },
+        "pixi.lock": {
+          "source": "04-grn/pixi.lock",
+          "sha256": "850a8d0e67b2718f091e0756b8e25225c345ffd5d7b727fd503bdf67e2af5666"
+        }
+      }
+    },
     "05-pathway_program": {
       "environments": [
         "default",

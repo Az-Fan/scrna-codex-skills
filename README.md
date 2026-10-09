@@ -1,6 +1,6 @@
 # scRNA-seq Codex Skills
 
-这是一套面向 Codex、Claude Code 和 WispScience 的可审计单细胞 RNA 测序工作流。当前开发分支包含 16 个 skill，覆盖输入标准化、QC、人工批准后过滤、整合评估、预处理聚类、marker、人工注释、子集导出、基因程序评分、差异表达、通路富集、细胞丰度变化、组成可视化、目标基因展示和 cNMF 程序发现。固定发布标签 `v3.1.0` 包含 13 个 skill，不包含开发分支新增的 14/15/16 和后续修复。
+这是一套面向 Codex、Claude Code 和 WispScience 的可审计单细胞 RNA 测序工作流。当前开发分支包含 17 个 skill，覆盖输入标准化、QC、人工批准后过滤、整合评估、预处理聚类、marker、人工注释、子集导出、基因程序评分、差异表达、通路富集、细胞丰度变化、组成可视化、目标基因展示、cNMF 程序发现和 GRN 主流程。固定发布标签 `v3.1.0` 包含 13 个 skill，不包含开发分支新增的 14/15/16/17 和后续修复。
 
 规范开发仓库位于 `/home/faz_laptop/projects/scrna-codex-skills`；GitHub 仓库 `git@github.com:Az-Fan/scrna-codex-skills.git` 是固定版本的分发来源。科学计算默认复用服务器上已经注册的 pixi 环境，不会自动创建环境、修改环境或安装缺失依赖。
 
@@ -76,7 +76,7 @@ python3 scrna-codex-skills/scripts/install_skills.py --target ~/.codex/skills --
 
 安装到 Claude Code 时，把目标改为 `~/.claude/skills`。安装后重新启动 agent 会话，使 skill discovery 读取新版本。安装脚本只组装 skill 自身的指令和执行器，不修改项目数据与 pixi 环境。
 
-开发分支安装器会先构建完整的 16 个 skill，再替换安装目录。旧文件和遗留的 `03.1-scrna-apply-qc-filter` 会迁入安装目录之外的备份目录；构建或替换失败时保留或恢复旧安装。安装器不修改其他 skill。若曾直接改动安装文件，先把有效改动迁回规范源码。
+开发分支安装器会先构建完整的 17 个 skill，再替换安装目录。旧文件和遗留的 `03.1-scrna-apply-qc-filter` 会迁入安装目录之外的备份目录；构建或替换失败时保留或恢复旧安装。安装器不修改其他 skill。若曾直接改动安装文件，先把有效改动迁回规范源码。
 
 ## 三、通用使用方式
 
@@ -135,7 +135,7 @@ python3 ~/.codex/skills/<skill-name>/scripts/run_in_tmux.py \
 
 每个 skill 均可运行 `scripts/check_dependencies.py --config <项目配置>`，按输入/输出格式与所选方法检查真实依赖。只运行 `--help` 或不提供配置的基础探测不能证明所有可选分支可用。整合评价会检查配置中的 Python 和 `scib_metrics`；QS 输入和显式 QS 输出会要求 `qs`。
 
-六组环境的配置和锁文件随仓库维护在 [environments](environments/README.md)，安装 skill 不会自动安装这些环境。环境根目录按 `runtime.pixi_root`、`SCRNA_PIXI_ROOT`、`~/projects/scrna_envs` 的优先级选择；02、03 使用配置里的 `pixi.project` 和 `pixi.environment`。05 默认使用整合项目的 `scvi` Python，13 的 scCODA 使用丰度项目的 `sccoda` Python；明确指定的解释器覆盖优先，路径错误会失败。
+七组环境的配置和锁文件随仓库维护在 [environments](environments/README.md)，安装 skill 不会自动安装这些环境。环境根目录按 `runtime.pixi_root`、`SCRNA_PIXI_ROOT`、`~/projects/scrna_envs` 的优先级选择；02、03 使用配置里的 `pixi.project` 和 `pixi.environment`。05 默认使用整合项目的 `scvi` Python，13 的 scCODA 使用丰度项目的 `sccoda` Python，17 使用 GRN 项目的 `pyscenic` Python；明确指定的解释器覆盖优先，路径错误会失败。
 
 核查当前环境配置、解释器和补装包：
 
@@ -151,7 +151,7 @@ python3 scripts/manage_environments.py --target ~/projects/scrna_envs --apply --
 
 更新已有环境配置时加 `--force`，旧配置会先备份；加 `--install` 才安装依赖。分析阶段直接使用已安装的 R/Python，02、03 的 Pixi 命令使用 `--frozen --no-install`，不会重新求解、安装或升级环境。运行记录包含环境配置和锁文件的 SHA256。补装 R 包由 `supplemental-r.json` 固定版本、源归档校验值和适用的 Git 提交；分析任务不会调用补装程序。
 
-## 四、16 个 skill 的输入、用法和输出
+## 四、17 个 skill 的输入、用法和输出
 
 ### 01-scrna-standardize-input：标准化输入和元数据
 
@@ -775,3 +775,18 @@ python3 scripts/package_skills.py --output dist
 仓库同步、发布门禁和 tag 规则见 [AGENTS.md](AGENTS.md)。
 
 本机路径和开发主机可记录在忽略的 `local-development.json`，模板见 [local-development.example.json](local-development.example.json)。该文件只记录本机约定；不覆盖运行配置，也不自动选择发布目的地。
+
+
+### 17-scrna-infer-grn：GRN 推断与 regulon 活性
+
+从 Seurat RDS/QS 或 raw matrix bundle 运行 GRNBoost2 → cisTarget motif 筛选 → 单细胞 AUCell。支持明确选择单细胞推断，或使用已审阅成员列聚合 metacell；metacell 默认按样本及已有细胞类型拆分，保留原细胞映射、大小及纯度记录。聚类及分辨率扫描交给 06。
+
+配置模板：[config.example.json](skills/17-scrna-infer-grn/references/config.example.json)。默认 `action=prepare` 导出并审查输入/资源覆盖；审阅后设 `action=infer` 和 `workflow.review_reason`，复用 SHA256 绑定的输入。已确定全流程参数可设 `action=run`。分析使用独立的 `04-grn` 公共环境，数据库由配置引用，不随 skill 打包或自动下载。
+
+```bash
+python3 ~/.codex/skills/17-scrna-infer-grn/scripts/check_dependencies.py --config config/17_grn.json
+python3 ~/.codex/skills/17-scrna-infer-grn/scripts/run.py --config config/17_grn.json
+python3 ~/.codex/skills/17-scrna-infer-grn/scripts/run.py --config config/17_grn.json --execute
+```
+
+主要输出为候选 TF-target 边、原生 motif 表、regulon 靶基因/权重/GMT、细胞 × regulon 活性、样本描述性汇总及 `handoff.json`。在主流程 handoff 处停止；CSI、RSS、差异 regulon、通路驱动 TF、方差分解和靶基因筛选等待后续独立 skill。详见 [grn-contract.md](skills/17-scrna-infer-grn/references/grn-contract.md)。

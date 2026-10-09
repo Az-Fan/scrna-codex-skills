@@ -96,3 +96,7 @@ The PAH project contains additional plots outside the bundled executors. Invento
 Before changing a family, record the final style, file pattern, trigger, per-page capacity, and verification status. Keep a stable order and filenames; distinguish families from physical file count. Never silently omit a family because a renderer or optional method fails. Do not alter clustering, significance thresholds, gene selection, or model fitting to make figures look better.
 
 `scripts/audit_figures.py` inventories source call sites, all existing image files, hashes, and PNG navigation sheets. Its scanner is a coverage aid, not a parser proving completeness: manually review plotting wrappers, dynamic names, base graphics, optional branches, and every PDF page. A listed file is not a visually reviewed file. Default E2E success does not cover optional methods or every high-cardinality layout.
+
+## 17 · Core GRN
+
+`inference_unit_sizes.png` describes cells per inference unit. Membership and metadata purity tables accompany it. This core skill produces no RSS/CSI, TF network or condition-comparison plots.

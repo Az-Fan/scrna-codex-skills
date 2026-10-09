@@ -13,6 +13,7 @@ import csv
 import gzip
 import hashlib
 import json
+import math
 import os
 import re
 from urllib.parse import unquote
@@ -39,9 +40,11 @@ SKILL_ENVS = {
     "14-scrna-visualize-cell-composition": "02-annotation",
     "15-scrna-visualize-gene": "02-annotation",
     "16-scrna-discover-programs": "05-pathway_program",
+    "17-scrna-infer-grn": "04-grn",
 }
 
 EXPECTED = {
+    "17-scrna-infer-grn": ["input_audit.json", "cell_membership.tsv", "inference_unit_audit.tsv", "inference_unit_sizes.png", "tf_coverage.tsv", "database_coverage.tsv", "adjacencies.tsv", "motif_enrichment.tsv", "regulon_targets.tsv", "regulon_summary.tsv", "regulons.gmt", "regulon_list.rds", "regulon_activity.tsv", "regulon_activity.rds", "regulon_activity_by_sample.tsv", "handoff.json", "task_status.tsv", "_provenance/grn_prepare_record.json"],
     "16-scrna-discover-programs": ["input_audit.json", "feature_status.tsv", "cell_metadata.tsv", "k_selection.png", "k_selection_stats.tsv", "task_status.tsv", "k_2/usage.tsv", "k_3/usage.tsv", "k_2/spectra_scores.tsv", "k_2/spectra_tpm.tsv", "k_2/top_genes.tsv", "k_2/programs.gmt", "k_2/program_review.tsv", "k_2/usage_summary_by_sample.tsv", "k_2/usage_sample_heatmap_page_1.png", "k_2/usage_embedding_page_1.png", "cross_k_usage_correlations.tsv", "_provenance/workflow_state.json", "_provenance/discovery_record.json", "_provenance/run_manifest.json"],
     "01-scrna-standardize-input": ["cell_metadata.tsv", "samples.tsv", "field_mapping.json", "_provenance/run_manifest.json"],
     "02-scrna-calculate-qc-metrics": ["qc_metrics_object.rds", "metadata.tsv.gz", "qc_diagnosis.png", "_provenance/metric_status.tsv", "_provenance/run_manifest.json"],
@@ -206,6 +209,16 @@ def main() -> int:
         "cnmf": {"components": [2, 3], "n_iter": 8, "num_highvar_genes": 15, "seed": 14, "workers": 2, "density_threshold": 2},
         "reporting": {"top_n": 5, "programs_per_page": 2},
     }
+    grn_resources = configs / "grn_synthetic_resources"
+    call([str(args.env_root / "04-grn/.pixi/envs/pyscenic/bin/python"), str(repo / "tests/fixtures/create_grn_resources.py"), str(grn_resources)])
+    definitions["17-scrna-infer-grn"] = {
+        **base, "input": {"type": "seurat", "object": str(qc_fixture), "assay": "RNA", "counts_source": "raw_umi", "species": "synthetic", "genome": "toy", "gene_identifier": "fixture_symbol"},
+        "metadata": {"sample": "sample_label", "condition": "condition", "batch": "batch_id", "cell_type": "cell_type"},
+        "workflow": {"action": "prepare"}, "inference": {"mode": "metacell"}, "metacell": {"column": "seurat_clusters", "min_cells": 1},
+        "resources": {"species": "synthetic", "genome": "toy", "gene_identifier": "fixture_symbol", "tf_list": str(grn_resources / "tfs.txt"), "motif_annotations": str(grn_resources / "annotations.tbl"), "ranking_databases": [str(grn_resources / "toy.genes_vs_motifs.rankings.feather")]},
+        "grn": {"workers": 2, "seed": 777}, "ctx": {"min_genes": 3, "rank_threshold": 15, "auc_threshold": .5, "nes_threshold": 0},
+        "regulons": {"min_genes": 2}, "aucell": {"rank_fraction": .5, "batch_size": 30},
+    }
     definitions["05-scrna-benchmark-integration"]["input"]["object"] = str(qc_fixture)
     definitions["10-scrna-score-programs"]["input"]["object"] = str(qc_fixture)
     definitions["10-scrna-score-programs"]["tasks"][0]["gene_sets"]["sets"] = {"vascular_program": ["Kdr", "Pecam1", "Cdh5"]}
@@ -351,6 +364,33 @@ def main() -> int:
                 raise RuntimeError("cNMF reused factorizations with changed preparation parameters")
             if sha256(guard / "k_2/usage.tsv") != kept_hash:
                 raise RuntimeError("Rejected cNMF reuse modified scientific results")
+        if skill == "17-scrna-infer-grn":
+            if json.loads((out / "_provenance/workflow_state.json").read_text())["status"] != "awaiting_input_confirmation":
+                raise RuntimeError("GRN prepare did not stop for input review")
+            prepared_hash = sha256(out / "_provenance/grn_prepare_record.json")
+            config["workflow"] = {"action": "infer", "review_reason": "Synthetic execution fixture; no biological validation"}
+            write_json(config_path, config)
+            call(command + ["--execute"], env=env)
+            if sha256(out / "_provenance/grn_prepare_record.json") != prepared_hash:
+                raise RuntimeError("GRN infer modified its prepared binding")
+            with (out / "regulon_activity.tsv").open() as handle:
+                scores = list(csv.DictReader(handle, delimiter="\t"))
+            if len(scores) != 80 or {row["cell_id"] for row in scores} != {f"cell_{i:03}" for i in range(1, 81)}:
+                raise RuntimeError("GRN AUCell lost original cells")
+            with (out / "regulon_summary.tsv").open() as handle:
+                retained = {row["regulon"] for row in csv.DictReader(handle, delimiter="\t") if row["status"] == "retained"}
+            if set(scores[0]) - {"cell_id"} != retained or any(not math.isfinite(float(v)) or not 0 <= float(v) <= 1 for row in scores for key, v in row.items() if key != "cell_id"):
+                raise RuntimeError("GRN export/scoring regulons or normalized AUC disagree")
+            with (out / "regulon_activity_by_sample.tsv").open() as handle:
+                summaries = list(csv.DictReader(handle, delimiter="\t"))
+            if sum(int(row["n_cells"]) for row in summaries) != 80:
+                raise RuntimeError("GRN sample summary lost cells")
+            with (out / "inference_unit_audit.tsv").open() as handle:
+                units = list(csv.DictReader(handle, delimiter="\t"))
+            if len(units) != 8 or any(float(row["sample_label_purity"]) != 1 for row in units):
+                raise RuntimeError("Metacells mixed samples or failed to respect memberships")
+            if json.loads((out / "handoff.json").read_text())["downstream_analysis"] != "not_run":
+                raise RuntimeError("GRN exceeded core scope")
         technical_names = {"run_manifest.json", "run_manifest_preprocess.json", "run_manifest_finalize.json", "session_info.txt", "sessionInfo.txt", "workflow_state.json", "task_manifest.json", "run.log", "provenance.json"}
         leaked = technical_names.intersection(path.name for path in out.iterdir())
         if leaked:

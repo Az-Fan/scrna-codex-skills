@@ -23,6 +23,10 @@ _delivery_spec.loader.exec_module(_delivery)
 
 
 SPECS = {
+    "17-scrna-infer-grn": {
+        "required": ["project.id", "metadata.sample", "output_dir", "inference.mode"],
+        "artifacts": ["input_audit", "cell_membership", "inference_unit_audit", "feature_status", "resource_coverage", "adjacencies", "motif_enrichment", "regulons", "single_cell_activity", "sample_summary", "task_status", "workflow_state", "handoff", "run_manifest"],
+    },
     "16-scrna-discover-programs": {
         "required": ["project.id", "metadata.sample", "output_dir", "cnmf.components"],
         "artifacts": ["input_audit", "k_selection_stats", "k_selection_plot", "reviewed_consensus_usage", "spectra", "top_genes", "sample_summaries", "program_review", "workflow_state", "run_manifest"],
@@ -82,6 +86,7 @@ SPECS = {
 }
 
 DRIVERS = {
+    "17-scrna-infer-grn": "grn_pipeline.py",
     "16-scrna-discover-programs": "cnmf_discovery.py",
     "01-scrna-standardize-input": "standardize_input.R",
     "04-scrna-apply-qc-filter": "apply_qc_filter.R",
@@ -99,6 +104,7 @@ DRIVERS = {
 }
 
 ENV_PROFILES = {
+    "17-scrna-infer-grn": "04-grn",
     "16-scrna-discover-programs": "05-pathway_program",
     "02-scrna-calculate-qc-metrics": "01-scrna-qc",
     "03-scrna-review-qc": "01-scrna-qc",
@@ -165,6 +171,8 @@ def environment_record(skill, config):
         record["sccoda_python"] = sccoda_python(config)
     if skill == "16-scrna-discover-programs":
         record["cnmf_python"] = cnmf_python(config)
+    if skill == "17-scrna-infer-grn":
+        record["pyscenic_python"] = pyscenic_python(config)
     return record
 
 
@@ -192,7 +200,16 @@ def resolved_rscript(skill, config):
     return candidate.resolve() if candidate.is_file() else None
 
 
+def pyscenic_python(config):
+    configured = nested_get(config, "runtime.pyscenic_python") or str(environment_root(config) / "04-grn/.pixi/envs/pyscenic/bin/python")
+    return os.path.expandvars(os.path.expanduser(str(configured)))
+
+
 def default_argv(skill, config_path, config):
+    if skill == "17-scrna-infer-grn":
+        driver = Path(__file__).with_name("grn_pipeline.py")
+        python = pyscenic_python(config)
+        return [python, str(driver), str(config_path.resolve())] if driver.is_file() and Path(python).is_file() else None
     if skill == "16-scrna-discover-programs":
         here = Path(__file__).resolve()
         driver = here.with_name("cnmf_discovery.py")
@@ -210,6 +227,8 @@ def default_argv(skill, config_path, config):
 
 
 def expected_artifacts(skill, config):
+    if skill == "17-scrna-infer-grn" and (nested_get(config, "workflow.action") or "prepare") == "prepare":
+        return ["input_audit", "cell_membership", "inference_unit_audit", "feature_status", "resource_coverage", "task_status", "workflow_state", "run_manifest"]
     if skill == "16-scrna-discover-programs":
         artifacts = ["input_audit", "feature_status", "cell_metadata", "k_selection_stats", "k_selection_plot", "workflow_state", "run_manifest"]
         if (nested_get(config, "workflow.action") or "discover") != "discover":
@@ -251,6 +270,9 @@ def validate(skill, config, config_path):
             errors.append(f"missing required field: {field}")
     if skill == "16-scrna-discover-programs":
         from cnmf_contract import validate_config
+        errors.extend(validate_config(config, nested_get))
+    if skill == "17-scrna-infer-grn":
+        from grn_contract import validate_config
         errors.extend(validate_config(config, nested_get))
     stage = nested_get(config, "analysis.stage") or "differential"
     source = nested_get(config, "input.object") or nested_get(config, "input.counts_table") or nested_get(config, "input.differential_table") or nested_get(config, "enrichment.input_results") or nested_get(config, "input.path")

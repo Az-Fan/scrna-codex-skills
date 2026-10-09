@@ -80,6 +80,11 @@
       "python": ["result_delivery.py", "check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "cnmf_contract.py", "cnmf_discovery.py", "validate_project.py"],
       "r": ["runtime.R", "export_cnmf_input.R"],
       "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "long-running-execution.md"]
+    },
+    "17-scrna-infer-grn": {
+      "python": ["result_delivery.py", "check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "grn_contract.py", "grn_pipeline.py", "validate_project.py"],
+      "r": ["runtime.R", "grn_input_and_activity.R"],
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "long-running-execution.md"]
     }
   }
 }

@@ -1,6 +1,6 @@
 # Environment compatibility
 
-Analysis uses existing pixi projects and never creates or repairs environments automatically. The canonical repository separately versions the six environment profiles, lock files, and pinned supplemental R sources under `environments/`. Use the repository's `scripts/manage_environments.py` for read-only audit or explicit deployment; installing a skill does not install these scientific runtimes.
+Analysis uses existing pixi projects and never creates or repairs environments automatically. The canonical repository separately versions the seven environment profiles, lock files, and pinned supplemental R sources under `environments/`. Use the repository's `scripts/manage_environments.py` for read-only audit or explicit deployment; installing a skill does not install these scientific runtimes.
 
 | Skill | Registered pixi project |
 |---|---|
@@ -20,6 +20,7 @@ Analysis uses existing pixi projects and never creates or repairs environments a
 | `14-scrna-visualize-cell-composition` | `02-annotation` |
 | `15-scrna-visualize-gene` | `02-annotation` |
 | `16-scrna-discover-programs` | `05-pathway_program` (`default` for Seurat export; `cnmf` for discovery) |
+| `17-scrna-infer-grn` | `04-grn` (`default` for input/AUCell; `pyscenic` for inference) |
 
 Use the registered probe or dependency checker to resolve the exact interpreter. A missing optional package is reported according to the skill contract; dependencies are never installed implicitly.
 
