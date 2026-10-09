@@ -178,6 +178,50 @@ class GRNContracts(unittest.TestCase):
         self.assertNotEqual(failed.returncode, 0)
         self.assertIn("non-negative integer", failed.stderr)
 
+    def test_seurat_factor_purity_and_dense_counts(self):
+        import numpy as np
+        from scipy.io import mmread
+        cfg = copy.deepcopy(self.config)
+        cfg["metadata"] = {"sample": "sample", "cell_type": "cell_type", "condition": "condition", "batch": "batch"}
+        cfg["metacell"] = {"column": "members", "min_cells": 1}
+        rscript = resolved_rscript(SKILL, cfg)
+        if not rscript:
+            self.skipTest("GRN R runtime unavailable")
+        creator = self.root / "create.R"
+        creator.write_text('''args <- commandArgs(TRUE)
+library(Seurat)
+x <- matrix(1:48, 6, 8, dimnames=list(paste0("g", 1:6), paste0("c", 1:8)))
+obj <- CreateSeuratObject(x)
+obj$sample <- factor(rep(c("s1", "s2"), each=4), levels=c("unused", "s1", "s2"))
+obj$cell_type <- factor(rep("EC", 8), levels=c("unused", "EC"))
+obj$condition <- factor(rep(c("control", "case"), each=4))
+obj$batch <- factor(rep("batch1", 8), levels=c("unused", "batch1"))
+obj$members <- factor(rep(c("a", "a", "b", "b"), 2))
+if (args[[2]] == "dense") LayerData(obj, assay="RNA", layer="counts") <- x
+stopifnot(validObject(obj))
+saveRDS(obj, args[[1]])
+''')
+        for representation in ["sparse", "dense"]:
+            with self.subTest(representation=representation):
+                obj = self.root / (representation + ".rds")
+                created = subprocess.run([str(rscript), str(creator), str(obj), representation], capture_output=True, text=True)
+                self.assertEqual(created.returncode, 0, created.stderr)
+                cfg["input"]["object"] = str(obj)
+                cfg["output_dir"] = str(self.root / representation)
+                config_path = self.root / (representation + ".json")
+                config_path.write_text(json.dumps(cfg))
+                done = subprocess.run([str(rscript), str(ROOT / "toolkit/R/grn_input_and_activity.R"), str(config_path), "prepare"], capture_output=True, text=True)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                out = Path(cfg["output_dir"])
+                with (out / "inference_unit_audit.tsv").open() as handle:
+                    units = list(csv.DictReader(handle, delimiter="\t"))
+                self.assertEqual(len(units), 4)
+                for column in ["sample", "cell_type", "condition", "batch"]:
+                    self.assertEqual({row[column + "_purity"] for row in units}, {"1"})
+                matrix = np.arange(1, 49).reshape(6, 8, order="F")
+                expected = np.column_stack([matrix[:, i:i + 2].sum(axis=1) for i in range(0, 8, 2)])
+                np.testing.assert_array_equal(mmread(out / "_provenance/grn_input/inference_counts.mtx").toarray(), expected)
+
 
 if __name__ == "__main__":
     unittest.main()

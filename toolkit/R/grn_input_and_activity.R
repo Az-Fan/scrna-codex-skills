@@ -39,6 +39,9 @@ if (args[[2]] == "prepare") {
     rownames(tab) <- tab[[1]]
     meta <- tab[cells, -1, drop = FALSE]
   }
+  # Seurat counts layers can be valid dense matrices; standardize storage before
+  # slot validation and Matrix Market export without changing count values.
+  counts <- as(Matrix::Matrix(counts, sparse = TRUE), "CsparseMatrix")
   if (anyDuplicated(rownames(counts)) || anyDuplicated(colnames(counts))) stop("Counts IDs must be unique")
   if (any(!is.finite(counts@x)) || any(counts@x < 0) || any(abs(counts@x - round(counts@x)) > 1e-8)) stop("Require finite non-negative integer raw UMI counts")
   if (any(Matrix::colSums(counts) <= 0)) stop("Zero-count cells; review QC first")
@@ -57,7 +60,7 @@ if (args[[2]] == "prepare") {
     if (!column %in% colnames(meta) || anyNA(meta[[column]]) || any(!nzchar(trimws(as.character(meta[[column]]))))) stop("Missing metacell memberships")
     # 同一个聚类标签按样本及已有细胞类型拆分，避免混合不同生物学来源。
     strata <- unique(c(sample, cfg_get(config, "metadata.cell_type"), column))
-    keys <- lapply(seq_len(nrow(meta)), function(i) as.character(meta[i, strata, drop = TRUE]))
+    keys <- lapply(seq_len(nrow(meta)), function(i) vapply(strata, function(column) as.character(meta[[column]][i]), character(1)))
     key <- vapply(keys, function(x) jsonlite::toJSON(x, auto_unbox = FALSE), character(1))
     membership <- sprintf("metacell_%06d", match(key, unique(key)))
   } else membership <- colnames(counts)
@@ -70,7 +73,8 @@ if (args[[2]] == "prepare") {
   audit <- data.frame(inference_id = ids, n_cells = sizes)
   for (column in columns) {
     audit[[paste0(column, "_purity")]] <- vapply(ids, function(id) {
-      p <- prop.table(table(meta[membership == id, column])); if (length(p) == 1L) return(1)
+      # Convert factors to labels so unused levels never contribute 0 * log(0).
+      p <- prop.table(table(as.character(meta[[column]][membership == id]))); if (length(p) == 1L) return(1)
       # 用全输入类别数作为熵的统一分母。
       1 + sum(p * log(p)) / log(length(unique(meta[[column]])))
     }, numeric(1))
