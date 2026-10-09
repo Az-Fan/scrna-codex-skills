@@ -205,7 +205,7 @@ def finish(output, before, skill, config, returncode, run_id=None):
     changed = {name for name, signature in after.items() if before.get(name) != signature}
     current = {name for name in changed if scientific(name)}
     action = config.get("workflow", {}).get("action", "run")
-    inherit = (skill.startswith("06-") and action == "finalize_resolution") or (skill.startswith("08-") and action == "apply_confirmed")
+    inherit = (skill.startswith("06-") and action == "finalize_resolution") or (skill.startswith("08-") and action == "apply_confirmed") or (skill.startswith("16-") and action == "consensus")
     retained = set()
     legacy_retained = set()
     if inherit:
@@ -229,7 +229,7 @@ def finish(output, before, skill, config, returncode, run_id=None):
     evidence, broken = read_evidence(root, changed)
     workflow = technical / "workflow_state.json"
     pending = skill.startswith("08-") and action == "prepare_review"
-    if skill.startswith("06-") and "_provenance/workflow_state.json" in changed:
+    if skill.startswith(("06-", "16-")) and "_provenance/workflow_state.json" in changed:
         try:
             pending |= "awaiting" in str(json.loads(workflow.read_text()).get("status", ""))
         except (OSError, ValueError):

@@ -1,17 +1,17 @@
 # 公共环境的版本管理
 
-这里是 15 个 scRNA skill 使用的六组环境配置的规范来源。公共运行目录默认是 `~/projects/scrna_envs`；其中 `.pixi/` 是本机安装结果，不作为源码提交。仅支持锁文件中的 `linux-64` 平台。
+这里是 16 个 scRNA skill 使用的六组环境配置的规范来源。公共运行目录默认是 `~/projects/scrna_envs`；其中 `.pixi/` 是本机安装结果，不作为源码提交。仅支持锁文件中的 `linux-64` 平台。
 
 | 环境项目 | Skill | 部署的子环境 |
 |---|---|---|
 | 01-scrna-qc | 01–04 | default |
 | 02-annotation | 07–09、14–15 | default |
 | 03-integration | 05–06 | default、scvi |
-| 05-pathway_program | 10 | default |
+| 05-pathway_program | 10、16 | default、cnmf |
 | 06-deg-analysis | 11–12 | default |
 | 07-cell-abundance | 13 | default、sccoda |
 
-`pixi.toml` 声明依赖，`pixi.lock` 固定解析结果；整合项目还保存镜像 channel 的 Conda/PyPI 映射。`bundle.json` 记录配置 SHA256 和需要部署的子环境。评分项目中的 cnmf/decoupler 保留原声明和锁定记录，但当前 skill 执行器不使用这些子环境，部署工具不会默认安装它们。
+`pixi.toml` 声明依赖，`pixi.lock` 固定解析结果；整合项目还保存镜像 channel 的 Conda/PyPI 映射。`bundle.json` 记录配置 SHA256 和需要部署的子环境。评分项目中的 cnmf 子环境供 16 的程序发现使用，部署工具会安装它；decoupler 保留原声明和锁定记录，当前执行器不使用，部署工具不会默认安装它。
 
 ## 核查与部署
 
@@ -50,4 +50,4 @@ python3 scripts/manage_environments.py --target ~/projects/scrna_envs \
 
 ## 维护
 
-在这里修改配置和锁文件，再通过部署工具同步公共运行目录。更新补装版本前验证源文件及实际安装结果。修改环境文件或共同补装程序后，重新计算 `bundle.json` 的对应 SHA256，运行环境审计、选定分支依赖检查和 15 个 skill 的 fixture 流程；按仓库规则提交、推送。不要直接修改 `.pixi/` 文件来替代规范配置。
+在这里修改配置和锁文件，再通过部署工具同步公共运行目录。更新补装版本前验证源文件及实际安装结果。修改环境文件或共同补装程序后，重新计算 `bundle.json` 的对应 SHA256，运行环境审计、选定分支依赖检查和 16 个 skill 的 fixture 流程；按仓库规则提交、推送。不要直接修改 `.pixi/` 文件来替代规范配置。

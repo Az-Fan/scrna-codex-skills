@@ -65,6 +65,15 @@ This catalog records existing plot families before visual redesign. A family may
 | 14 | composition_counts_<variable>.png/pdf | Sample-level count companion view | New; `paper_v1` |
 | 14 | embedding_diagnostics_<variable>.png/pdf | Available sample, condition, batch and composition UMAP panels | New; `paper_v1`; optional |
 
+## cNMF discovery figures
+
+| Skill | Family | Trigger / meaning |
+|---|---|---|
+| 16 | k_selection.png | Every discovery: unfiltered replicate stability and reconstruction error, upstream cNMF style |
+| 16 | k_<k>/usage_sample_heatmap_page_<n>.png | Every exported consensus: sample/population means, shared fractional scale 0–1, programs_per_page controls columns |
+| 16 | k_<k>/usage_embedding_page_<n>.png | Existing Seurat embedding configured: usage on unchanged coordinates, two columns, shared scale 0–1, programs_per_page panels |
+| 16 | k_<k>/*clustering*.png | Exported consensus: upstream density-filtering clustergram |
+
 ## Project supplements requiring a home
 
 The PAH project contains additional plots outside the bundled executors. Inventory them separately; do not claim they are already implemented by these skills. They remain intact in their source project.

@@ -75,6 +75,11 @@
       "python": ["result_delivery.py", "check_dependencies.py", "runner_bootstrap.py", "scrna_runtime.py", "validate_project.py"],
       "r": ["runtime.R", "figure_style.R", "visualize_gene.R"],
       "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "figure-style.md"]
+    },
+    "16-scrna-discover-programs": {
+      "python": ["result_delivery.py", "check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "cnmf_contract.py", "cnmf_discovery.py", "validate_project.py"],
+      "r": ["runtime.R", "export_cnmf_input.R"],
+      "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "long-running-execution.md"]
     }
   }
 }

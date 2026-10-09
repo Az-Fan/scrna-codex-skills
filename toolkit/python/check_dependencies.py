@@ -4,10 +4,11 @@ import argparse
 import json
 import subprocess
 from pathlib import Path
-from scrna_runtime import nested_get, environment_project, environment_record, integration_python_prefix, sccoda_python
+from scrna_runtime import nested_get, environment_project, environment_record, integration_python_prefix, sccoda_python, cnmf_python
 
 CORE = ["Seurat", "SeuratObject", "Matrix", "jsonlite"]
 PROFILES = {
+    "16-scrna-discover-programs": (CORE, ["qs"]),
     "01-scrna-standardize-input": (CORE, ["qs", "hdf5r"]),
     "02-scrna-calculate-qc-metrics": (CORE + ["ggplot2"], ["qs", "RANN", "S4Vectors", "celda", "SingleCellExperiment"]),
     "03-scrna-review-qc": (CORE + ["ggplot2"], ["qs"]),
@@ -28,6 +29,8 @@ PROFILES = {
 
 def package_requirements(skill, config):
     required, optional = (list(x) for x in PROFILES[skill])
+    if skill == "16-scrna-discover-programs" and nested_get(config, "input.type") == "matrix":
+        return [], []
     paths = [nested_get(config, key) for key in ("input.object", "input.path", "output.object_name")]
     if any(str(x or "").lower().endswith(".qs") for x in paths) or nested_get(config, "output.object_format") == "qs":
         required.append("qs")
@@ -64,7 +67,7 @@ def package_requirements(skill, config):
 def probe_python(prefix, modules):
     expression = """import importlib.util, importlib.metadata, json
 modules = MODULES
-distributions = {"scib_metrics": "scib-metrics", "scvi": "scvi-tools"}
+distributions = {"scib_metrics": "scib-metrics", "scvi": "scvi-tools", "sklearn": "scikit-learn"}
 versions = {}
 for name in modules:
     try:
@@ -109,7 +112,10 @@ def main():
     report = {"skill": skill, "pixi_manifest": str(project / "pixi.toml"), "required_packages": {}, "optional_packages": {}, "compatible": False, "errors": []}
     report["environment"] = environment_record(skill, config)
     rscript = project / ".pixi/envs" / (nested_get(config, "pixi.environment") or "default") / "bin/Rscript"
-    if not (project / "pixi.toml").is_file() or not rscript.is_file():
+    if skill == "16-scrna-discover-programs" and nested_get(config, "input.type") == "matrix":
+        if not (project / "pixi.toml").is_file():
+            report["errors"].append("Registered pixi manifest is missing")
+    elif not (project / "pixi.toml").is_file() or not rscript.is_file():
         report["errors"].append("Registered pixi manifest or Rscript is missing; system R fallback is disabled")
     else:
         report["runtime"] = str(rscript)
@@ -159,6 +165,12 @@ def main():
             report["python_versions"] = versions
             if error:
                 report["errors"].append(error)
+    if skill == "16-scrna-discover-programs":
+        python = cnmf_python(config)
+        present, error, versions = probe_python([python], ["cnmf", "numpy", "pandas", "scipy", "anndata", "matplotlib", "sklearn"])
+        report.update(cnmf_runtime=python, python_modules=present, python_versions=versions)
+        if error:
+            report["errors"].append(error)
     report["compatible"] = not report["errors"]
     if report["errors"]:
         report["error"] = "; ".join(report["errors"])

@@ -38,9 +38,11 @@ SKILL_ENVS = {
     "13-scrna-test-cell-abundance": "07-cell-abundance",
     "14-scrna-visualize-cell-composition": "02-annotation",
     "15-scrna-visualize-gene": "02-annotation",
+    "16-scrna-discover-programs": "05-pathway_program",
 }
 
 EXPECTED = {
+    "16-scrna-discover-programs": ["input_audit.json", "feature_status.tsv", "cell_metadata.tsv", "k_selection.png", "k_selection_stats.tsv", "task_status.tsv", "k_2/usage.tsv", "k_3/usage.tsv", "k_2/spectra_scores.tsv", "k_2/spectra_tpm.tsv", "k_2/top_genes.tsv", "k_2/programs.gmt", "k_2/program_review.tsv", "k_2/usage_summary_by_sample.tsv", "k_2/usage_sample_heatmap_page_1.png", "k_2/usage_embedding_page_1.png", "cross_k_usage_correlations.tsv", "_provenance/workflow_state.json", "_provenance/discovery_record.json", "_provenance/run_manifest.json"],
     "01-scrna-standardize-input": ["cell_metadata.tsv", "samples.tsv", "field_mapping.json", "_provenance/run_manifest.json"],
     "02-scrna-calculate-qc-metrics": ["qc_metrics_object.rds", "metadata.tsv.gz", "qc_diagnosis.png", "_provenance/metric_status.tsv", "_provenance/run_manifest.json"],
     "03-scrna-review-qc": ["qc_summary_by_sample.tsv", "threshold_review.tsv", "qc_atlas.pdf", "_provenance/run_manifest.json"],
@@ -197,6 +199,13 @@ def main() -> int:
             "runtime": {"pixi_root": str(args.env_root)},
         },
     }
+    definitions["16-scrna-discover-programs"] = {
+        **base, "input": {"type": "seurat", "object": str(qc_fixture), "assay": "RNA", "counts_source": "raw_umi"},
+        "metadata": {"sample": "sample_label", "condition": "condition", "batch": "batch_id", "cell_type": "cell_type", "reduction": "umap"},
+        "workflow": {"action": "discover"},
+        "cnmf": {"components": [2, 3], "n_iter": 8, "num_highvar_genes": 15, "seed": 14, "workers": 2, "density_threshold": 2},
+        "reporting": {"top_n": 5, "programs_per_page": 2},
+    }
     definitions["05-scrna-benchmark-integration"]["input"]["object"] = str(qc_fixture)
     definitions["10-scrna-score-programs"]["input"]["object"] = str(qc_fixture)
     definitions["10-scrna-score-programs"]["tasks"][0]["gene_sets"]["sets"] = {"vascular_program": ["Kdr", "Pecam1", "Cdh5"]}
@@ -303,6 +312,37 @@ def main() -> int:
             finalize_command = [sys.executable, launcher, "--config", finalize_config, "--manifest", finalize_manifest]
             call(finalize_command, env=env)
             call(finalize_command + ["--execute"], env=env)
+        if skill == "16-scrna-discover-programs":
+            if json.loads((out / "_provenance/workflow_state.json").read_text())["status"] != "awaiting_k_confirmation":
+                raise RuntimeError("cNMF discovery did not pause for rank review")
+            discovery_record_hash = sha256(out / "_provenance/discovery_record.json")
+            config["workflow"] = {"action": "consensus", "selection_reason": "synthetic fixture rank comparison"}
+            config["cnmf"]["consensus_k"] = [2, 3]
+            write_json(config_path, config)
+            call(command + ["--execute"], env=env)
+            if sha256(out / "_provenance/discovery_record.json") != discovery_record_hash:
+                raise RuntimeError("cNMF consensus changed its discovery binding")
+            for k in [2, 3]:
+                with (out / f"k_{k}/usage.tsv").open() as handle:
+                    usage = list(csv.DictReader(handle, delimiter="\t"))
+                if len(usage) != 80 or any(abs(sum(float(v) for key, v in row.items() if key != "cell_id") - 1) > 1e-8 for row in usage):
+                    raise RuntimeError("cNMF usage lost cells or fractional normalization")
+            registry = json.loads((out / "_provenance/result_delivery.json").read_text())
+            if "k_selection.png" not in registry["retained_stage_files"]:
+                raise RuntimeError("cNMF consensus lost discovery deliverables")
+            guard = output_root / "cnmf_reuse_guard"
+            shutil.copytree(out, guard)
+            broken = copy.deepcopy(config)
+            broken["output_dir"] = str(guard)
+            broken["cnmf"]["seed"] += 1
+            guard_config = configs / "cnmf_reuse_guard.json"
+            write_json(guard_config, broken)
+            kept_hash = sha256(guard / "k_2/usage.tsv")
+            rejected = subprocess.run([sys.executable, launcher, "--config", guard_config, "--execute"], text=True, capture_output=True, env=env)
+            if rejected.returncode == 0 or "differ from the completed discovery" not in rejected.stdout + rejected.stderr:
+                raise RuntimeError("cNMF reused factorizations with changed preparation parameters")
+            if sha256(guard / "k_2/usage.tsv") != kept_hash:
+                raise RuntimeError("Rejected cNMF reuse modified scientific results")
         technical_names = {"run_manifest.json", "run_manifest_preprocess.json", "run_manifest_finalize.json", "session_info.txt", "sessionInfo.txt", "workflow_state.json", "task_manifest.json", "run.log", "provenance.json"}
         leaked = technical_names.intersection(path.name for path in out.iterdir())
         if leaked:

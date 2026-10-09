@@ -37,4 +37,6 @@ Investigate systematic low coverage as a likely species, symbol-case, Ensembl/sy
 
 ## cNMF handoff
 
+Use `16-scrna-discover-programs` for executable rank scans and reviewed consensus exports. Exported GMT signatures can be scored here, but signature scores are not NMF usage.
+
 cNMF discovers programs rather than scoring declared sets. Export non-negative gene-level counts with cell and feature identifiers, test several ranks, retain stability/error diagnostics, and preserve spectra and usage matrices. Interpret programs using top genes, enrichment, sample consistency, and cellular distribution. Keep cNMF outputs separate from curated-score assays.

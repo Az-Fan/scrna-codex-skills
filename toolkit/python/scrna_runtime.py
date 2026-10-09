@@ -23,6 +23,10 @@ _delivery_spec.loader.exec_module(_delivery)
 
 
 SPECS = {
+    "16-scrna-discover-programs": {
+        "required": ["project.id", "metadata.sample", "output_dir", "cnmf.components"],
+        "artifacts": ["input_audit", "k_selection_stats", "k_selection_plot", "reviewed_consensus_usage", "spectra", "top_genes", "sample_summaries", "program_review", "workflow_state", "run_manifest"],
+    },
     "01-scrna-standardize-input": {
         "required": ["project.id", "input.path", "input.format", "metadata.sample", "output_dir"],
         "artifacts": ["standardized_object", "samples_table", "cell_metadata", "field_mapping", "provenance"],
@@ -78,6 +82,7 @@ SPECS = {
 }
 
 DRIVERS = {
+    "16-scrna-discover-programs": "cnmf_discovery.py",
     "01-scrna-standardize-input": "standardize_input.R",
     "04-scrna-apply-qc-filter": "apply_qc_filter.R",
     "08-scrna-annotate-cells": "annotate_cells.R",
@@ -94,6 +99,7 @@ DRIVERS = {
 }
 
 ENV_PROFILES = {
+    "16-scrna-discover-programs": "05-pathway_program",
     "02-scrna-calculate-qc-metrics": "01-scrna-qc",
     "03-scrna-review-qc": "01-scrna-qc",
     "01-scrna-standardize-input": "01-scrna-qc",
@@ -157,6 +163,8 @@ def environment_record(skill, config):
         record["python_argv_prefix"] = integration_python_prefix(config)
     if skill == "13-scrna-test-cell-abundance":
         record["sccoda_python"] = sccoda_python(config)
+    if skill == "16-scrna-discover-programs":
+        record["cnmf_python"] = cnmf_python(config)
     return record
 
 
@@ -171,6 +179,11 @@ def sccoda_python(config):
     return os.path.expandvars(os.path.expanduser(str(configured)))
 
 
+def cnmf_python(config):
+    configured = nested_get(config, "runtime.cnmf_python") or str(environment_root(config) / "05-pathway_program/.pixi/envs/cnmf/bin/python")
+    return os.path.expandvars(os.path.expanduser(str(configured)))
+
+
 def resolved_rscript(skill, config):
     profile = ENV_PROFILES.get(skill)
     if not profile:
@@ -180,6 +193,13 @@ def resolved_rscript(skill, config):
 
 
 def default_argv(skill, config_path, config):
+    if skill == "16-scrna-discover-programs":
+        here = Path(__file__).resolve()
+        driver = here.with_name("cnmf_discovery.py")
+        python = cnmf_python(config)
+        if driver.is_file() and Path(python).is_file():
+            return [python, str(driver), str(config_path.resolve())]
+        return None
     rscript = resolved_rscript(skill, config)
     here = Path(__file__).resolve()
     drivers = [here.parents[1] / "R" / DRIVERS[skill], here.parent / DRIVERS[skill]]
@@ -190,6 +210,13 @@ def default_argv(skill, config_path, config):
 
 
 def expected_artifacts(skill, config):
+    if skill == "16-scrna-discover-programs":
+        artifacts = ["input_audit", "feature_status", "cell_metadata", "k_selection_stats", "k_selection_plot", "workflow_state", "run_manifest"]
+        if (nested_get(config, "workflow.action") or "discover") != "discover":
+            artifacts.extend(["consensus_usage_raw_and_fractional", "gene_spectra", "top_genes", "program_gmt", "sample_summaries", "program_review", "task_status"])
+        if nested_get(config, "interpretation.gmt"):
+            artifacts.extend(["optional_program_enrichment", "gene_set_coverage", "enrichment_universe"])
+        return artifacts
     if skill != "06-scrna-preprocess-and-cluster":
         return SPECS[skill]["artifacts"]
     action = nested_get(config, "workflow.action") or "run"
@@ -222,6 +249,9 @@ def validate(skill, config, config_path):
     for field in spec["required"]:
         if is_blank(nested_get(config, field)):
             errors.append(f"missing required field: {field}")
+    if skill == "16-scrna-discover-programs":
+        from cnmf_contract import validate_config
+        errors.extend(validate_config(config, nested_get))
     stage = nested_get(config, "analysis.stage") or "differential"
     source = nested_get(config, "input.object") or nested_get(config, "input.counts_table") or nested_get(config, "input.differential_table") or nested_get(config, "enrichment.input_results") or nested_get(config, "input.path")
     if skill in {"11-scrna-run-differential-analysis", "12-scrna-run-pathway-enrichment"}:
@@ -686,7 +716,7 @@ def validate(skill, config, config_path):
     if executor and not isinstance(executor.get("argv", []), list):
         errors.append("executor.argv must be a JSON array, never a shell command string")
     if not executor and default_argv(skill, config_path, config) is None:
-        warnings.append("registered pixi R executor is unavailable; dry-run remains available and system R will not be used")
+        warnings.append("registered pixi executor is unavailable; dry-run remains available and system interpreters will not be used")
     return errors, warnings
 
 

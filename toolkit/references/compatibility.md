@@ -19,6 +19,7 @@ Analysis uses existing pixi projects and never creates or repairs environments a
 | `13-scrna-test-cell-abundance` | `07-cell-abundance` (`default` for R methods; `sccoda` for pertpy/scCODA) |
 | `14-scrna-visualize-cell-composition` | `02-annotation` |
 | `15-scrna-visualize-gene` | `02-annotation` |
+| `16-scrna-discover-programs` | `05-pathway_program` (`default` for Seurat export; `cnmf` for discovery) |
 
 Use the registered probe or dependency checker to resolve the exact interpreter. A missing optional package is reported according to the skill contract; dependencies are never installed implicitly.
 
@@ -27,3 +28,5 @@ The environment root is `runtime.pixi_root`, then `SCRNA_PIXI_ROOT`, then `~/pro
 Run `scripts/check_dependencies.py --config /absolute/path/config.json` to check selected formats and methods. QS inputs or explicitly requested QS outputs require `qs`; skills 01 and 04 choose RDS when their automatic output format has no `qs` available. The integration check probes the configured Python interpreter and requires `scib_metrics` when metrics are requested. Without a config, checks cover the baseline and report optional branches separately.
 
 The dependency report includes Python distribution versions and rejects the observed `scib-metrics==0.5.7` / `pandas>=3` result-table incompatibility. That scIB version needs `pandas<3`. Configure Conda-to-PyPI mapping for mirrored channels before resolving mixed environments, and reinstall previously overwritten packages when switching their provider. Run an actual benchmark after dependency repair; module presence alone does not prove metrics complete. scIB preparation uses the supplied uncorrected embedding and `benchmark.n_jobs` (default 1).
+
+Skill 16 uses the registered cnmf Python, or an explicit `runtime.cnmf_python` override. Matrix input needs no R; Seurat input uses the registered default Rscript. Dependency checks probe cNMF and its Python libraries; the executor records versions and verifies them before consensus reuse.

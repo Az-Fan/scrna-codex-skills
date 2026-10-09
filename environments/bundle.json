@@ -62,7 +62,8 @@
     },
     "05-pathway_program": {
       "environments": [
-        "default"
+        "default",
+        "cnmf"
       ],
       "files": {
         "pixi.lock": {

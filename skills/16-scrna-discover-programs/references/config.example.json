@@ -1,0 +1,54 @@
+{
+  "project": {
+    "id": "scrna_program_discovery"
+  },
+  "workflow": {
+    "action": "discover",
+    "selection_reason": null
+  },
+  "input": {
+    "type": "seurat",
+    "object": "data/filtered_annotated_object.qs",
+    "assay": "RNA",
+    "counts_source": "raw_umi"
+  },
+  "metadata": {
+    "sample": "sample_label",
+    "condition": "condition",
+    "cell_type": "annotation_manual",
+    "batch": "batch_id",
+    "reduction": "umap"
+  },
+  "cnmf": {
+    "name": "programs",
+    "components": [
+      10,
+      12,
+      14,
+      16,
+      18,
+      20,
+      22,
+      24
+    ],
+    "consensus_k": [],
+    "n_iter": 100,
+    "seed": 14,
+    "num_highvar_genes": 2000,
+    "workers": 1,
+    "max_nmf_iter": 1000,
+    "density_threshold": 0.02,
+    "local_neighborhood_size": 0.3
+  },
+  "reporting": {
+    "top_n": 50,
+    "programs_per_page": 6
+  },
+  "interpretation": {
+    "gmt": null
+  },
+  "runtime": {
+    "pixi_root": "~/projects/scrna_envs"
+  },
+  "output_dir": "results/16_cnmf_programs"
+}

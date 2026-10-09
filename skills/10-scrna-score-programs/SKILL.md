@@ -1,6 +1,6 @@
 ---
 name: 10-scrna-score-programs
-description: Score curated gene signatures and pathway activity in a Seurat scRNA-seq object with VISION, AUCell, UCell, AddModuleScore, or PROGENy; support inline, GMT, MSigDB, and scMetabolism gene-set resources; audit gene coverage, cache reproducible score matrices, attach namespaced assays, and summarize scores by sample, cell type, or condition. Use for Hallmark, metabolism, signaling, custom signatures, or comparable cell-level program scoring. Use the documented handoff rather than this executor for de novo cNMF discovery.
+description: Score curated gene signatures and pathway activity in a Seurat scRNA-seq object with VISION, AUCell, UCell, AddModuleScore, or PROGENy; support inline, GMT, MSigDB, and scMetabolism gene-set resources; audit gene coverage, cache reproducible score matrices, attach namespaced assays, and summarize scores by sample, cell type, or condition. Use for Hallmark, metabolism, signaling, custom signatures, or comparable cell-level program scoring. Use 16-scrna-discover-programs for de novo cNMF discovery.
 ---
 
 # Score scRNA Programs

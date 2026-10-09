@@ -1,0 +1,4 @@
+interface:
+  display_name: "16 Discover cNMF gene programs"
+  short_description: "Discover and review de novo gene expression programs"
+  default_prompt: "Use $16-scrna-discover-programs to scan cNMF ranks on raw counts, review stability and error, and export my selected consensus programs with sample-aware usage summaries."

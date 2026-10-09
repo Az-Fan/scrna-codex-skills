@@ -1,6 +1,6 @@
 # scRNA-seq Codex Skills
 
-这是一套面向 Codex、Claude Code 和 WispScience 的可审计单细胞 RNA 测序工作流。当前开发分支包含 15 个 skill，覆盖输入标准化、QC、人工批准后过滤、整合评估、预处理聚类、marker、人工注释、子集导出、基因程序评分、差异表达、通路富集、细胞丰度变化、组成可视化和目标基因展示。固定发布标签 `v3.1.0` 包含 13 个 skill，不包含开发分支新增的 14/15 和后续修复。
+这是一套面向 Codex、Claude Code 和 WispScience 的可审计单细胞 RNA 测序工作流。当前开发分支包含 16 个 skill，覆盖输入标准化、QC、人工批准后过滤、整合评估、预处理聚类、marker、人工注释、子集导出、基因程序评分、差异表达、通路富集、细胞丰度变化、组成可视化、目标基因展示和 cNMF 程序发现。固定发布标签 `v3.1.0` 包含 13 个 skill，不包含开发分支新增的 14/15/16 和后续修复。
 
 规范开发仓库位于 `/home/faz_laptop/projects/scrna-codex-skills`；GitHub 仓库 `git@github.com:Az-Fan/scrna-codex-skills.git` 是固定版本的分发来源。科学计算默认复用服务器上已经注册的 pixi 环境，不会自动创建环境、修改环境或安装缺失依赖。
 
@@ -40,7 +40,8 @@
         12 ORA/GSEA 通路富集
   ├─→ 13 细胞类型组成与局部邻域丰度变化
   ├─→ 14 细胞组成、比例与批次诊断可视化
-  └─→ 15 目标基因表达与既有差异结果可视化
+  ├─→ 15 目标基因表达与既有差异结果可视化
+  └─→ 16 cNMF 程序发现 → 人工选 k → consensus 与程序解释
 ```
 
 几个重要边界：
@@ -75,7 +76,7 @@ python3 scrna-codex-skills/scripts/install_skills.py --target ~/.codex/skills --
 
 安装到 Claude Code 时，把目标改为 `~/.claude/skills`。安装后重新启动 agent 会话，使 skill discovery 读取新版本。安装脚本只组装 skill 自身的指令和执行器，不修改项目数据与 pixi 环境。
 
-开发分支安装器会先构建完整的 15 个 skill，再替换安装目录。旧文件和遗留的 `03.1-scrna-apply-qc-filter` 会迁入安装目录之外的备份目录；构建或替换失败时保留或恢复旧安装。安装器不修改其他 skill。若曾直接改动安装文件，先把有效改动迁回规范源码。
+开发分支安装器会先构建完整的 16 个 skill，再替换安装目录。旧文件和遗留的 `03.1-scrna-apply-qc-filter` 会迁入安装目录之外的备份目录；构建或替换失败时保留或恢复旧安装。安装器不修改其他 skill。若曾直接改动安装文件，先把有效改动迁回规范源码。
 
 ## 三、通用使用方式
 
@@ -101,7 +102,7 @@ python3 ~/.codex/skills/<skill-name>/scripts/run.py \
 
 ### 3. 长任务使用 tmux supervisor
 
-`02`、`04`–`13` 带有统一的 tmux 监督器。dry-run 仍在前台执行；只有已经确认的 `--execute` 命令才放入 tmux：
+`02`、`04`–`13`、`16` 带有统一的 tmux 监督器。dry-run 仍在前台执行；只有已经确认的 `--execute` 命令才放入 tmux：
 
 ```bash
 python3 ~/.codex/skills/<skill-name>/scripts/run_in_tmux.py \
@@ -128,6 +129,7 @@ python3 ~/.codex/skills/<skill-name>/scripts/run_in_tmux.py \
 | `11`–`12` | `06-deg-analysis` |
 | `13` | `07-cell-abundance`（R 方法为 `default`，scCODA 为 `sccoda`） |
 | `14`–`15` | `02-annotation` |
+| `16` | `05-pathway_program`（Seurat 导出用 `default`，cNMF 用 `cnmf`） |
 
 完整兼容性说明见 [toolkit/references/compatibility.md](toolkit/references/compatibility.md)。
 
@@ -149,7 +151,7 @@ python3 scripts/manage_environments.py --target ~/projects/scrna_envs --apply --
 
 更新已有环境配置时加 `--force`，旧配置会先备份；加 `--install` 才安装依赖。分析阶段直接使用已安装的 R/Python，02、03 的 Pixi 命令使用 `--frozen --no-install`，不会重新求解、安装或升级环境。运行记录包含环境配置和锁文件的 SHA256。补装 R 包由 `supplemental-r.json` 固定版本、源归档校验值和适用的 Git 提交；分析任务不会调用补装程序。
 
-## 四、15 个 skill 的输入、用法和输出
+## 四、16 个 skill 的输入、用法和输出
 
 ### 01-scrna-standardize-input：标准化输入和元数据
 
@@ -701,6 +703,22 @@ propeller/DCATS 的调整 P 值、sccomp posterior FDR、scCODA posterior inclus
 该 skill 不重新标准化对象、不执行差异分析，也不把细胞当成生物学重复。正式差异结论来自 `11-scrna-run-differential-analysis` 的完整结果；pseudobulk normalized counts 可作为样本级表达图的优先数据源。
 
 配置模板：[config.example.json](skills/15-scrna-visualize-gene/references/config.example.json)。
+
+### 16-scrna-discover-programs：cNMF 基因表达程序发现
+
+从未校正 raw counts 发现共同表达的基因程序，并估计每个细胞的 usage。支持 Seurat RDS/QS 和明确指定方向的 Matrix Market + features/barcodes/metadata；不预设 program 与 cluster 或疾病一一对应。
+
+配置模板：[config.example.json](skills/16-scrna-discover-programs/references/config.example.json)。默认 `workflow.action=discover` 扫描多个 k，输出稳定性/重构误差并等待选 k。确认后在同一配置中设 `workflow.action=consensus`、`workflow.selection_reason` 和 `cnmf.consensus_k`，复用已有 factorization。用户已明确指定导出 k 时，可用 `action=run` 一次执行。
+
+```bash
+python3 ~/.codex/skills/16-scrna-discover-programs/scripts/check_dependencies.py --config config/16_cnmf.json
+python3 ~/.codex/skills/16-scrna-discover-programs/scripts/run.py --config config/16_cnmf.json
+python3 ~/.codex/skills/16-scrna-discover-programs/scripts/run.py --config config/16_cnmf.json --execute
+```
+
+输出包含 k-selection 图表、各 k 的 raw/fractional usage、gene spectra、top genes、program GMT、样本/细胞类型 usage 汇总、已有 embedding 上的程序展示和人工命名审阅表。可选本地 GMT 进行功能 ORA；完整结果、覆盖和背景基因均保留。它不自动推断疾病特异性，不执行正式 condition 检验或混合模型方差分解。
+
+输入对象不变，旧输出不覆盖。选 k 后复用前校验输入、参数、版本和结果文件的哈希；执行记录和 native cNMF 中间数据位于 `_provenance/`。详见 [discovery-contract.md](skills/16-scrna-discover-programs/references/discovery-contract.md)。
 
 ## 五、版本 2 到版本 3 的名称迁移
 
