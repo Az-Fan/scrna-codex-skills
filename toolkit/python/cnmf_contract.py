@@ -24,7 +24,10 @@ def validate_config(config, get):
             errors.append(f"{field} does not exist: {value}")
     if get(config, "input.counts_source") != "raw_umi":
         errors.append("input.counts_source must be raw_umi; corrected or normalized values are unsupported")
-    if kind == "seurat" and (get(config, "input.assay") or "RNA").lower() in {"integrated", "sct"}:
+    assay = get(config, "input.assay")
+    if assay is not None and (not isinstance(assay, str) or not assay.strip()):
+        errors.append("input.assay must be a non-empty assay name")
+    elif kind == "seurat" and (assay or "RNA").lower() in {"integrated", "sct"}:
         errors.append("cNMF requires an uncorrected RNA raw-count assay")
     if (get(config, "input.orientation") or "genes_by_cells") not in {"genes_by_cells", "cells_by_genes"}:
         errors.append("input.orientation must be genes_by_cells or cells_by_genes")
@@ -72,7 +75,9 @@ def validate_config(config, get):
         errors.append("runtime.cnmf_python must be an interpreter path")
     for field in ("metadata.sample", "metadata.condition", "metadata.cell_type", "metadata.batch", "metadata.reduction"):
         value = get(config, field)
-        if value is not None and (not isinstance(value, str) or not value.strip()):
+        if field == "metadata.sample" and value is None:
+            errors.append("metadata.sample is required")
+        elif value is not None and (not isinstance(value, str) or not value.strip()):
             errors.append(f"{field} must be a non-empty column/reduction name when provided")
     gmt = get(config, "interpretation.gmt")
     if gmt is not None:

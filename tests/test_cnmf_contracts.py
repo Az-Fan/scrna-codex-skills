@@ -6,12 +6,13 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/scrna-cnmf-test-matplotlib")
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "toolkit/python"))
 from scrna_runtime import validate, default_argv
-from cnmf_contract import SKILL
+from cnmf_contract import SKILL, validate_config
 import cnmf_discovery as discovery
 import numpy as np
 import pandas as pd
@@ -94,15 +95,59 @@ class CNMFContracts(unittest.TestCase):
         self.assertAlmostEqual(row.p1, .85)
         self.assertEqual(row.n_cells, 2)
 
+    def test_standalone_requires_sample_and_handles_invalid_assay(self):
+        cfg = copy.deepcopy(self.config)
+        del cfg["metadata"]["sample"]
+        cfg["input"]["assay"] = 4
+        errors = validate_config(cfg, discovery.get)
+        self.assertIn("metadata.sample is required", errors)
+        self.assertIn("input.assay must be a non-empty assay name", errors)
+
+    def test_native_consensus_preserves_identifiers_and_values(self):
+        from cnmf import cNMF
+        from cnmf.cnmf import load_df_from_npz, save_df_to_npz
+        model = cNMF(output_dir=str(self.root / "native"), name="fixture")
+        cells, genes = ["001", "01", "NA", "nan"], ["001", "01", "NA"]
+        raw = pd.DataFrame([[1., 3.], [2., 1.], [3., 2.], [4., 1.]], index=cells, columns=[1, 2])
+        scores = pd.DataFrame([[2., -1., 1.], [-1., 3., 2.]], index=[1, 2], columns=genes)
+        tpm = scores.abs() * 10
+        for key, frame in [("consensus_usages", raw), ("gene_spectra_score", scores), ("gene_spectra_tpm", tpm)]:
+            save_df_to_npz(frame, model.paths[key] % (2, "2"))
+        cfg = copy.deepcopy(self.config)
+        cfg["cnmf"]["density_threshold"] = 2
+        metadata = pd.DataFrame({"sample": ["s1", "s1", "s2", "s2"], "condition": ["control", "control", "case", "case"]}, index=cells)
+        with patch.object(discovery, "load_df_from_npz", load_df_from_npz, create=True), patch.object(model, "consensus"), patch.object(discovery, "plot_summary"):
+            usage = discovery.export_consensus(model, 2, cfg, metadata, self.root, None)
+        self.assertEqual(list(usage.index), cells)
+        np.testing.assert_allclose(usage.to_numpy(), raw.div(raw.sum(axis=1), axis=0))
+        exported = pd.read_csv(self.root / "k_2/spectra_scores.tsv", sep="\t", index_col=0, dtype={"gene": str}, keep_default_na=False)
+        self.assertEqual(list(exported.index), genes)
+        np.testing.assert_array_equal(exported.to_numpy(), scores.T.to_numpy())
+
+    def test_consensus_registry_accumulates_successes_and_failures(self):
+        output = self.root / "output"
+        output.mkdir()
+        for k in [2, 3]:
+            destination = output / f"k_{k}"
+            destination.mkdir()
+            pd.DataFrame({f"cnmf{k}_1": [.2, .8]}, index=["001", "NA"]).to_csv(destination / "usage.tsv", sep="\t", index_label="cell_id")
+        rows, usages = discovery.consensus_registry(output, [{"k": 2, "status": "completed", "reason": ""}, {"k": 4, "status": "failed", "reason": "density filtering"}])
+        rows, usages = discovery.consensus_registry(output, [{"k": 3, "status": "completed", "reason": ""}])
+        self.assertEqual(set(usages), {2, 3})
+        self.assertEqual(list(usages[2].index), ["001", "NA"])
+        self.assertEqual([row for row in rows if row["status"] == "failed"][0]["reason"], "density filtering")
+        self.assertEqual(len(pd.read_csv(output / "task_status.tsv", sep="\t")), 3)
+
     def test_ora_keeps_complete_tests_and_audits_unmatched_sets(self):
         gmt = self.root / "sets.gmt"; gmt.write_text("A\tdescription\tg1\nghost\tdescription\tunknown\nB\tdescription\tg4\n")
-        scores = pd.DataFrame({"p1": [5, -1, -2, -3], "p2": [-1, -2, -3, 7]}, index=["g1", "g2", "g3", "g4"])
+        scores = pd.DataFrame({"p1": [5, -1, -2, -3], "p2": [-1, -2, -3, 7], "p3": [-1, -2, -3, -4]}, index=["g1", "g2", "g3", "g4"])
         discovery.enrich_programs(scores, 3, gmt, self.destination)
         table = pd.read_csv(self.destination / "program_enrichment.tsv", sep="\t")
-        self.assertEqual(len(table), 4)
-        self.assertEqual(set(table.n_selected), {1})
+        self.assertEqual(len(table), 6)
+        self.assertEqual(set(table.n_selected), {0, 1})
         self.assertEqual(set(table.universe_size), {4})
-        self.assertEqual(len(table.loc[table.overlap == 0]), 2)
+        self.assertEqual(len(table.loc[table.overlap == 0]), 4)
+        self.assertTrue(table.loc[table.program == "p3", "p_value"].eq(1).all())
         self.assertTrue((table.p_adjust >= table.p_value).all())
         coverage = pd.read_csv(self.destination / "gene_set_coverage.tsv", sep="\t")
         self.assertEqual(coverage.loc[coverage.gene_set == "ghost", "status"].iloc[0], "no_overlap")

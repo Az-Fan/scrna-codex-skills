@@ -42,7 +42,7 @@ Smaller density_threshold means stricter replicate-spectra filtering. Default 0.
 | usage_summary_by_sample.tsv | Sample × optional population/condition/batch, mean fractional usage and cell counts |
 | program_review.tsv | Pending candidate names, evidence, sample consistency and QC confounding |
 
-cNMF 1.7 load_results actually returns spectra as genes × programs despite contradictory docstring wording. Validate axes against usage programs. Program IDs have no fixed biological correspondence across k or runs. Cross-k Spearman correlations report all pairs; constant programs can yield undefined values, and correlations do not certify one-to-one matches.
+Native cNMF NPZ results preserve cell/gene identifiers without text type inference. Exported spectra are genes × programs; validate axes against usage programs. Program IDs have no fixed biological correspondence across k or runs. Cross-k Spearman correlations report all pairs across completed ranks, including ranks exported in earlier calls; constant programs can yield undefined values, and correlations do not certify one-to-one matches.
 
 Heatmaps show descriptive per-sample/population means. Cells are not independent replicates; condition differences can reflect composition, technical effects, cell identity, stress or cell cycle. No automatic biological names, condition p-values, mixed-model variance decomposition or online database enrichment are produced.
 
@@ -50,7 +50,7 @@ Optional interpretation.gmt supplies a reviewed local species/identifier-matched
 
 ## Preservation and failures
 
-Discovery refuses existing prepared/native artifacts; consensus refuses existing selected-k directories. Failed ranks retain task_status.tsv errors and partial files, successful requested ranks remain accessible, and execution exits nonzero. Use a fresh run to repair failed output; no implicit retries or replacement of prior consensus occur.
+Discovery refuses existing prepared/native artifacts; consensus refuses existing selected-k directories. task_status.tsv accumulates rank outcomes, density settings and selection reasons across calls. Failed ranks retain errors and partial files, successful requested ranks remain accessible, and execution exits nonzero while any recorded rank remains failed. Workflow state and manifests list all completed ranks. Use a fresh run to repair failed output; no implicit retries or replacement of prior consensus occur.
 
 _provenance/discovery_record.json binds input SHA256, preparation parameters, metadata roles, package versions and reusable artifact hashes. Consensus verifies these before reuse. This establishes integrity, not human authorization. Retain native factorizations and prepared input for reuse. RESULTS.md reports awaiting review, completion or failure and links scientific deliverables.
 

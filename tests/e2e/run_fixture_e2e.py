@@ -317,9 +317,10 @@ def main() -> int:
                 raise RuntimeError("cNMF discovery did not pause for rank review")
             discovery_record_hash = sha256(out / "_provenance/discovery_record.json")
             config["workflow"] = {"action": "consensus", "selection_reason": "synthetic fixture rank comparison"}
-            config["cnmf"]["consensus_k"] = [2, 3]
-            write_json(config_path, config)
-            call(command + ["--execute"], env=env)
+            for selected_k in [2, 3]:
+                config["cnmf"]["consensus_k"] = [selected_k]
+                write_json(config_path, config)
+                call(command + ["--execute"], env=env)
             if sha256(out / "_provenance/discovery_record.json") != discovery_record_hash:
                 raise RuntimeError("cNMF consensus changed its discovery binding")
             for k in [2, 3]:
@@ -327,6 +328,13 @@ def main() -> int:
                     usage = list(csv.DictReader(handle, delimiter="\t"))
                 if len(usage) != 80 or any(abs(sum(float(v) for key, v in row.items() if key != "cell_id") - 1) > 1e-8 for row in usage):
                     raise RuntimeError("cNMF usage lost cells or fractional normalization")
+            state = json.loads((out / "_provenance/workflow_state.json").read_text())
+            with (out / "task_status.tsv").open() as handle:
+                tasks = list(csv.DictReader(handle, delimiter="\t"))
+            with (out / "cross_k_usage_correlations.tsv").open() as handle:
+                correlations = list(csv.DictReader(handle, delimiter="\t"))
+            if set(state["exported_k"]) != {2, 3} or len(tasks) != 2 or len(correlations) != 6:
+                raise RuntimeError("Successive cNMF consensus calls lost earlier ranks or cross-k comparisons")
             registry = json.loads((out / "_provenance/result_delivery.json").read_text())
             if "k_selection.png" not in registry["retained_stage_files"]:
                 raise RuntimeError("cNMF consensus lost discovery deliverables")

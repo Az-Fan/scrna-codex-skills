@@ -112,7 +112,7 @@ def load_input(config, destination):
     metadata.to_csv(destination / "cell_metadata.tsv", sep="\t")
     embedding = destination / "embedding.tsv"
     if embedding.is_file():
-        emb = pd.read_csv(embedding, sep="\t", index_col=0)
+        emb = pd.read_csv(embedding, sep="\t", index_col=0, dtype={"cell_id": str}, keep_default_na=False)
         if set(emb.index) != set(cells) or emb.index.has_duplicates or not np.isfinite(emb.to_numpy()).all():
             raise ValueError("Embedding must contain finite coordinates for every cell")
     return adata
@@ -189,7 +189,7 @@ def enrich_programs(scores, top_n, gmt, destination):
         selected = set(scores[program][scores[program] > 0].nlargest(top_n).index)
         for name, genes in sets.items():
             matched = genes & universe
-            if not matched or not selected:
+            if not matched:
                 continue
             overlap = selected & matched
             p = hypergeom.sf(len(overlap) - 1, len(universe), len(matched), len(selected))
@@ -218,8 +218,12 @@ def export_consensus(model, k, config, metadata, output, embedding):
                     local_neighborhood_size=get(config, "cnmf.local_neighborhood_size") or .3,
                     show_clustering=True, close_clustergram_fig=True)
     top_n = get(config, "reporting.top_n") or 50
-    raw_usage, scores, tpm, _ = model.load_results(K=k, density_threshold=threshold, n_top_genes=top_n, norm_usage=False)
-    # cNMF 1.7 的实际 load_results 返回 genes × programs；不能依文档文字转置。
+    # Native NPZ preserves identifiers such as 001 and NA; load_results reads
+    # text with pandas type/NA inference and can alter otherwise valid cell IDs.
+    suffix = (k, str(threshold).replace(".", "_"))
+    raw_usage = load_df_from_npz(model.paths["consensus_usages"] % suffix)
+    scores = load_df_from_npz(model.paths["gene_spectra_score"] % suffix).T
+    tpm = load_df_from_npz(model.paths["gene_spectra_tpm"] % suffix).T
     if raw_usage.shape[1] != k or list(scores.columns) != list(raw_usage.columns) or list(tpm.columns) != list(raw_usage.columns):
         raise ValueError("Unexpected cNMF result orientation or mismatched program IDs")
     programs = [f"cnmf{k}_{x}" for x in raw_usage.columns]
@@ -258,6 +262,23 @@ def export_consensus(model, k, config, metadata, output, embedding):
         if figure.suffix == ".png":
             shutil.copy2(figure, destination / figure.name)
     return usage
+
+
+def consensus_registry(output, task_rows):
+    """Retain all rank outcomes and compare every completed rank across calls."""
+    status_path = output / "task_status.tsv"
+    previous = pd.read_csv(status_path, sep="\t", keep_default_na=False).to_dict("records") if status_path.is_file() else []
+    rows = previous + task_rows
+    if len({row["k"] for row in rows}) != len(rows):
+        raise ValueError("Duplicate consensus ranks in task registry")
+    pd.DataFrame(rows).to_csv(status_path, sep="\t", index=False)
+    usages = {}
+    for row in rows:
+        if row["status"] == "completed":
+            k = int(row["k"])
+            usages[k] = pd.read_csv(output / f"k_{k}/usage.tsv", sep="\t", index_col=0,
+                                    dtype={"cell_id": str}, keep_default_na=False)
+    return rows, usages
 
 
 def execute(config):
@@ -316,16 +337,19 @@ def execute(config):
         existing = [k for k in ks if (output / f"k_{k}").exists()]
         if existing:
             raise ValueError(f"Consensus ranks already exported: {existing}; preserve them and choose new ranks")
-    embedding = pd.read_csv(prepared / "embedding.tsv", sep="\t", index_col=0) if (prepared / "embedding.tsv").is_file() else None
+    embedding = pd.read_csv(prepared / "embedding.tsv", sep="\t", index_col=0, dtype={"cell_id": str}, keep_default_na=False) if (prepared / "embedding.tsv").is_file() else None
     task_rows, usages = [], {}
     for k in ks:
         try:
             usages[k] = export_consensus(model, k, config, adata.obs, output, embedding)
-            task_rows.append({"k": k, "status": "completed", "density_threshold": get(config, "cnmf.density_threshold") or .02, "reason": ""})
+            task_rows.append({"k": k, "status": "completed", "reason": ""})
         except Exception as exc:
-            task_rows.append({"k": k, "status": "failed", "density_threshold": get(config, "cnmf.density_threshold") or .02, "reason": str(exc)})
+            task_rows.append({"k": k, "status": "failed", "reason": str(exc)})
+        task_rows[-1].update(density_threshold=get(config, "cnmf.density_threshold") or .02,
+                             local_neighborhood_size=get(config, "cnmf.local_neighborhood_size") or .3,
+                             selection_reason=get(config, "workflow.selection_reason") or "")
     if ks:
-        pd.DataFrame(task_rows).to_csv(output / "task_status.tsv", sep="\t", index=False)
+        task_rows, usages = consensus_registry(output, task_rows)
     cross = []
     for first, second in itertools.combinations(usages, 2):
         correlations = usages[first].join(usages[second]).corr(method="spearman")
