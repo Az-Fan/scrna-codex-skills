@@ -229,6 +229,8 @@ def default_argv(skill, config_path, config):
 
 
 def expected_artifacts(skill, config):
+    if skill == "07-scrna-find-cluster-markers" and nested_get(config,"workflow.action") == "plot_existing":
+        return ["marker_dotplot", "marker_overview_selection", "run_manifest"]
     if skill == "17-scrna-infer-grn" and (nested_get(config, "workflow.action") or "prepare") == "prepare":
         return ["input_audit", "cell_membership", "inference_unit_audit", "feature_status", "resource_coverage", "task_status", "workflow_state", "run_manifest"]
     if skill == "16-scrna-discover-programs":
@@ -300,6 +302,21 @@ def validate(skill, config, config_path):
             for field in ("input.object", "metadata.sample", "metadata.condition"):
                 if is_blank(nested_get(config, field)):
                     errors.append(f"missing required field: {field}")
+    if skill == "07-scrna-find-cluster-markers":
+        action = nested_get(config, "workflow.action") or "find_markers"
+        if action not in {"find_markers", "plot_existing"}:
+            errors.append("workflow.action must be find_markers or plot_existing")
+        if action == "plot_existing":
+            markers = nested_get(config, "input.markers")
+            if is_blank(markers) or not Path(os.path.expandvars(os.path.expanduser(str(markers)))).is_file():
+                errors.append("plot_existing requires an existing input.markers TSV")
+        for field, default in (("reporting.dotplot_top_n",4),("reporting.top_n",20)):
+            value = nested_get(config,field)
+            if value is not None and (not isinstance(value,int) or isinstance(value,bool) or value<1):
+                errors.append(field + " must be a positive integer")
+        threshold = nested_get(config,"reporting.adjusted_p_threshold")
+        if threshold is not None and (not isinstance(threshold,(int,float)) or isinstance(threshold,bool) or not 0<threshold<=1):
+            errors.append("reporting.adjusted_p_threshold must be in (0, 1]")
     if skill == "04-scrna-apply-qc-filter":
         if str(nested_get(config, "approval.status") or "").lower() != "approved":
             errors.append("approval.status must be exactly 'approved'")

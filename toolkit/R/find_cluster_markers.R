@@ -3,7 +3,10 @@ if (length(args) != 1L) stop("Usage: Rscript find_cluster_markers.R config.json"
 script_file <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE)[1])
 source(file.path(dirname(normalizePath(script_file)), "runtime.R"))
 source(file.path(dirname(normalizePath(script_file)), "figure_style.R"))
+source(file.path(dirname(normalizePath(script_file)), "plot_marker_overview.R"))
 config <- read_skill_config(args[[1]])
+action <- cfg_get(config,"workflow.action","find_markers")
+if (!action %in% c("find_markers","plot_existing")) stop("workflow.action must be find_markers or plot_existing")
 if (!requireNamespace("Seurat", quietly = TRUE)) stop("Package 'Seurat' is required")
 
 obj <- load_scrna_object(cfg_get(config, "input.object", required = TRUE), "auto")
@@ -17,6 +20,10 @@ if (!is.null(cluster_col) && nzchar(cluster_col)) {
   cluster_values <- obj[[]][[cluster_col]]
   if (anyNA(cluster_values)) stop("Cluster column contains missing values: ", cluster_col)
   Seurat::Idents(obj) <- as.factor(cluster_values)
+}
+if (is.null(cluster_col) || !nzchar(cluster_col)) {
+  cluster_col <- ".marker_plot_cluster"
+  obj[[cluster_col]] <- Seurat::Idents(obj)
 }
 idents <- droplevels(Seurat::Idents(obj))
 if (nlevels(idents) < 2L) stop("FindAllMarkers requires at least two identity groups")
@@ -39,12 +46,26 @@ if (requireNamespace("SeuratObject", quietly = TRUE) &&
 } else {
   has_data <- nrow(Seurat::GetAssayData(obj, assay = assay, slot = "data")) > 0L
 }
+if (!has_data && action == "plot_existing") stop("Plot-only overview requires existing normalized data")
 if (!has_data) {
   if (!isTRUE(cfg_get(config, "analysis.normalize_if_missing", TRUE))) {
     stop("Selected assay has no normalized data layer; normalize it first or set analysis.normalize_if_missing=true")
   }
   obj <- Seurat::NormalizeData(obj, assay = assay, verbose = FALSE)
   normalized_in_memory <- TRUE
+}
+
+if (action == "plot_existing") {
+  marker_file <- cfg_get(config,"input.markers",required=TRUE)
+  markers <- utils::read.delim(marker_file,check.names=FALSE,stringsAsFactors=FALSE)
+  attr(config,"marker_input_record") <- list(path=marker_file,sha256=.scrna_sha256(marker_file))
+  out <- prepare_output(config)
+  plot_path <- plot_marker_overview(obj,markers,assay,cluster_col,config,out)
+  write_run_manifest(config,"07-scrna-find-cluster-markers",out,
+    c(plot_path,file.path(out,"marker_overview_selection.tsv")),
+    notes=c("Plot-only: marker tables and source object preserved; differential testing was not rerun",
+      paste0("marker_input=",marker_file),paste0("marker_input_sha256=",.scrna_sha256(marker_file))))
+  quit(save="no",status=0)
 }
 
 max_cells <- cfg_get(config, "analysis.max_cells_per_ident")
@@ -89,14 +110,11 @@ utils::write.table(markers, marker_path, sep = "\t", quote = FALSE, row.names = 
 utils::write.table(top_markers, top_path, sep = "\t", quote = FALSE, row.names = FALSE)
 utils::write.table(summary, summary_path, sep = "\t", quote = FALSE, row.names = FALSE)
 
-dot_n <- as.integer(cfg_get(config, "reporting.dotplot_top_n", 5))
-if (is.na(dot_n) || dot_n < 1L) stop("reporting.dotplot_top_n must be a positive integer")
-dot_genes <- unique(top_markers$gene[top_markers$rank_within_cluster <= dot_n])
-plot_path <- paper_dotplot(obj, dot_genes, assay, cluster_col, file.path(out, "top_marker_dotplot"), config, out)
+plot_path <- plot_marker_overview(obj, markers, assay, cluster_col, config, out)
 
 write_run_manifest(
   config, "07-scrna-find-cluster-markers", out,
-  c(marker_path, top_path, summary_path, plot_path),
+  c(marker_path, top_path, summary_path, plot_path, file.path(out,"marker_overview_selection.tsv")),
   c(paste0("assay=", assay), paste0("grouping=", if (is.null(cluster_col)) "active identities" else cluster_col),
     paste0("normalized_in_memory=", normalized_in_memory), "Input object was not rewritten")
 )

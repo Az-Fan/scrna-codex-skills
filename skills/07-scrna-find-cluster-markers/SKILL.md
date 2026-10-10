@@ -27,6 +27,12 @@ Treat cluster markers as annotation evidence, not final cell-type labels.
 
 Read [references/marker-interpretation.md](references/marker-interpretation.md) before interpreting or handing markers to annotation.
 
+## Single-page overview
+
+Produce exactly one primary figure, `top_marker_dotplot.pdf`, with clusters in columns and marker genes in rows, grouped by their source cluster. Default to top4 adjusted-significant markers per cluster; preserve complete and top20 tables independently. Keep all clusters on one page. Export only the run-selected format, default PDF. Scale page height to the number of marker rows while retaining readable text. Repeated genes in different source blocks reuse identical expression values. Keep zero-marker clusters visible and do not invent expression for them.
+
+To redraw without recomputing markers, set `workflow.action=plot_existing` and `input.markers` to a complete prior marker table. This branch requires existing normalized data, writes only the figure, selected-marker table and provenance, and leaves marker tables and the source object unchanged. Existing authorization to redraw is sufficient. Read [references/single-page-overview.md](references/single-page-overview.md) for configuration and plot semantics.
+
 ## Execution
 
 Copy [references/config.example.json](references/config.example.json), set the input and grouping fields, and run `scripts/run.py --config <config>` to validate and write a plan manifest. Review the manifest, then rerun with `--execute`. The executor reads but does not save changes to the input object and writes full markers, ranked top markers, a per-cluster summary, a dot plot, and a run manifest.
@@ -39,7 +45,7 @@ Keep primary figures, complete scientific tables, and review decisions directly 
 
 ## Fixed figures
 
-Read [references/figure-style.md](references/figure-style.md) before plotting or configuring figure outputs. Use the bundled paper_v1 templates with PDF by default and deterministic pagination/colours. Preserve the existing figure families listed in [references/figure-catalog.md](references/figure-catalog.md); do not choose new chart styles on each run.
+Read [references/figure-style.md](references/figure-style.md) before plotting or configuring figure outputs. Use the single-page overview layout with PDF by default and deterministic colours. Preserve the existing figure families listed in [references/figure-catalog.md](references/figure-catalog.md); do not choose new chart styles on each run.
 
 Result handoff: start with `<output_dir>/RESULTS.md` from the execute runner. It links scientific deliverables and reports current run status and limitations; follow [output-layout.md](references/output-layout.md) for retained results and technical records.
 

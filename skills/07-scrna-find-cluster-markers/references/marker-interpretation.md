@@ -17,5 +17,6 @@
 - `cluster_markers.tsv`: every marker returned by Seurat plus a within-cluster rank.
 - `top_cluster_markers.tsv`: the first `reporting.top_n` markers per cluster using adjusted P value, effect size, and gene as deterministic tie breakers.
 - `cluster_marker_summary.tsv`: cell and passing-marker counts for every input cluster, including clusters with zero markers.
-- `top_marker_dotplot.pdf`: expression and detection overview for unique top genes.
+- `top_marker_dotplot.pdf`: single-page expression and detection overview with marker-source cluster blocks; repeated genes reuse the same expression values.
+- `marker_overview_selection.tsv`: exact displayed rows and source statistics, independent of full/top20 tables.
 - `_provenance/run_manifest.json`: configuration provenance and artifact paths.
