@@ -1,3 +1,8 @@
+.figure_script <- tryCatch(sys.frame(1)$ofile, error=function(e) NULL)
+if (is.null(.figure_script)) .figure_script <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value=TRUE)[1])
+if (length(.figure_script) && !is.na(.figure_script)) {
+  source(file.path(dirname(normalizePath(.figure_script)), "figure_output.R"))
+} else if (file.exists("toolkit/R/figure_output.R")) source("toolkit/R/figure_output.R")
 #!/usr/bin/env Rscript
 suppressPackageStartupMessages({library(Seurat); library(ggplot2); library(jsonlite)})
 `%||%` <- function(x, y) if (is.null(x)) y else x
@@ -10,10 +15,10 @@ dir.create(out, recursive = TRUE, showWarnings = FALSE)
 detail_level <- tolower(cfg$output$detail_level %||% "compact")
 if (!detail_level %in% c("compact", "full")) stop("output.detail_level must be compact or full")
 full_output <- identical(detail_level, "full")
-preview_png <- cfg$output$preview_png %||% FALSE
-if (!is.logical(preview_png) || length(preview_png) != 1L || is.na(preview_png)) stop("output.preview_png must be true or false")
+selected_format <- figure_format(cfg)
+preview_png <- identical(selected_format, "png")
 detail_out <- file.path(out, "details")
-if (full_output) dir.create(detail_out, recursive = TRUE, showWarnings = FALSE)
+if (full_output || preview_png) dir.create(detail_out, recursive = TRUE, showWarnings = FALSE)
 obj_path <- normalizePath(cfg$input$object, mustWork = TRUE)
 obj <- if (grepl("\\.qs$", obj_path, ignore.case = TRUE)) {
   if (!requireNamespace("qs", quietly = TRUE)) stop("QS input requires qs in the selected pixi environment")
@@ -281,9 +286,11 @@ if(!is.null(xy) && all(is.finite(xy))) {
     caption="Doublet score is a diagnostic score, not a doublet probability or an approved exclusion rule.",theme=theme(plot.title=element_text(face="bold",size=16),plot.caption=element_text(size=8)))
 }
 pages<-c(sample_pages,cluster_pages,list(page3))
-pdf(file.path(out,"qc_atlas.pdf"),width=12,height=9,onefile=TRUE)
-for(p in pages) print(p)
-dev.off()
+if(!preview_png) {
+  pdf(file.path(out,"qc_atlas.pdf"),width=12,height=9,onefile=TRUE)
+  for(p in pages) print(p)
+  dev.off()
+}
 page_names <- function(stem,n) if(n==1L) paste0(stem,".png") else paste0(stem,"_page",seq_len(n),".png")
 preview_names <- if(preview_png) c(page_names("qc_01_samples",length(sample_pages)),page_names("qc_02_clusters",length(cluster_pages)),"qc_03_umap.png") else character()
 if(preview_png) for(i in seq_along(pages)) ggsave(file.path(out,preview_names[i]),pages[[i]],width=12,height=9,dpi=300,bg="white")
@@ -291,15 +298,17 @@ if(preview_png) for(i in seq_along(pages)) ggsave(file.path(out,preview_names[i]
 # diagnostics in a separate atlas; full mode retains their individual PNGs.
 script <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value=TRUE)[1])
 source(file.path(dirname(normalizePath(script)),"review_qc_diagnostics.R"),local=TRUE)
-pdf(file.path(out,"qc_supplement.pdf"),width=12,height=8,onefile=TRUE)
-for(p in atlas) print(p)
-dev.off()
+if(!preview_png) {
+  pdf(file.path(out,"qc_supplement.pdf"),width=12,height=8,onefile=TRUE)
+  for(p in atlas) print(p)
+  dev.off()
+}
 dir.create(file.path(out,"_provenance"),showWarnings=FALSE)
 write_json(list(cells=ncol(obj),genes=nrow(obj),clusters=if(!is.na(cluster_col))length(cl) else NULL,
   source_object=obj_path,new_seurat_objects=0,cells_removed=0,mitochondrial_source_unit=mt_unit,mitochondrial_display_unit="percent",
   umap_reduction=red,sample_labels=as.list(setNames(labels,samples)),sample_palette=as.list(pal),
   approved_rules=cfg$approved_rules,approved_rules_source=cfg$approved_rules_source,
-  threshold_candidates_applied=FALSE,point_raster_pixels=1100,point_order_seed=777,png_dpi=if(preview_png)300 else NULL,preview_png=preview_png,
+  threshold_candidates_applied=FALSE,point_raster_pixels=1100,point_order_seed=777,png_dpi=if(preview_png)300 else NULL,figure_format=selected_format,preview_png=preview_png,
   atlas_pages=length(pages),sample_pages=length(sample_pages),cluster_pages=length(cluster_pages),previews=preview_names,
   supplemental_diagnostics=vapply(Filter(function(x)x$status=="generated",plot_log),function(x)x$file,character(1))),file.path(out,"_provenance","figure_methods.json"),auto_unbox=TRUE,pretty=TRUE)
 writeLines(capture.output(sessionInfo()),file.path(out,"_provenance","session_info.txt"))

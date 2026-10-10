@@ -10,6 +10,8 @@ import shutil
 import subprocess
 import sys
 
+from figure_output import figure_format
+
 from scrna_runtime import nested_get as get, sha256, resolved_rscript
 from cnmf_contract import SKILL, validate_config
 
@@ -131,6 +133,21 @@ def summarize_usage(usage, metadata, config):
     return summary
 
 
+def save_pages(figures, config, destination, stem):
+    from matplotlib.backends.backend_pdf import PdfPages
+    try:
+        if figure_format(config) == "pdf":
+            with PdfPages(destination / (stem + ".pdf")) as output:
+                for fig in figures:
+                    output.savefig(fig, dpi=300)
+        else:
+            for i, fig in enumerate(figures, 1):
+                fig.savefig(destination / f"{stem}_page_{i}.png", dpi=300)
+    finally:
+        for fig in figures:
+            plt.close(fig)
+
+
 def plot_summary(summary, programs, config, destination):
     sample = get(config, "metadata.sample")
     population = get(config, "metadata.cell_type")
@@ -138,6 +155,7 @@ def plot_summary(summary, programs, config, destination):
     if population:
         labels = labels + " | " + summary[population].astype(str)
     per_page = get(config, "reporting.programs_per_page") or 6
+    figures = []
     for offset in range(0, len(programs), per_page):
         selected = programs[offset:offset + per_page]
         fig, ax = plt.subplots(figsize=(max(6, len(selected) * 1.1), max(3, len(labels) * .24)))
@@ -147,13 +165,14 @@ def plot_summary(summary, programs, config, destination):
         ax.set_title("Mean fractional usage per sample and population")
         fig.colorbar(plotted, ax=ax, label="Fractional usage")
         fig.tight_layout()
-        fig.savefig(destination / f"usage_sample_heatmap_page_{offset // per_page + 1}.png", dpi=300)
-        plt.close(fig)
+        figures.append(fig)
+    save_pages(figures, config, destination, "usage_sample_heatmap")
 
 
 def plot_embedding(usage, embedding, config, destination):
     embedding = embedding.loc[usage.index]
     per_page = get(config, "reporting.programs_per_page") or 6
+    figures = []
     for offset in range(0, usage.shape[1], per_page):
         selected = usage.columns[offset:offset + per_page]
         fig, axes = plt.subplots((len(selected) + 1) // 2, 2, figsize=(9, 3.7 * ((len(selected) + 1) // 2)), squeeze=False)
@@ -165,8 +184,8 @@ def plot_embedding(usage, embedding, config, destination):
         for ax in list(axes.flat)[len(selected):]:
             ax.set_visible(False)
         fig.tight_layout()
-        fig.savefig(destination / f"usage_embedding_page_{offset // per_page + 1}.png", dpi=300)
-        plt.close(fig)
+        figures.append(fig)
+    save_pages(figures, config, destination, "usage_embedding")
 
 
 def enrich_programs(scores, top_n, gmt, destination):
@@ -259,7 +278,7 @@ def export_consensus(model, k, config, metadata, output, embedding):
     if get(config, "interpretation.gmt"):
         enrich_programs(scores, top_n, get(config, "interpretation.gmt"), destination)
     for figure in Path(model.output_dir, model.name).glob("*clustering*k_%d.*" % k):
-        if figure.suffix == ".png":
+        if figure.suffix == "." + figure_format(config):
             shutil.copy2(figure, destination / figure.name)
     return usage
 
@@ -297,7 +316,7 @@ def execute(config):
         raise ValueError("Matrix input has no embedding; omit metadata.reduction")
     if action == "consensus":
         binding = json.loads(binding_path.read_text())
-        if binding.get("status") != "discovered" or binding["input"] != sources or binding["parameters"] != params or binding["input_contract"] != input_contract(config):
+        if binding.get("figure_format", "png") != figure_format(config) or binding.get("status") != "discovered" or binding["input"] != sources or binding["parameters"] != params or binding["input_contract"] != input_contract(config):
             raise ValueError("Consensus input/parameters differ from the completed discovery; use its original configuration")
         if binding["versions"] != versions:
             raise ValueError("Scientific package versions changed since discovery")
@@ -306,6 +325,8 @@ def execute(config):
                 raise ValueError(f"Discovery artifact changed or is missing: {name}")
         adata = anndata.read_h5ad(prepared / "counts.h5ad")
         model = cNMF(output_dir=str(native), name=params["name"])
+        for key in ["k_selection_plot", "clustering_plot"]:
+            model.paths[key] = str(Path(model.paths[key]).with_suffix("." + figure_format(config)))
     else:
         if prepared.exists() or native.exists() or binding_path.exists():
             raise ValueError("Discovery artifacts already exist; choose a new output_dir or use consensus on the completed run")
@@ -315,6 +336,8 @@ def execute(config):
         shutil.copy2(prepared / "cell_metadata.tsv", output / "cell_metadata.tsv")
         write_json(output / "input_audit.json", {"cells": adata.n_obs, "expressed_genes": adata.n_vars, "counts_source": "raw_umi", "matrix_orientation": "cells_by_genes", "input": sources, "parameters": params})
         model = cNMF(output_dir=str(native), name=params["name"])
+        for key in ["k_selection_plot", "clustering_plot"]:
+            model.paths[key] = str(Path(model.paths[key]).with_suffix("." + figure_format(config)))
         model.prepare(counts_fn=str(prepared / "counts.h5ad"), components=params["components"], n_iter=params["n_iter"], seed=params["seed"], num_highvar_genes=params["num_highvar_genes"], max_NMF_iter=params["max_nmf_iter"])
         workers = get(config, "cnmf.workers") or 1
         if workers == 1:
@@ -329,9 +352,9 @@ def execute(config):
         stats["k"] = stats["k"].astype(int)
         stats["density_filter_applied"] = False
         stats.to_csv(output / "k_selection_stats.tsv", sep="\t", index=False)
-        shutil.copy2(model.paths["k_selection_plot"], output / "k_selection.png")
+        shutil.copy2(model.paths["k_selection_plot"], output / ("k_selection." + figure_format(config)))
         reusable = {str(p.relative_to(technical)): sha256(p) for folder in [prepared, native] for p in folder.rglob("*") if p.is_file()}
-        write_json(binding_path, {"schema_version": 1, "status": "discovered", "input": sources, "parameters": params, "input_contract": input_contract(config), "versions": versions, "reusable_files": reusable})
+        write_json(binding_path, {"schema_version": 1, "status": "discovered", "figure_format": figure_format(config), "input": sources, "parameters": params, "input_contract": input_contract(config), "versions": versions, "reusable_files": reusable})
     ks = [] if action == "discover" else get(config, "cnmf.consensus_k")
     if ks:
         existing = [k for k in ks if (output / f"k_{k}").exists()]
@@ -360,7 +383,7 @@ def execute(config):
     if cross:
         pd.DataFrame(cross).to_csv(output / "cross_k_usage_correlations.tsv", sep="\t", index=False)
     failed = any(x["status"] == "failed" for x in task_rows)
-    state = {"status": "failed" if failed else "awaiting_k_confirmation" if action == "discover" else "complete", "components": params["components"], "exported_k": list(usages), "selection_reason": get(config, "workflow.selection_reason"), "next_action": "Review k_selection.png and set action=consensus with consensus_k" if action == "discover" else "Review top genes, sample consistency and program_review.tsv"}
+    state = {"status": "failed" if failed else "awaiting_k_confirmation" if action == "discover" else "complete", "components": params["components"], "exported_k": list(usages), "selection_reason": get(config, "workflow.selection_reason"), "next_action": "Review k_selection." + figure_format(config) + " and set action=consensus with consensus_k" if action == "discover" else "Review top genes, sample consistency and program_review.tsv"}
     write_json(technical / "workflow_state.json", state)
     if get(config, "interpretation.gmt"):
         write_json(technical / "gene_set_record.json", {"path": str(path_value(get(config, "interpretation.gmt"))), "sha256": sha256(path_value(get(config, "interpretation.gmt")))})

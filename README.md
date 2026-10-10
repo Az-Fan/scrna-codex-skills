@@ -213,10 +213,10 @@ Seurat 输入时：
 
 - `qc_metrics_object.rds`：添加 QC metadata 的派生对象。
 - `metadata.tsv.gz`：完整逐细胞 QC 表。
-- `qc_diagnosis.png`：基础 QC 诊断图。
+- `qc_diagnosis.pdf`：基础 QC 诊断图。
 - `_provenance/`：供执行器审计的指标状态、运行清单和日志；不作为主要结果展示。
 
-STARsolo 输入时，每个样本目录只保留 `counts.mtx.gz`、`features.tsv.gz`、`metadata.tsv.gz` 和 `qc_diagnosis.png`；所有样本的指标状态合并到输出根目录的 `_provenance/metric_status.tsv`。
+STARsolo 输入时，每个样本目录只保留 `counts.mtx.gz`、`features.tsv.gz`、`metadata.tsv.gz` 和 `qc_diagnosis.pdf`；所有样本的指标状态合并到输出根目录的 `_provenance/metric_status.tsv`。
 
 可能计算的字段包括 `n_genes`、`n_UMIs`、`mito_frac`、`chrY_frac`、`nuclear_frac`、`ambient_frac_decontx`、`doublet_score`、细胞周期和血红蛋白评分。具体定义见 [input-output.md](skills/02-scrna-calculate-qc-metrics/references/input-output.md)。本 skill 不过滤细胞。
 
@@ -240,7 +240,7 @@ STARsolo 输入时，每个样本目录只保留 `counts.mtx.gz`、`features.tsv
 
 compact 模式根目录提供：
 
-- `qc_atlas.pdf`：紧凑的样本、聚类和共享坐标 UMAP 总览，默认仅 PDF；`output.preview_png=true` 可额外导出 300-dpi PNG 预览；每页最多 8 个样本或 24 个聚类，超出时分页。
+- `qc_atlas.pdf`：紧凑的样本、聚类和共享坐标 UMAP 总览，默认仅 PDF；`output.figure_format=png` 可改用 300-dpi PNG，替代 PDF；每页最多 8 个样本或 24 个聚类，超出时分页。
 - `qc_supplement.pdf`：保留原有注释、次要指标、候选保留率及全部可用指标的 UMAP 诊断。
 - `threshold_review.tsv`：候选阈值及待审批字段。
 - `qc_summary_by_sample.tsv`：样本级 QC 汇总。
@@ -344,7 +344,7 @@ compact 模式根目录提供：
 
 - `preprocessed_clustered_object.qs`。
 - `scenario_summary.tsv`、`scenario_cluster_similarity.tsv`。
-- `<scenario>_elbow.png`。
+- `<scenario>_elbow.pdf`。
 - `_provenance/workflow_state.json`、`_provenance/session_info.txt`、追加式 `_provenance/run.log`。
 - `_provenance/run_manifest_preprocess.json`；finalize 时另写 `_provenance/run_manifest_finalize.json`。
 
@@ -353,13 +353,13 @@ compact 模式根目录提供：
 - `cell_assignments.tsv`。
 - `<scenario>_cluster_sizes.tsv`。
 - `<scenario>_sample_cluster_counts.tsv`。
-- `<scenario>_umap_diagnostics.png`（超过四个分组面板时分页）。
+- `<scenario>_umap_diagnostics.pdf`（超过四个分组面板时分页）。
 
 resolution scan 还输出：
 
-- `<scenario>_umap_clusters_by_resolution.png`。
-- `<scenario>_clustree_resolution.png`。
-- `<scenario>_resolution_stability.tsv/.png`。
+- `<scenario>_umap_clusters_by_resolution.pdf`。
+- `<scenario>_clustree_resolution.pdf`。
+- `<scenario>_resolution_stability.tsv/.pdf`。
 
 guided 模式只给出稳定性推荐并暂停，必须由用户确认 resolution 后再 finalize；推荐值不等于生物学最优值。完整契约见 [input-output.md](skills/06-scrna-preprocess-and-cluster/references/input-output.md)。
 
@@ -384,7 +384,7 @@ guided 模式只给出稳定性推荐并暂停，必须由用户确认 resolutio
 - `cluster_markers.tsv`：Seurat 返回的完整 marker 表，加每簇 rank。
 - `top_cluster_markers.tsv`：确定性排序后的展示用 top marker。
 - `cluster_marker_summary.tsv`：每簇细胞数和 marker 数，包括零 marker 的簇。
-- `top_marker_dotplot.png`。
+- `top_marker_dotplot.pdf`。
 - `_provenance/run_manifest.json`。
 
 解读时应检查 sample-specific cluster、微小簇、线粒体/核糖体/应激/细胞周期/环境 RNA 等信号，见 [marker-interpretation.md](skills/07-scrna-find-cluster-markers/references/marker-interpretation.md)。
@@ -407,8 +407,8 @@ guided 模式只给出稳定性推荐并暂停，必须由用户确认 resolutio
 - `cluster_markers.tsv`：复用或显式回退计算的完整 marker 表。
 - `annotation_review.tsv`：待人工填写的候选 broad/fine/state、证据、冲突、sample bias、QC flag、confidence 和 decision。
 - `clustered_object.qs`。
-- `cluster_umap.png`、`cluster_sample_umap.png`。
-- 可选 `canonical_marker_dotplot.png`。
+- `cluster_umap.pdf`、`cluster_sample_umap.pdf`。
+- 可选 `canonical_marker_dotplot.pdf`。
 - `_provenance/run_manifest.json`。
 
 配置模板：[config.example.json](skills/08-scrna-annotate-cells/references/config.example.json)。
@@ -427,8 +427,8 @@ guided 模式只给出稳定性推荐并暂停，必须由用户确认 resolutio
 - `annotated_object.qs`：写入 broad/fine/可选 state 的派生对象。
 - `cell_annotations.tsv`：完整逐细胞标签。
 - `annotation_summary.tsv`：每簇决定与细胞数。
-- `annotated_umap.png`。
-- `cluster_sample_condition_umap.png`。
+- `annotated_umap.pdf`。
+- `cluster_sample_condition_umap.pdf`。
 - `_provenance/session_info.txt`、`_provenance/run_manifest.json`。
 
 应用配置见 [config.apply.example.json](skills/08-scrna-annotate-cells/references/config.apply.example.json)，决策表要求见 [annotation-review.md](skills/08-scrna-annotate-cells/references/annotation-review.md)。部分、重复、空白或未确认的决策表会被拒绝；注释过程不删除细胞，也不覆盖 cluster ID。
@@ -485,7 +485,7 @@ guided 模式只给出稳定性推荐并暂停，必须由用户确认 resolutio
 - `signature_coverage.tsv`：输入、匹配、缺失基因和 coverage status。
 - `assay_feature_mapping.tsv`：导出 signature 名和 Seurat assay feature 名映射。
 - `score_summary.tsv`：按配置字段汇总的描述性结果。
-- `figures/<task>_group_mean_heatmap.png`。
+- `figures/<task>_group_mean_heatmap.pdf`。
 - `_provenance/task_manifest.json`、`_provenance/session_info.txt`、`_provenance/run_manifest.json`。
 
 不同方法的绝对分数不能直接比较。按 condition 的正式推断仍必须以独立样本为统计单位，见 [interpretation-and-inference.md](skills/10-scrna-score-programs/references/interpretation-and-inference.md)。
@@ -792,3 +792,5 @@ python3 ~/.codex/skills/17-scrna-infer-grn/scripts/run.py --config config/17_grn
 ```
 
 主要输出为候选 TF-target 边、原生 motif 表、regulon 靶基因/权重/GMT、细胞 × regulon 活性、样本描述性汇总及 `handoff.json`。在主流程 handoff 处停止；CSI、RSS、差异 regulon、通路驱动 TF、方差分解和靶基因筛选等待后续独立 skill。详见 [grn-contract.md](skills/17-scrna-infer-grn/references/grn-contract.md)。
+
+所有 scRNA skill 的图形默认只输出 PDF；`output.figure_format=png` 可改用 PNG，但不会同时生成两种格式。多页图优先使用 PDF；不绘图的步骤仍不生成图。

@@ -1,4 +1,5 @@
 """Dependency-free configuration contract for cNMF discovery."""
+from figure_output import figure_format
 import math
 import os
 import re
@@ -9,6 +10,10 @@ SKILL = "16-scrna-discover-programs"
 
 def validate_config(config, get):
     errors = []
+    try:
+        figure_format(config)
+    except ValueError as exc:
+        errors.append(str(exc))
     action = get(config, "workflow.action") or "discover"
     if action not in {"discover", "consensus", "run"}:
         errors.append("workflow.action must be discover, consensus or run")

@@ -1,3 +1,8 @@
+.figure_script <- tryCatch(sys.frame(1)$ofile, error=function(e) NULL)
+if (is.null(.figure_script)) .figure_script <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value=TRUE)[1])
+if (length(.figure_script) && !is.na(.figure_script)) {
+  source(file.path(dirname(normalizePath(.figure_script)), "figure_output.R"))
+} else if (file.exists("toolkit/R/figure_output.R")) source("toolkit/R/figure_output.R")
 .scrna_runtime_started_at <- Sys.time()
 .scrna_sha256 <- function(path) {
   if (is.null(path) || !file.exists(path) || !requireNamespace("digest", quietly = TRUE)) return(NA_character_)

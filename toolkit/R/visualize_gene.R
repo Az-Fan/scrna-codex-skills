@@ -8,7 +8,7 @@ script_dir <- dirname(normalizePath(sub("^--file=", "", script_arg[[1]]), mustWo
 source(file.path(script_dir, "runtime.R")); source(file.path(script_dir, "figure_style.R"))
 config <- read_skill_config(args[[1]]); out <- prepare_output(config)
 if (is.null(config[["output"]])) config[["output"]] <- list()
-config[["output"]][["figure_format"]] <- cfg_get(config, "plots.figure_format", "png")
+config[["output"]][["figure_format"]] <- figure_format(config)
 write_tsv <- function(x, path) utils::write.table(x, path, sep = "\t", quote = FALSE, row.names = FALSE, na = "")
 safe <- function(x) gsub("[^A-Za-z0-9]+", "_", tolower(x))
 enabled <- function(name) isTRUE(cfg_get(config, paste0("plots.", name), TRUE))

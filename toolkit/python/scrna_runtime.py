@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Dependency-free runtime contract for the reusable scRNA-seq skills."""
 
+from figure_output import figure_format as select_figure_format
+
 import importlib.util
 import argparse
 import datetime as dt
@@ -264,6 +266,10 @@ def expected_artifacts(skill, config):
 
 def validate(skill, config, config_path):
     errors, warnings = [], []
+    try:
+        select_figure_format(config)
+    except ValueError as exc:
+        errors.append(str(exc))
     spec = SPECS[skill]
     for field in spec["required"]:
         if is_blank(nested_get(config, field)):
@@ -590,9 +596,6 @@ def validate(skill, config, config_path):
         modes = config.get("modes", ["composition_summary"])
         if not isinstance(modes, list) or not modes or any(str(x) not in {"composition_summary", "batch_diagnostic", "hierarchical_composition"} for x in modes):
             errors.append("modes must contain composition_summary, batch_diagnostic, or hierarchical_composition")
-        figure_format = nested_get(config, "plots.figure_format") or "png"
-        if figure_format not in {"png", "pdf", "both"}:
-            errors.append("plots.figure_format must be png, pdf, or both")
     if skill == "15-scrna-visualize-gene":
         selection = config.get("differential_selection", {})
         if not isinstance(selection, dict) or any(value is not None and (isinstance(value, (list, dict)) or is_blank(value)) for value in selection.values()):
@@ -615,9 +618,6 @@ def validate(skill, config, config_path):
                     symbols.append(str(symbol))
             if len(symbols) != len(set(symbols)):
                 errors.append("genes must not contain duplicate symbols")
-        figure_format = nested_get(config, "plots.figure_format") or "png"
-        if figure_format not in {"png", "pdf", "both"}:
-            errors.append("plots.figure_format must be png, pdf, or both")
     if skill == "10-scrna-score-programs":
         tasks = config.get("tasks")
         if not isinstance(tasks, list) or not tasks:

@@ -1,4 +1,5 @@
 """Configuration checks for the core pySCENIC workflow."""
+from figure_output import figure_format
 import math
 import os
 from pathlib import Path
@@ -12,6 +13,10 @@ def path_value(value):
 
 def validate_config(config, get):
     errors = []
+    try:
+        figure_format(config)
+    except ValueError as exc:
+        errors.append(str(exc))
     action = get(config, "workflow.action") or "prepare"
     if action not in {"prepare", "infer", "run"}:
         errors.append("workflow.action must be prepare, infer or run")

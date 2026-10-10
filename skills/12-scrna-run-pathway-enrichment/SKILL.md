@@ -33,3 +33,5 @@ Keep primary figures, complete scientific tables, and review decisions directly 
 The FigureYa-informed design keeps signed, paginated lollipop/dot summaries for ORA and GSEA rather than substituting a dense network plot. This preserves effect direction, FDR, and gene-set size in a publication-ready layout. Read [references/figure-style.md](references/figure-style.md) for the shared `paper_v1` contract.
 
 Result handoff: start with `<output_dir>/RESULTS.md` from the execute runner. It links scientific deliverables and reports current run status and limitations; follow [output-layout.md](references/output-layout.md) for retained results and technical records.
+
+Figure output: select one format per run, default PDF; follow [figure-output.md](references/figure-output.md). Never automatically export both PDF and PNG.

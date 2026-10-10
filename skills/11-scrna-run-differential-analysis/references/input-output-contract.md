@@ -18,15 +18,15 @@ Optional `analysis.counts_source.reference_object` points to an original Seurat 
 
 ## Outputs
 
-Write root-level `design_audit.tsv`, `task_status.tsv`, `all_comparisons.tsv`, `significant_all_comparisons.tsv`, an optional `enrichment_all_comparisons.tsv`, `DEG_count_summary.png`. Technical records are `_provenance/session_info.txt` and `_provenance/run_manifest.json`.
+Write root-level `design_audit.tsv`, `task_status.tsv`, `all_comparisons.tsv`, `significant_all_comparisons.tsv`, an optional `enrichment_all_comparisons.tsv`, `DEG_count_summary.pdf`. Technical records are `_provenance/session_info.txt` and `_provenance/run_manifest.json`.
 
-Figures default to PNG; `output.figure_format=png|pdf|both` can request other supported formats.
+Figures default to PDF; `output.figure_format=pdf|png` selects exactly one format per run.
 
 For every `population × comparison`, write a directory below `comparisons/` containing:
 
 - `sample_cell_counts.tsv` and, for pseudobulk, `sample_design.tsv`, `effect_size_audit.tsv`, `replication_audit.tsv`, `pseudobulk_transform_audit.tsv`, `gene_filter_audit.tsv`, `deseq2_results_audit.json`, and `pseudobulk_data.rds`.
 - `all_genes.tsv`, `significant_genes.tsv`, `upregulated_genes.tsv`, and `downregulated_genes.tsv`.
-- `volcano.png`, optional `MA_plot.png`, and pseudobulk `pseudobulk_PCA.png` and `top_DE_heatmap.png`.
+- `volcano.pdf`, optional `MA_plot.pdf`, and pseudobulk `pseudobulk_PCA.pdf` and `top_DE_heatmap.pdf`.
 - Optional `enrichment/` identifier mapping, database-level status audit, full GO-BP/MF/CC, KEGG, Reactome, and Hallmark ORA/GSEA tables, and summary plots.
 - `ERROR.txt` when that task cannot run.
 

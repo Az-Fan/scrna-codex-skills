@@ -30,7 +30,7 @@
     "sample_heatmap": true,
     "de_effect": true,
     "volcano_highlight": true,
-    "figure_format": "png"
+    "figure_format": "pdf"
   },
   "figure_style": {
     "colors": {"condition": {"control": "#4477AA", "case": "#D55E00"}}

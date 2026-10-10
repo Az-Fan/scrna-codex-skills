@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import sys
 
+from figure_output import figure_format
 from grn_contract import SKILL, path_value, validate_config
 from scrna_runtime import nested_get as get, sha256, resolved_rscript
 
@@ -25,7 +26,9 @@ def value(config, key, default):
 
 
 def binding_config(config):
-    return {key: config.get(key, {}) for key in ["input", "metadata", "resources", "inference", "metacell", "grn", "ctx", "regulons", "aucell"]}
+    bound = {key: config.get(key, {}) for key in ["input", "metadata", "resources", "inference", "metacell", "grn", "ctx", "regulons", "aucell"]}
+    bound["figure_format"] = figure_format(config)
+    return bound
 
 
 def file_records(config):

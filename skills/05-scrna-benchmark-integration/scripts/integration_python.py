@@ -10,6 +10,12 @@ import traceback
 from decimal import Decimal
 from pathlib import Path
 
+try:
+    from figure_output import figure_format
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "toolkit/python"))
+    from figure_output import figure_format
+
 import numpy as np
 import pandas as pd
 
@@ -364,24 +370,24 @@ def make_plots(adata, runs, metrics, summary, config, output, seed):
             fields = [x for x in fields if x and x in adata.obs]
             if fields:
                 fig = sc.pl.embedding(adata, basis="plot", color=fields, show=False, return_fig=True, title=[run["scenario"] + " | " + x for x in fields])
-                fig.savefig(figure_dir / (plot + "__" + run["scenario"] + ".png"), dpi=200, bbox_inches="tight"); plt.close(fig)
+                fig.savefig(figure_dir / (plot + "__" + run["scenario"] + "." + figure_format(config)), dpi=200, bbox_inches="tight"); plt.close(fig)
     if not summary.empty and "metric_tradeoff" in plots:
         fig, ax = plt.subplots(figsize=(7, 6)); ax.scatter(summary["batch_score"], summary["biology_score"])
         for _, row in summary.iterrows(): ax.annotate(row["scenario"], (row["batch_score"], row["biology_score"]), fontsize=7)
-        ax.set(xlabel="Batch removal", ylabel="Biological conservation"); fig.tight_layout(); fig.savefig(figure_dir / "metric_tradeoff.png", dpi=250); plt.close(fig)
+        ax.set(xlabel="Batch removal", ylabel="Biological conservation"); fig.tight_layout(); fig.savefig(figure_dir / ("metric_tradeoff." + figure_format(config)), dpi=250); plt.close(fig)
     if not metrics.empty and "score_heatmap" in plots:
         table = metrics[metrics.status == "completed"].pivot_table(index="scenario", columns="metric", values="value", aggfunc="mean")
         if not table.empty:
             import seaborn as sns
-            fig, ax = plt.subplots(figsize=(max(7, .8 * table.shape[1]), max(4, .4 * table.shape[0]))); sns.heatmap(table, annot=True, fmt=".2f", cmap="viridis", ax=ax); fig.tight_layout(); fig.savefig(figure_dir / "score_heatmap.png", dpi=250); plt.close(fig)
+            fig, ax = plt.subplots(figsize=(max(7, .8 * table.shape[1]), max(4, .4 * table.shape[0]))); sns.heatmap(table, annot=True, fmt=".2f", cmap="viridis", ax=ax); fig.tight_layout(); fig.savefig(figure_dir / ("score_heatmap." + figure_format(config)), dpi=250); plt.close(fig)
     if not summary.empty and "score_barplot" in plots:
         long = summary.melt(id_vars="scenario", value_vars=["batch_score", "biology_score"], var_name="score_type", value_name="score")
         import seaborn as sns
-        fig, ax = plt.subplots(figsize=(max(8, .8 * len(summary)), 5)); sns.barplot(data=long, x="scenario", y="score", hue="score_type", ax=ax); ax.tick_params(axis="x", rotation=45); fig.tight_layout(); fig.savefig(figure_dir / "score_barplot.png", dpi=250); plt.close(fig)
+        fig, ax = plt.subplots(figsize=(max(8, .8 * len(summary)), 5)); sns.barplot(data=long, x="scenario", y="score", hue="score_type", ax=ax); ax.tick_params(axis="x", rotation=45); fig.tight_layout(); fig.savefig(figure_dir / ("score_barplot." + figure_format(config)), dpi=250); plt.close(fig)
     if not summary.empty and "ranking_plot" in plots:
         ranked = summary.sort_values("weighted_score" if summary.weighted_score.notna().any() else "biology_score")
         value = "weighted_score" if ranked.weighted_score.notna().any() else "biology_score"
-        fig, ax = plt.subplots(figsize=(8, max(4, .35 * len(ranked)))); ax.barh(ranked.scenario, ranked[value]); ax.set_xlabel(value); fig.tight_layout(); fig.savefig(figure_dir / "ranking_plot.png", dpi=250); plt.close(fig)
+        fig, ax = plt.subplots(figsize=(8, max(4, .35 * len(ranked)))); ax.barh(ranked.scenario, ranked[value]); ax.set_xlabel(value); fig.tight_layout(); fig.savefig(figure_dir / ("ranking_plot." + figure_format(config)), dpi=250); plt.close(fig)
     programs = config.get("gene_programs", {})
     if programs and ({"marker_dotplot", "program_retention"} & plots):
         expr = adata.copy(); expr.X = expr.layers["counts"].copy(); sc.pp.normalize_total(expr, target_sum=1e4); sc.pp.log1p(expr)
@@ -398,7 +404,7 @@ def make_plots(adata, runs, metrics, summary, config, output, seed):
             expr.obs[cluster_key] = adata.obs[cluster_key].astype(str).values
             if genes and "marker_dotplot" in plots:
                 dot = sc.pl.dotplot(expr, genes, groupby=cluster_key, show=False, return_fig=True)
-                dot.savefig(figure_dir / ("marker_dotplot__" + run["scenario"] + ".png"))
+                dot.savefig(figure_dir / ("marker_dotplot__" + run["scenario"] + "." + figure_format(config)))
             for program, members in programs.items():
                 found = [x for x in members if x in expr.var_names]
                 if not found: continue
@@ -414,7 +420,7 @@ def make_plots(adata, runs, metrics, summary, config, output, seed):
             if "program_retention" in plots:
                 import seaborn as sns
                 table = retention.pivot(index="scenario", columns="program", values="retention_vs_none")
-                fig, ax = plt.subplots(figsize=(max(7, .8 * table.shape[1]), max(4, .4 * table.shape[0]))); sns.heatmap(table, annot=True, fmt=".2f", center=1, cmap="vlag", ax=ax); fig.tight_layout(); fig.savefig(figure_dir / "program_retention.png", dpi=250); plt.close(fig)
+                fig, ax = plt.subplots(figsize=(max(7, .8 * table.shape[1]), max(4, .4 * table.shape[0]))); sns.heatmap(table, annot=True, fmt=".2f", center=1, cmap="vlag", ax=ax); fig.tight_layout(); fig.savefig(figure_dir / ("program_retention." + figure_format(config)), dpi=250); plt.close(fig)
 
 
 def main():

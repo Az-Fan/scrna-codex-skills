@@ -1,40 +1,40 @@
 # Fixed figure catalog — baseline inventory and rollout
 
-Rollout: skills 06/07/08 and 11/12 now use `paper_v1`, default PNG 300 dpi, with fixed pagination where a figure can grow. Baseline PDF filenames below identify retained families, not the new default extension. Skill 08 additionally supports explicitly configured target-gene FeaturePlots. Skill 03 now uses compact sample/cluster/UMAP overview pages with optional PNG previews and retains established diagnostics in qc_supplement.pdf. Other families retain their existing renderer pending the next rollout. See figure-style.md in the updated skills for their implemented contract.
+Rollout: skills 06/07/08 and 11/12 now use `paper_v1`, default PDF, with fixed pagination where a figure can grow. PDF filenames below identify retained families and the default extension. Skill 08 additionally supports explicitly configured target-gene FeaturePlots. Skill 03 now uses compact sample/cluster/UMAP overview pages with an explicit PNG alternative and retains established diagnostics in qc_supplement.pdf. Other families retain their existing renderer pending the next rollout. See figure-style.md in the updated skills for their implemented contract.
 
 This catalog records existing plot families before visual redesign. A family may produce multiple files or pages by sample, scenario, comparison, database, or metric. All listed families are retained. Conditions below describe current behavior, not permission to run additional analyses. No-figure stages are intentional.
 
 | Skill | Figure family / current filename | Trigger and multiplicity | Disposition |
 |---|---|---|---|
 | 01 | No figure | Standardization writes objects and tables | Preserve |
-| 02 | qc_diagnosis.png | One counts-versus-detected-genes scatter per Seurat run or STARsolo sample | Preserve |
-| 03 | qc_distribution_by_sample.png | QC metrics available; one faceted family | Preserve in supplemental atlas |
-| 03 | qc_distributions.png | QC metrics available; histograms by metric | Preserve in supplemental atlas |
-| 03 | qc_metrics_per_cluster.png | Cluster metadata available | Preserve in supplemental atlas |
-| 03 | qc_distribution_by_celltype.png | Annotation metadata available | Preserve in supplemental atlas |
-| 03 | n_UMIs_vs_n_genes.png | Both count metrics available; sample facets | Preserve in supplemental atlas |
-| 03 | nuclear_frac_vs_n_UMIs.png | Both metrics available; sample facets | Preserve in supplemental atlas |
-| 03 | filter_mito_by_annotation.png | Mitochondrial metric and annotation available | Preserve in supplemental atlas |
-| 03 | umap_annotation_qc_context.png | UMAP and annotation available | Preserve in supplemental atlas |
-| 03 | umap_qc_<metric>.png | One panel per available metric when UMAP exists | Preserve in supplemental atlas |
-| 03 | candidate_retention_by_sample.png | Candidate thresholds available; never formal filtering | Preserve in supplemental atlas |
-| 03 | qc_atlas.pdf | Compact sample/cluster/UMAP sections; optional paginated PNG previews, with established families above in qc_supplement.pdf | Preserve every eligible panel |
+| 02 | qc_diagnosis.pdf | One counts-versus-detected-genes scatter per Seurat run or STARsolo sample | Preserve |
+| 03 | qc_distribution_by_sample.pdf | QC metrics available; one faceted family | Preserve in supplemental atlas |
+| 03 | qc_distributions.pdf | QC metrics available; histograms by metric | Preserve in supplemental atlas |
+| 03 | qc_metrics_per_cluster.pdf | Cluster metadata available | Preserve in supplemental atlas |
+| 03 | qc_distribution_by_celltype.pdf | Annotation metadata available | Preserve in supplemental atlas |
+| 03 | n_UMIs_vs_n_genes.pdf | Both count metrics available; sample facets | Preserve in supplemental atlas |
+| 03 | nuclear_frac_vs_n_UMIs.pdf | Both metrics available; sample facets | Preserve in supplemental atlas |
+| 03 | filter_mito_by_annotation.pdf | Mitochondrial metric and annotation available | Preserve in supplemental atlas |
+| 03 | umap_annotation_qc_context.pdf | UMAP and annotation available | Preserve in supplemental atlas |
+| 03 | umap_qc_<metric>.pdf | One panel per available metric when UMAP exists | Preserve in supplemental atlas |
+| 03 | candidate_retention_by_sample.pdf | Candidate thresholds available; never formal filtering | Preserve in supplemental atlas |
+| 03 | qc_atlas.pdf | Compact sample/cluster/UMAP sections; explicit paginated PNG alternatives, with established families above in qc_supplement.pdf | Preserve every eligible panel |
 | 04 | No figure | Approved filter produces retention/decision tables | Preserve; do not invent plots silently |
-| 05 | umap_by_batch__<scenario>.png | Requested; one panel per available batch field and completed scenario | Preserve |
-| 05 | umap_by_sample__<scenario>.png | Requested; sample field and completed scenario | Preserve |
-| 05 | umap_by_condition__<scenario>.png | Requested; condition field and completed scenario | Preserve |
-| 05 | umap_by_label__<scenario>.png | Requested; biological label fields and completed scenario | Preserve |
-| 05 | metric_tradeoff.png | Requested; nonempty method summary | Preserve |
-| 05 | score_heatmap.png | Requested; completed metric rows | Preserve |
-| 05 | score_barplot.png | Requested; nonempty method summary | Preserve |
-| 05 | ranking_plot.png | Requested; method summary; ranking interpretation still requires valid scientific evidence | Preserve, review interpretation |
-| 05 | marker_dotplot__<scenario>.png | Requested gene programs with matching genes; supported non-graph scenario | Preserve |
-| 05 | program_retention.png | Requested gene programs with computable retention | Preserve |
-| 06 | <scenario>_umap_diagnostics.pdf | Finalized/fixed clustering; selected metadata panels; optional duplicate PNG | Preserve |
-| 06 | <scenario>_resolution_stability.png | Resolution scan per scenario | Preserve |
-| 06 | <scenario>_umap_clusters_by_resolution.png | Resolution scan; panels share the same UMAP | Preserve all resolutions |
-| 06 | <scenario>_clustree_resolution.png | Resolution scan and clustree available; otherwise record failure | Preserve |
-| 06 | <first_scenario>_elbow.png | PCA diagnostic currently for first scenario | Preserve; comparison expansion requires explicit change |
+| 05 | umap_by_batch__<scenario>.pdf | Requested; one panel per available batch field and completed scenario | Preserve |
+| 05 | umap_by_sample__<scenario>.pdf | Requested; sample field and completed scenario | Preserve |
+| 05 | umap_by_condition__<scenario>.pdf | Requested; condition field and completed scenario | Preserve |
+| 05 | umap_by_label__<scenario>.pdf | Requested; biological label fields and completed scenario | Preserve |
+| 05 | metric_tradeoff.pdf | Requested; nonempty method summary | Preserve |
+| 05 | score_heatmap.pdf | Requested; completed metric rows | Preserve |
+| 05 | score_barplot.pdf | Requested; nonempty method summary | Preserve |
+| 05 | ranking_plot.pdf | Requested; method summary; ranking interpretation still requires valid scientific evidence | Preserve, review interpretation |
+| 05 | marker_dotplot__<scenario>.pdf | Requested gene programs with matching genes; supported non-graph scenario | Preserve |
+| 05 | program_retention.pdf | Requested gene programs with computable retention | Preserve |
+| 06 | <scenario>_umap_diagnostics.pdf | Finalized/fixed clustering; selected metadata panels; explicit PNG alternative | Preserve |
+| 06 | <scenario>_resolution_stability.pdf | Resolution scan per scenario | Preserve |
+| 06 | <scenario>_umap_clusters_by_resolution.pdf | Resolution scan; panels share the same UMAP | Preserve all resolutions |
+| 06 | <scenario>_clustree_resolution.pdf | Resolution scan and clustree available; otherwise record failure | Preserve |
+| 06 | <first_scenario>_elbow.pdf | PCA diagnostic currently for first scenario | Preserve; comparison expansion requires explicit change |
 | 07 | top_marker_dotplot.pdf | Configured top markers across existing clusters | Preserve |
 | 08 | cluster_umap.pdf | prepare_review; one cluster view | Preserve |
 | 08 | cluster_sample_umap.pdf | prepare_review; cluster and sample panels | Preserve |
@@ -42,37 +42,37 @@ This catalog records existing plot families before visual redesign. A family may
 | 08 | annotated_umap.pdf | apply_confirmed; broad and fine annotation panels | Preserve |
 | 08 | cluster_sample_condition_umap.pdf | apply_confirmed; available audit grouping fields | Preserve |
 | 09 | No figure | Subset export produces object/matrix/tables | Preserve |
-| 10 | <task>_group_heatmap[_focused].png | Configured comparison/population fields; descriptive group means and optional focused populations | Configurable; PNG 300 dpi |
-| 10 | <task>_umap_activity_pageN.png | Explicitly enabled UMAP activity maps; paginate every retained signature | Optional; PNG 300 dpi |
-| 11 | volcano.png | Each successful population-by-comparison task | Preserve; `paper_v1` |
-| 11 | MA_plot.png | Result includes baseMean | Preserve; `paper_v1` |
-| 11 | pseudobulk_PCA.png | Sample-level normalized pseudobulk data | Preserve; `paper_v1` |
-| 11 | top_DE_heatmap.png | At least two selected genes in pseudobulk data | Preserve; `paper_v1` |
-| 11 | DEG_count_summary.png | Significant DE genes across tasks | Preserve; `paper_v1` |
-| 11/12 | enrichment_dotplot_overview.png | GSEA terms pass display selection; overview by database and direction | Preserve; `paper_v1` |
-| 11/12 | enrichment_ora_overview.png | ORA terms pass display selection | Preserve; `paper_v1` |
-| 11/12 | enrichment_dotplot_<database>_ora[_pageN].png | Eligible ORA terms; configured terms-per-page | Preserve every page; `paper_v1` |
-| 11/12 | gsea_nes_<database>[_pageN].png | Eligible GSEA terms; configured terms-per-page | Preserve every page; `paper_v1` |
+| 10 | <task>_group_heatmap[_focused].pdf | Configured comparison/population fields; descriptive group means and optional focused populations | Configurable; PDF default, PNG alternative 300 dpi |
+| 10 | <task>_umap_activity_pageN.pdf | Explicitly enabled UMAP activity maps; paginate every retained signature | Optional; PDF default, PNG alternative 300 dpi |
+| 11 | volcano.pdf | Each successful population-by-comparison task | Preserve; `paper_v1` |
+| 11 | MA_plot.pdf | Result includes baseMean | Preserve; `paper_v1` |
+| 11 | pseudobulk_PCA.pdf | Sample-level normalized pseudobulk data | Preserve; `paper_v1` |
+| 11 | top_DE_heatmap.pdf | At least two selected genes in pseudobulk data | Preserve; `paper_v1` |
+| 11 | DEG_count_summary.pdf | Significant DE genes across tasks | Preserve; `paper_v1` |
+| 11/12 | enrichment_dotplot_overview.pdf | GSEA terms pass display selection; overview by database and direction | Preserve; `paper_v1` |
+| 11/12 | enrichment_ora_overview.pdf | ORA terms pass display selection | Preserve; `paper_v1` |
+| 11/12 | enrichment_dotplot_<database>_ora[_pageN].pdf | Eligible ORA terms; configured terms-per-page | Preserve every page; `paper_v1` |
+| 11/12 | gsea_nes_<database>[_pageN].pdf | Eligible GSEA terms; configured terms-per-page | Preserve every page; `paper_v1` |
 | 13 | sample_composition.pdf | Sample counts; currently 24 samples per page | Preserve every sample |
 | 13 | cell_type_proportions_by_condition.pdf | Sample proportions; currently 12 cell types per page | Preserve every cell type |
 | 13 | sample_proportion_heatmap.pdf | Sample proportions; currently 25 cell types per page | Preserve every cell type |
 | 13 | effect_summary.pdf | Each nonempty method result; currently 30 features per page | Preserve every feature |
 | 13 | milo_da_beeswarm.pdf | Milo method succeeds and plotting is available | Preserve; failure must be surfaced |
 | 13 | milo_da_graph.pdf | Milo neighborhood graph can be built and plotted | Preserve; failure must be surfaced |
-| 14 | composition_overview_<variable>.png/pdf | One sample-level 100% stacked composition view per configured variable | New; `paper_v1` |
-| 14 | composition_dotplot_<variable>.png/pdf | Sample-level proportion points with descriptive group summaries | New; `paper_v1` |
-| 14 | composition_heatmap_<variable>.png/pdf | Sample-by-category proportion heatmap | New; `paper_v1` |
-| 14 | composition_counts_<variable>.png/pdf | Sample-level count companion view | New; `paper_v1` |
-| 14 | embedding_diagnostics_<variable>.png/pdf | Available sample, condition, batch and composition UMAP panels | New; `paper_v1`; optional |
+| 14 | composition_overview_<variable>.pdf/pdf | One sample-level 100% stacked composition view per configured variable | New; `paper_v1` |
+| 14 | composition_dotplot_<variable>.pdf/pdf | Sample-level proportion points with descriptive group summaries | New; `paper_v1` |
+| 14 | composition_heatmap_<variable>.pdf/pdf | Sample-by-category proportion heatmap | New; `paper_v1` |
+| 14 | composition_counts_<variable>.pdf/pdf | Sample-level count companion view | New; `paper_v1` |
+| 14 | embedding_diagnostics_<variable>.pdf/pdf | Available sample, condition, batch and composition UMAP panels | New; `paper_v1`; optional |
 
 ## cNMF discovery figures
 
 | Skill | Family | Trigger / meaning |
 |---|---|---|
-| 16 | k_selection.png | Every discovery: unfiltered replicate stability and reconstruction error, upstream cNMF style |
-| 16 | k_<k>/usage_sample_heatmap_page_<n>.png | Every exported consensus: sample/population means, shared fractional scale 0–1, programs_per_page controls columns |
-| 16 | k_<k>/usage_embedding_page_<n>.png | Existing Seurat embedding configured: usage on unchanged coordinates, two columns, shared scale 0–1, programs_per_page panels |
-| 16 | k_<k>/*clustering*.png | Exported consensus: upstream density-filtering clustergram |
+| 16 | k_selection.pdf | Every discovery: unfiltered replicate stability and reconstruction error, upstream cNMF style |
+| 16 | k_<k>/usage_sample_heatmap_page_<n>.pdf | Every exported consensus: sample/population means, shared fractional scale 0–1, programs_per_page controls columns |
+| 16 | k_<k>/usage_embedding_page_<n>.pdf | Existing Seurat embedding configured: usage on unchanged coordinates, two columns, shared scale 0–1, programs_per_page panels |
+| 16 | k_<k>/*clustering*.pdf | Exported consensus: upstream density-filtering clustergram |
 
 ## Project supplements requiring a home
 
@@ -99,4 +99,4 @@ Before changing a family, record the final style, file pattern, trigger, per-pag
 
 ## 17 · Core GRN
 
-`inference_unit_sizes.png` describes cells per inference unit. Membership and metadata purity tables accompany it. This core skill produces no RSS/CSI, TF network or condition-comparison plots.
+`inference_unit_sizes.pdf` describes cells per inference unit. Membership and metadata purity tables accompany it. This core skill produces no RSS/CSI, TF network or condition-comparison plots.

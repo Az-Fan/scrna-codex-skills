@@ -1,6 +1,6 @@
 # Figure design
 
-The default figure family follows the repository's `paper_v1` contract: white background, quiet axes, deterministic label colours, readable legends, and 300-dpi PNG (or matching PDF when requested).
+The default figure family follows the repository's `paper_v1` contract: white background, quiet axes, deterministic label colours, readable legends, and PDF by default (or 300-dpi PNG instead when requested).
 
 - Use 100% stacked bars only for showing complete sample composition; retain one bar per sample.
 - Use jittered sample points for comparisons. Overlay mean and standard error only as a summary layer.

@@ -477,12 +477,12 @@ run_milo <- function(comparison, task_dir) {
   standardized$estimand <- "neighborhood_abundance"
   try({
     p <- miloR::plotDAbeeswarm(annotated, group.by = label_col, alpha = fdr)
-    ggplot2::ggsave(file.path(task_dir, "milo_da_beeswarm.pdf"), p, width = 9, height = 6, units = "in")
+    ggplot2::ggsave(file.path(task_dir, paste0("milo_da_beeswarm.", figure_format(config))), p, width = 9, height = 6, units = "in")
   }, silent = TRUE)
   try({
     milo <- miloR::buildNhoodGraph(milo)
     p <- miloR::plotNhoodGraphDA(milo, annotated, alpha = fdr)
-    ggplot2::ggsave(file.path(task_dir, "milo_da_graph.pdf"), p, width = 8, height = 7, units = "in")
+    ggplot2::ggsave(file.path(task_dir, paste0("milo_da_graph.", figure_format(config))), p, width = 8, height = 7, units = "in")
   }, silent = TRUE)
   standardized
 }
@@ -493,7 +493,7 @@ plot_base_abundance <- function() {
   plot_long$proportion <- plot_long$n_cells / denominator_totals[as.character(plot_long[[sample_col]])]
   sample_order <- as.character(sample_meta[[sample_col]])[order(as.character(sample_meta[[condition_col]]), as.character(sample_meta[[sample_col]]))]
   plot_long[[sample_col]] <- factor(plot_long[[sample_col]], levels = sample_order)
-  pdf(file.path(out, "sample_composition.pdf"), width = 11, height = 7, onefile = TRUE)
+  figure_device(file.path(out, "sample_composition"), width=11, height=7, config=config)
   for (chunk in split(sample_order, ceiling(seq_along(sample_order) / 24))) {
     p <- ggplot2::ggplot(plot_long[plot_long[[sample_col]] %in% chunk, ], ggplot2::aes(x = .data[[sample_col]], y = .data$proportion, fill = .data$cell_type)) +
       ggplot2::geom_col(width = 0.85) + ggplot2::scale_y_continuous(labels = scales::percent) +
@@ -502,7 +502,7 @@ plot_base_abundance <- function() {
     print(p)
   }
   dev.off()
-  pdf(file.path(out, "cell_type_proportions_by_condition.pdf"), width = 10, height = 7, onefile = TRUE)
+  figure_device(file.path(out, "cell_type_proportions_by_condition"), width=10, height=7, config=config)
   for (chunk in split(types, ceiling(seq_along(types) / 12))) {
     p <- ggplot2::ggplot(plot_long[plot_long$cell_type %in% chunk, ], ggplot2::aes(x = .data[[condition_col]], y = .data$proportion, colour = .data[[condition_col]])) +
       ggplot2::geom_boxplot(outlier.shape = NA, colour = "grey55", width = 0.5) +
@@ -516,7 +516,7 @@ plot_base_abundance <- function() {
   dev.off()
   heat <- plot_long
   heat$logit_proportion <- qlogis((heat$n_cells + 0.5) / (denominator_totals[as.character(heat[[sample_col]])] + 1))
-  pdf(file.path(out, "sample_proportion_heatmap.pdf"), width = 11, height = 7, onefile = TRUE)
+  figure_device(file.path(out, "sample_proportion_heatmap"), width=11, height=7, config=config)
   for (chunk in split(types, ceiling(seq_along(types) / 25))) {
     p <- ggplot2::ggplot(heat[heat$cell_type %in% chunk, ], ggplot2::aes(x = .data[[sample_col]], y = .data$cell_type, fill = .data$logit_proportion)) +
       ggplot2::geom_tile(colour = "white", linewidth = 0.15) + ggplot2::scale_fill_gradient2(low = "#2166AC", mid = "white", high = "#B2182B") +
@@ -533,7 +533,7 @@ plot_method_effects <- function(result, task_dir, title) {
   result$display <- ifelse(result$feature_type == "neighborhood", paste0(result$annotation, " / ", result$feature_id), result$feature_id)
   ordering <- order(ifelse(is.na(result$adjusted_p_value), 1, result$adjusted_p_value), -abs(result$effect))
   result <- result[ordering, , drop = FALSE]
-  pdf(file.path(task_dir, "effect_summary.pdf"), width = 9, height = 7, onefile = TRUE)
+  figure_device(file.path(task_dir, "effect_summary"), width=9, height=7, config=config)
   for (indices in split(seq_len(nrow(result)), ceiling(seq_len(nrow(result)) / 30))) {
     d <- result[indices, , drop = FALSE]
     d$display <- factor(d$display, levels = rev(d$display))

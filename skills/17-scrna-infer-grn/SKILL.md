@@ -24,3 +24,5 @@ Produce a traceable TF-target network, motif-supported regulons and aligned sing
 - Record low coverage, constant genes and regulons excluded by size. Empty motif-supported results are a reported failure, not permission to relax thresholds automatically.
 - Sample summaries are descriptive. Cells are not biological replicates; no condition-level significance or causal TF claims are produced.
 - Prepared/native artifacts stay under `_provenance/`; source data are unchanged. Existing inference results are preserved and parameter experiments use new output directories.
+
+Figure output: select one format per run, default PDF; follow [figure-output.md](references/figure-output.md). Never automatically export both PDF and PNG.

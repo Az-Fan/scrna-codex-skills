@@ -40,3 +40,5 @@ The default is the repository's `paper_v1` white-background, 300-dpi style. The 
 Read [references/input-output-contract.md](references/input-output-contract.md) for field and output schemas. Read [references/figure-design.md](references/figure-design.md) before changing the fixed figure family.
 
 Result handoff: start with `<output_dir>/RESULTS.md` from the execute runner. It links scientific deliverables and reports current run status and limitations; follow [output-layout.md](references/output-layout.md) for retained results and technical records.
+
+Figure output: select one format per run, default PDF; follow [figure-output.md](references/figure-output.md). Never automatically export both PDF and PNG.

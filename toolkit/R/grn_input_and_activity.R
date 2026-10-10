@@ -95,7 +95,9 @@ if (args[[2]] == "prepare") {
   writeLines(ids, file.path(dest, "inference_ids.tsv"))
   write_tsv(data.frame(cell_id = rownames(meta), meta, check.names = FALSE), "cell_metadata.tsv")
   file.copy(file.path(out, "cell_metadata.tsv"), file.path(dest, "cell_metadata.tsv"))
-  grDevices::png(file.path(out, "inference_unit_sizes.png"), width = 1600, height = 1000, res = 180)
+  format <- figure_format(config)
+  plot_file <- file.path(out, paste0("inference_unit_sizes.", format))
+  if (format == "pdf") grDevices::pdf(plot_file, width=8, height=5) else grDevices::png(plot_file, width = 1600, height = 1000, res = 180)
   hist(sizes, main = "Cells per GRN inference unit", xlab = "Cell count", col = "grey60", breaks = "Sturges")
   grDevices::dev.off()
 } else if (args[[2]] == "score") {

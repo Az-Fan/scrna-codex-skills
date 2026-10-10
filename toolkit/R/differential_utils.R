@@ -744,12 +744,7 @@ map_enrichment_plot_values <- function(x) {
 }
 
 enrichment_plot_formats <- function(config) {
-  requested <- tolower(as.character(unlist(cfg_get(config, "enrichment.plot_format", "png"))))
-  if (identical(requested, "both")) requested <- c("png", "pdf")
-  if (!length(requested) || any(!requested %in% c("png", "pdf"))) {
-    stop("enrichment.plot_format must be 'png', 'pdf', or 'both'")
-  }
-  unique(requested)
+  figure_format(config)
 }
 
 save_enrichment_plot <- function(stem, plot, width, height, formats, dpi = 300) {

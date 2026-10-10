@@ -50,3 +50,5 @@ Read [references/input-output-contract.md](references/input-output-contract.md) 
 Keep primary figures and complete scientific tables at the result root. Store manifests, session information, field resolution, colour maps, and plotting status under `_provenance/`.
 
 Result handoff: start with `<output_dir>/RESULTS.md` from the execute runner. It links scientific deliverables and reports current run status and limitations; follow [output-layout.md](references/output-layout.md) for retained results and technical records.
+
+Figure output: select one format per run, default PDF; follow [figure-output.md](references/figure-output.md). Never automatically export both PDF and PNG.

@@ -16,10 +16,7 @@ paper_theme <- function() {
 }
 
 paper_formats <- function(config) {
-  formats <- tolower(unlist(cfg_get(config, "output.figure_format", "png"), use.names = FALSE))
-  if (identical(formats, "both")) formats <- c("png", "pdf")
-  if (!length(formats) || any(!formats %in% c("png", "pdf"))) stop("output.figure_format must be png, pdf or both")
-  unique(formats)
+  figure_format(config)
 }
 
 paper_record <- function(out, family, file = "", status = "generated", reason = "") {

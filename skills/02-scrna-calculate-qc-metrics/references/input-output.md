@@ -59,13 +59,13 @@ For STARsolo, write under `<output_dir>/<sample_id>/`:
 - `counts.mtx.gz`
 - `features.tsv.gz`
 - `metadata.tsv.gz`
-- `qc_diagnosis.png`
+- `qc_diagnosis.pdf`
 
 For Seurat, write under `<output_dir>/`:
 
 - `qc_metrics_object.rds`
 - `metadata.tsv.gz`
-- `qc_diagnosis.png`
+- `qc_diagnosis.pdf`
 
 Keep executor-facing audit files together under `<output_dir>/_provenance/`:
 

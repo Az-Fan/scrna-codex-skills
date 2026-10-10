@@ -1,3 +1,8 @@
+.figure_script <- tryCatch(sys.frame(1)$ofile, error=function(e) NULL)
+if (is.null(.figure_script)) .figure_script <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value=TRUE)[1])
+if (length(.figure_script) && !is.na(.figure_script)) {
+  source(file.path(dirname(normalizePath(.figure_script)), "figure_output.R"))
+} else if (file.exists("toolkit/R/figure_output.R")) source("toolkit/R/figure_output.R")
 #!/usr/bin/env Rscript
 suppressPackageStartupMessages({
   library(jsonlite); library(ggplot2); library(patchwork)
@@ -11,8 +16,7 @@ out <- normalizePath(getv(cfg, "output_dir"), mustWork = FALSE); dir.create(out,
 tech <- file.path(out, "_provenance"); dir.create(tech, recursive = TRUE, showWarnings = FALSE)
 write_tsv <- function(x, path) write.table(x, path, sep = "\t", quote = FALSE, row.names = FALSE, na = "")
 safe <- function(x) gsub("[^A-Za-z0-9]+", "_", tolower(x))
-fmt <- tolower(getv(cfg, "plots.figure_format", "png")); if (fmt == "both") formats <- c("png", "pdf") else formats <- fmt
-if (any(!formats %in% c("png", "pdf"))) stop("plots.figure_format must be png, pdf or both")
+formats <- figure_format(cfg)
 theme_paper <- theme_classic(base_size = 11) + theme(plot.title = element_text(face = "bold", size = 12), plot.subtitle = element_text(size = 9), strip.background = element_rect(fill = "#F4F4F4", colour = NA), strip.text = element_text(face = "bold"), legend.title = element_text(size = 10), legend.text = element_text(size = 9), plot.margin = margin(8, 12, 8, 8))
 save_plot <- function(p, stem, width = 9, height = 6, family = basename(stem)) {
   files <- character(); for (f in formats) { path <- paste0(stem, ".", f); ggsave(path, p, width = width, height = height, units = "in", dpi = 300, bg = "white"); files <- c(files, path) }

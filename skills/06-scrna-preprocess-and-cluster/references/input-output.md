@@ -20,7 +20,7 @@ Every run:
 - `preprocessed_clustered_object.qs` (counts, data, reductions, graphs, cluster columns; `scale.data` dropped)
 - `scenario_summary.tsv`
 - `scenario_cluster_similarity.tsv`
-- `<scenario>_elbow.png`
+- `<scenario>_elbow.pdf`
 - `_provenance/run_manifest_preprocess.json`, `_provenance/workflow_state.json`, `_provenance/session_info.txt`, and append-only `_provenance/run.log`; finalization adds `_provenance/run_manifest_finalize.json` without overwriting the preprocessing manifest
 
 Fixed, automatically authorized, or finalized clustering adds:
@@ -28,13 +28,13 @@ Fixed, automatically authorized, or finalized clustering adds:
 - `cell_assignments.tsv`
 - `<scenario>_cluster_sizes.tsv`
 - `<scenario>_sample_cluster_counts.tsv`
-- `<scenario>_umap_diagnostics.png`; up to four grouping panels per page, `_pageNN` when paginated. PDF is opt-in via `output.figure_format`
+- `<scenario>_umap_diagnostics.pdf`; up to four grouping panels per page, `_pageNN` when paginated. The single format is selected via `output.figure_format`
 
 Resolution scan adds:
 
-- `<scenario>_umap_clusters_by_resolution.png`
-- `<scenario>_clustree_resolution.png`
-- `<scenario>_resolution_stability.tsv` and `.png`
+- `<scenario>_umap_clusters_by_resolution.pdf`
+- `<scenario>_clustree_resolution.pdf`
+- `<scenario>_resolution_stability.tsv` and `.pdf`
 
 ## Usage
 

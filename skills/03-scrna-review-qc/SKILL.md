@@ -42,10 +42,12 @@ Read `references/qc-review.md` only when interpreting the threshold table or cha
 
 ## Outputs
 
-The result root contains `qc_atlas.pdf` (sample, cluster and shared-coordinate UMAP sections), `qc_supplement.pdf`, `threshold_review.tsv`, `qc_summary_by_sample.tsv`, and display/sample-composition tables. Large sample or cluster sets paginate without dropping groups. Missing clusters or UMAP produce availability panels. Set `output.preview_png=true` only when standalone 300-dpi PNG previews are needed; the default is PDF-only. Technical records are stored under `_provenance/`. Set `output.detail_level` to `full` for availability, quantile, hypothetical retention and plot-status tables under `details/`; individual diagnostic PNGs additionally require `output.preview_png=true`.
+The result root contains `qc_atlas.pdf` (sample, cluster and shared-coordinate UMAP sections), `qc_supplement.pdf`, `threshold_review.tsv`, `qc_summary_by_sample.tsv`, and display/sample-composition tables. Large sample or cluster sets paginate without dropping groups. Missing clusters or UMAP produce availability panels. Set `output.figure_format=png` to use standalone PNG figures instead of PDF; `output.preview_png=true` is a compatibility alias for that choice. Technical records are stored under `_provenance/`. Set `output.detail_level` to `full` for availability, quantile, hypothetical retention and plot-status tables under `details/`; individual diagnostic PNGs additionally require `output.preview_png=true`.
 
 ## Result organization
 
 Keep primary figures, complete scientific tables, and review decisions directly accessible. Store execution manifests, session information, logs, and workflow state under `_provenance/`; do not list them as primary results. Read [references/output-layout.md](references/output-layout.md) when configuring outputs, locating legacy records, or adding custom plots and diagnostics.
 
 Result handoff: start with `<output_dir>/RESULTS.md` from the execute runner. It links scientific deliverables and reports current run status and limitations; follow [output-layout.md](references/output-layout.md) for retained results and technical records.
+
+Figure output: select one format per run, default PDF; follow [figure-output.md](references/figure-output.md). Never automatically export both PDF and PNG.

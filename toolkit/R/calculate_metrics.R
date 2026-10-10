@@ -1,3 +1,8 @@
+.figure_script <- tryCatch(sys.frame(1)$ofile, error=function(e) NULL)
+if (is.null(.figure_script)) .figure_script <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value=TRUE)[1])
+if (length(.figure_script) && !is.na(.figure_script)) {
+  source(file.path(dirname(normalizePath(.figure_script)), "figure_output.R"))
+} else if (file.exists("toolkit/R/figure_output.R")) source("toolkit/R/figure_output.R")
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) != 1L) stop("Usage: Rscript calculate_metrics.R config.json")
 for (pkg in c("jsonlite", "Matrix", "Seurat", "SeuratObject", "ggplot2")) {
@@ -239,7 +244,7 @@ if (input_type == "starsolo") {
     Matrix::writeMM(raw$counts, file.path(out, "counts.mtx")); system2("gzip", c("-f", file.path(out, "counts.mtx")))
     gz <- gzfile(file.path(out, "features.tsv.gz"), "wt"); write.table(raw$features, gz, sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE); close(gz)
     gz <- gzfile(file.path(out, "metadata.tsv.gz"), "wt"); write.table(result$metadata, gz, sep = "\t", quote = FALSE); close(gz)
-    plot_qc(result$metadata, file.path(out, "qc_diagnosis.png"), sample_id)
+    plot_qc(result$metadata, file.path(out, paste0("qc_diagnosis.", figure_format(config))), sample_id)
     list(sample_id = sample_id, status = result$status)
   }
   sample_results <- run_sample_jobs(getv("samples"), process_star_sample)
@@ -300,5 +305,5 @@ if (input_type == "starsolo") {
   saveRDS(obj, file.path(out_root, "qc_metrics_object.rds"))
   gz <- gzfile(file.path(out_root, "metadata.tsv.gz"), "wt"); write.table(combined_meta, gz, sep = "\t", quote = FALSE); close(gz)
   write.table(do.call(rbind, all_status), file.path(provenance_dir, "metric_status.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
-  plot_qc(combined_meta, file.path(out_root, "qc_diagnosis.png"), basename(object_path))
+  plot_qc(combined_meta, file.path(out_root, paste0("qc_diagnosis.", figure_format(config))), basename(object_path))
 }

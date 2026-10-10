@@ -78,7 +78,10 @@ saveRDS(o,args[1])
                     if mode!='fraction':
                         self.assertEqual(methods['previews'],[])
                         self.assertEqual(list(out.glob('*.png')),[])
-                    self.assertGreater((out/'qc_supplement.pdf').stat().st_size,1000)
+                    if mode=='fraction':
+                        self.assertEqual(list(out.rglob('*.pdf')),[])
+                    else:
+                        self.assertGreater((out/'qc_supplement.pdf').stat().st_size,1000)
                     with (out/'threshold_review.tsv').open() as handle:
                         rows=list(csv.DictReader(handle,delimiter='\t'))
                     self.assertTrue(all(not r['approval'] and not r['decision'] for r in rows))

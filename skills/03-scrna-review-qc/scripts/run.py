@@ -17,6 +17,9 @@ if _delivery_path is None:
 _delivery_spec = importlib.util.spec_from_file_location("scrna_result_delivery", _delivery_path)
 _delivery = importlib.util.module_from_spec(_delivery_spec)
 _delivery_spec.loader.exec_module(_delivery)
+_figure_spec = importlib.util.spec_from_file_location("figure_output", _delivery_path.with_name("figure_output.py"))
+_figure = importlib.util.module_from_spec(_figure_spec)
+_figure_spec.loader.exec_module(_figure)
 
 
 def fail(message):
@@ -30,6 +33,10 @@ def main():
     args = parser.parse_args()
     config_path = Path(args.config).expanduser().resolve()
     config = json.loads(config_path.read_text(encoding="utf-8"))
+    try:
+        _figure.figure_format(config)
+    except ValueError as exc:
+        fail(str(exc))
     pixi_cfg = config.get("pixi", {})
     project_value = pixi_cfg.get("project")
     object_value = config.get("input", {}).get("object")

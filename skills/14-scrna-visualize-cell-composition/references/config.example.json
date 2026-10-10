@@ -11,7 +11,7 @@
     "denominator": {"mode": "all_input_cells", "include": [], "description": "All retained cells per sample"}
   },
   "modes": ["composition_summary", "batch_diagnostic"],
-  "plots": {"umap": true, "figure_format": "png", "dpi": 300, "max_categories_per_page": 20},
+  "plots": {"umap": true, "figure_format": "pdf", "dpi": 300, "max_categories_per_page": 20},
   "figure_style": {"colors": {"condition": {"control": "#4477AA", "case": "#D55E00"}}},
   "runtime": {"pixi_root": "/home/faz_laptop/projects/scrna_envs"},
   "output_dir": "results/09_cell_composition"

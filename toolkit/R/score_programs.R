@@ -280,7 +280,7 @@ plot_group_heatmaps <- function(summary_out, groups, out, config) {
       }
       if (!is.null(facet)) p <- p + ggplot2::facet_wrap(stats::as.formula(paste("~", facet)), nrow = as.integer(cfg_get(spec, "facet_rows", 2L)))
       suffix <- if (view_name == "focused") "_focused" else ""
-      path <- file.path(out, "figures", paste0(task_name, "_group_heatmap", suffix, ".png"))
+      path <- file.path(out, "figures", paste0(task_name, "_group_heatmap", suffix, ".", figure_format(config)))
       width <- as.numeric(cfg_get(spec, "width", if (is.null(facet)) 8 else 14))
       height <- as.numeric(cfg_get(spec, "height", max(4, min(16, 0.22 * length(unique(tab$signature)) + 2))))
       save_ggplot(p, path, width, height, dpi)
@@ -310,7 +310,7 @@ plot_score_umaps <- function(obj, task_scores, task_assays, out, config) {
     for (page in seq_along(pages)) {
       p <- Seurat::FeaturePlot(obj, features = pages[[page]], reduction = reduction,
                                split.by = split_by, keep.scale = "all", combine = TRUE)
-      path <- file.path(out, "figures", paste0(task_name, "_umap_activity_page", page, ".png"))
+      path <- file.path(out, "figures", paste0(task_name, "_umap_activity_page", page, ".", figure_format(config)))
       panels <- length(pages[[page]]) * if (is.null(split_by)) 1L else length(unique(obj[[split_by]][, 1L]))
       save_ggplot(p, path, width = min(20, max(7, 3.4 * min(4, panels))),
                   height = max(4, 3.1 * ceiling(panels / 4)), dpi = dpi)
