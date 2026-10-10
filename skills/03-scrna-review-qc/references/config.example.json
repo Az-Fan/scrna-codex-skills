@@ -15,6 +15,14 @@
     "annotation": "annotation_manual"
   },
   "output_dir": "/path/to/qc_review",
-  "output": {"detail_level": "compact"},
-  "thresholds": {}
+  "output": {
+    "detail_level": "compact"
+  },
+  "thresholds": {},
+  "display": {
+    "sample_labels": {},
+    "sample_colors": {},
+    "focus_clusters": []
+  },
+  "approved_rules": {}
 }

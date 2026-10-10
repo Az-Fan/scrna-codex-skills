@@ -14,7 +14,7 @@ Recognized aliases, in priority order:
 | s_score | s_score, S.Score | descriptive only |
 | g2m_score | g2m_score, G2M.Score | descriptive only |
 
-Fractions and percentages are reviewed on their stored scale; the script does not silently rescale them.
+Fractions and percentages are reviewed on their stored scale; threshold and raw summary tables do not rescale them. Only explicitly labeled mitochondrial overview figures/display medians convert fractions to percent.
 Columns containing no finite numeric values are unavailable even if the column name exists.
 
 Candidate bounds combine global 1st/99th percentiles with median ± 3 MAD. Explicit values in `thresholds` override generated candidates. Generated thresholds are screening suggestions, not accepted biological decisions.
@@ -25,11 +25,6 @@ The joint candidate scenario applies all available filtering bounds only to esti
 
 ## Output detail
 
-Use `output.detail_level: compact` by default. It writes four decision-facing artifacts:
+Use `output.detail_level: compact` by default. The primary atlas covers sample, cluster and shared-coordinate UMAP review, with 300-dpi PNG previews. `qc_supplement.pdf` preserves all eligible established diagnostic families, including annotations and one UMAP per available metric. Threshold and QC summary tables retain stored units; `sample_display_summary.tsv` reports explicitly labeled display units. See [compact-figures.md](compact-figures.md) for units, configuration and pagination.
 
-- `qc_atlas.pdf`: all supported plots in one multipage document;
-- `threshold_review.tsv`: candidate bounds and blank approval fields;
-- `qc_summary_by_sample.tsv`: compact per-sample medians and 5th/95th percentiles;
-- `_provenance/run_manifest.json`: resolved execution record.
-
-Use `full` only for debugging, downstream machine processing, or figure-by-figure export. Full mode additionally writes metric availability, long-form quantiles, sample/group retention, plot status, and every supported plot as an individual PNG under `details/`; it does not clutter the result root. When coordinates exist, include one UMAP for every available QC metric in the atlas in both modes. Auto-detect `seurat_clusters`/`cluster` and common annotation columns for grouped violin plots.
+Full mode additionally writes availability, long-form quantiles, hypothetical sample/group retention, plot status and individual diagnostic PNGs under `details/`. It never filters or saves a derivative object. Auto-detect `seurat_clusters`/`cluster` and common annotation columns for grouped plots. Approval fields remain blank; `approved_rules` only supplies reference overlays from an existing decision identified by `approved_rules_source`.

@@ -24,8 +24,8 @@ Condition, batch, cluster, and annotation columns are optional. Cluster and anno
 
    `python scripts/run.py --config CONFIG.json`
 
-3. Show the resolved input, pixi manifest, environment, output directory, and command.
-4. After confirmation, execute:
+3. Show the resolved input, pixi manifest, environment, output directory, and command. Existing authorization to run or revise the review is sufficient.
+4. Execute within the authorized scope:
 
    `python scripts/run.py --config CONFIG.json --execute`
 
@@ -37,11 +37,12 @@ Read `references/qc-review.md` only when interpreting the threshold table or cha
 - Treat thresholds as candidates requiring biological review.
 - Keep approval, decision, and notes fields blank.
 - Preserve the input object.
-- Keep the default result directory concise; generate supplemental audit tables and individual PNGs only when explicitly requested.
+- Keep sample, cluster and UMAP overview sections compact, with PNG previews. Preserve established annotation and secondary diagnostics in a supplemental PDF.
+- Read [references/compact-figures.md](references/compact-figures.md) for display units, labels, rule overlays and pagination.
 
 ## Outputs
 
-The result root contains only `qc_atlas.pdf`, `threshold_review.tsv`, and `qc_summary_by_sample.tsv`. Technical records are stored under `_provenance/`. Set `output.detail_level` to `full` only when machine-readable availability, quantile, retention, plot-status tables, and individual PNG files are needed; place those supplements under `details/`.
+The result root contains `qc_atlas.pdf` (sample, cluster and shared-coordinate UMAP sections), 300-dpi PNG previews, `qc_supplement.pdf`, `threshold_review.tsv`, `qc_summary_by_sample.tsv`, and display/sample-composition tables. Large sample or cluster sets paginate without dropping groups. Missing clusters or UMAP produce availability panels. Technical records are stored under `_provenance/`. Set `output.detail_level` to `full` for availability, quantile, hypothetical retention and plot-status tables plus individual diagnostic PNGs under `details/`.
 
 ## Result organization
 

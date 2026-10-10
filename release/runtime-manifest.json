@@ -13,7 +13,7 @@
     },
     "03-scrna-review-qc": {
       "python": ["result_delivery.py", "check_dependencies.py", "scrna_runtime.py"],
-      "r": ["review_qc.R"],
+      "r": ["review_qc.R", "review_qc_diagnostics.R"],
       "references": ["output-layout.md", "figure-catalog.md", "compatibility.md"]
     },
     "04-scrna-apply-qc-filter": {

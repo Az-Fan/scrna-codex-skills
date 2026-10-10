@@ -1,6 +1,6 @@
 # Fixed figure catalog — baseline inventory and rollout
 
-Rollout: skills 06/07/08 and 11/12 now use `paper_v1`, default PNG 300 dpi, with fixed pagination where a figure can grow. Baseline PDF filenames below identify retained families, not the new default extension. Skill 08 additionally supports explicitly configured target-gene FeaturePlots. All other families retain their existing renderer pending the next rollout. See figure-style.md in the updated skills for their implemented contract.
+Rollout: skills 06/07/08 and 11/12 now use `paper_v1`, default PNG 300 dpi, with fixed pagination where a figure can grow. Baseline PDF filenames below identify retained families, not the new default extension. Skill 08 additionally supports explicitly configured target-gene FeaturePlots. Skill 03 now uses compact sample/cluster/UMAP overview pages with PNG previews and retains established diagnostics in qc_supplement.pdf. Other families retain their existing renderer pending the next rollout. See figure-style.md in the updated skills for their implemented contract.
 
 This catalog records existing plot families before visual redesign. A family may produce multiple files or pages by sample, scenario, comparison, database, or metric. All listed families are retained. Conditions below describe current behavior, not permission to run additional analyses. No-figure stages are intentional.
 
@@ -8,17 +8,17 @@ This catalog records existing plot families before visual redesign. A family may
 |---|---|---|---|
 | 01 | No figure | Standardization writes objects and tables | Preserve |
 | 02 | qc_diagnosis.png | One counts-versus-detected-genes scatter per Seurat run or STARsolo sample | Preserve |
-| 03 | qc_distribution_by_sample.png | QC metrics available; one faceted family | Preserve in atlas |
-| 03 | qc_distributions.png | QC metrics available; histograms by metric | Preserve in atlas |
-| 03 | qc_metrics_per_cluster.png | Cluster metadata available | Preserve in atlas |
-| 03 | qc_distribution_by_celltype.png | Annotation metadata available | Preserve in atlas |
-| 03 | n_UMIs_vs_n_genes.png | Both count metrics available; sample facets | Preserve in atlas |
-| 03 | nuclear_frac_vs_n_UMIs.png | Both metrics available; sample facets | Preserve in atlas |
-| 03 | filter_mito_by_annotation.png | Mitochondrial metric and annotation available | Preserve in atlas |
-| 03 | umap_annotation_qc_context.png | UMAP and annotation available | Preserve in atlas |
-| 03 | umap_qc_<metric>.png | One panel per available metric when UMAP exists | Preserve in atlas |
-| 03 | candidate_retention_by_sample.png | Candidate thresholds available; never formal filtering | Preserve in atlas |
-| 03 | qc_atlas.pdf | Ordered container for all eligible families above; individual PNGs currently require full mode | Preserve every eligible panel |
+| 03 | qc_distribution_by_sample.png | QC metrics available; one faceted family | Preserve in supplemental atlas |
+| 03 | qc_distributions.png | QC metrics available; histograms by metric | Preserve in supplemental atlas |
+| 03 | qc_metrics_per_cluster.png | Cluster metadata available | Preserve in supplemental atlas |
+| 03 | qc_distribution_by_celltype.png | Annotation metadata available | Preserve in supplemental atlas |
+| 03 | n_UMIs_vs_n_genes.png | Both count metrics available; sample facets | Preserve in supplemental atlas |
+| 03 | nuclear_frac_vs_n_UMIs.png | Both metrics available; sample facets | Preserve in supplemental atlas |
+| 03 | filter_mito_by_annotation.png | Mitochondrial metric and annotation available | Preserve in supplemental atlas |
+| 03 | umap_annotation_qc_context.png | UMAP and annotation available | Preserve in supplemental atlas |
+| 03 | umap_qc_<metric>.png | One panel per available metric when UMAP exists | Preserve in supplemental atlas |
+| 03 | candidate_retention_by_sample.png | Candidate thresholds available; never formal filtering | Preserve in supplemental atlas |
+| 03 | qc_atlas.pdf | Compact sample/cluster/UMAP sections; paginated PNG previews, with established families above in qc_supplement.pdf | Preserve every eligible panel |
 | 04 | No figure | Approved filter produces retention/decision tables | Preserve; do not invent plots silently |
 | 05 | umap_by_batch__<scenario>.png | Requested; one panel per available batch field and completed scenario | Preserve |
 | 05 | umap_by_sample__<scenario>.png | Requested; sample field and completed scenario | Preserve |

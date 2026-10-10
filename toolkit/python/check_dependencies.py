@@ -12,7 +12,7 @@ PROFILES = {
     "16-scrna-discover-programs": (CORE, ["qs"]),
     "01-scrna-standardize-input": (CORE, ["qs", "hdf5r"]),
     "02-scrna-calculate-qc-metrics": (CORE + ["ggplot2"], ["qs", "RANN", "S4Vectors", "celda", "SingleCellExperiment"]),
-    "03-scrna-review-qc": (CORE + ["ggplot2"], ["qs"]),
+    "03-scrna-review-qc": (CORE + ["ggplot2", "patchwork", "png", "viridisLite", "scales"], ["qs"]),
     "04-scrna-apply-qc-filter": (CORE + ["digest"], ["qs"]),
     "05-scrna-benchmark-integration": (CORE + ["qs"], ["harmony"]),
     "06-scrna-preprocess-and-cluster": (CORE + ["ggplot2", "patchwork"], ["qs", "harmony", "clustree"]),

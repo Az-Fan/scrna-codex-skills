@@ -1,4 +1,4 @@
 interface:
   display_name: "03 Review scRNA QC"
-  short_description: "Auto-detect metrics and build a full QC atlas"
+  short_description: "Build compact QC overviews with full diagnostics"
   default_prompt: "Use $03-scrna-review-qc to auto-detect calculated QC metrics and generate a comprehensive QC atlas and auditable threshold tables without filtering cells."
