@@ -3,7 +3,7 @@ set.seed(777)
 plot_long <- do.call(rbind, lapply(available, function(m) data.frame(sample=md$.sample, metric=m, value=md[[m]])))
 atlas <- list(); plot_log <- list()
 save_plot <- function(name, plot, width=12, height=8, reason="") {
-  if (full_output) ggsave(file.path(detail_out, name), plot, width=width, height=height, dpi=300, bg="white", limitsize=FALSE)
+  if (full_output && preview_png) ggsave(file.path(detail_out, name), plot, width=width, height=height, dpi=300, bg="white", limitsize=FALSE)
   atlas[[length(atlas)+1]] <<- plot
   plot_log[[length(plot_log)+1]] <<- data.frame(file=name, status="generated", reason=reason)
 }

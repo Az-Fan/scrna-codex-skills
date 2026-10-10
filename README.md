@@ -240,14 +240,14 @@ STARsolo 输入时，每个样本目录只保留 `counts.mtx.gz`、`features.tsv
 
 compact 模式根目录提供：
 
-- `qc_atlas.pdf`：紧凑的样本、聚类和共享坐标 UMAP 总览，配套 300-dpi PNG 预览；每页最多 8 个样本或 24 个聚类，超出时分页。
+- `qc_atlas.pdf`：紧凑的样本、聚类和共享坐标 UMAP 总览，默认仅 PDF；`output.preview_png=true` 可额外导出 300-dpi PNG 预览；每页最多 8 个样本或 24 个聚类，超出时分页。
 - `qc_supplement.pdf`：保留原有注释、次要指标、候选保留率及全部可用指标的 UMAP 诊断。
 - `threshold_review.tsv`：候选阈值及待审批字段。
 - `qc_summary_by_sample.tsv`：样本级 QC 汇总。
 - `sample_display_summary.tsv`、可用时的 `qc_summary_by_cluster.tsv` 和 `cluster_sample_composition.tsv`：显示单位的样本中位数、源单位的聚类中位数和聚类内样本组成。
 - `_provenance/run_manifest.json`。
 
-`display` 支持样本标签、颜色、线粒体源单位、焦点聚类和 UMAP reduction。`approved_rules` 只展示已有批准决策的参考线，须填写 `approved_rules_source`。`output.detail_level=full` 时，额外的指标可用性、分位数、候选保留率、绘图状态表和独立诊断 PNG 放在 `details/`。此步骤不会生成过滤对象，也不会自动填写批准状态。
+`display` 支持样本标签、颜色、线粒体源单位、焦点聚类和 UMAP reduction。`approved_rules` 只展示已有批准决策的参考线，须填写 `approved_rules_source`。`output.detail_level=full` 时，额外的指标可用性、分位数、候选保留率、绘图状态表放在 `details/`；独立诊断 PNG 还需显式启用 `output.preview_png=true`。此步骤不会生成过滤对象，也不会自动填写批准状态。
 
 ### 04-scrna-apply-qc-filter：应用已批准的 QC 决策
 

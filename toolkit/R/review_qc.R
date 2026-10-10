@@ -10,6 +10,8 @@ dir.create(out, recursive = TRUE, showWarnings = FALSE)
 detail_level <- tolower(cfg$output$detail_level %||% "compact")
 if (!detail_level %in% c("compact", "full")) stop("output.detail_level must be compact or full")
 full_output <- identical(detail_level, "full")
+preview_png <- cfg$output$preview_png %||% FALSE
+if (!is.logical(preview_png) || length(preview_png) != 1L || is.na(preview_png)) stop("output.preview_png must be true or false")
 detail_out <- file.path(out, "details")
 if (full_output) dir.create(detail_out, recursive = TRUE, showWarnings = FALSE)
 obj_path <- normalizePath(cfg$input$object, mustWork = TRUE)
@@ -283,8 +285,8 @@ pdf(file.path(out,"qc_atlas.pdf"),width=12,height=9,onefile=TRUE)
 for(p in pages) print(p)
 dev.off()
 page_names <- function(stem,n) if(n==1L) paste0(stem,".png") else paste0(stem,"_page",seq_len(n),".png")
-preview_names <- c(page_names("qc_01_samples",length(sample_pages)),page_names("qc_02_clusters",length(cluster_pages)),"qc_03_umap.png")
-for(i in seq_along(pages)) ggsave(file.path(out,preview_names[i]),pages[[i]],width=12,height=9,dpi=300,bg="white")
+preview_names <- if(preview_png) c(page_names("qc_01_samples",length(sample_pages)),page_names("qc_02_clusters",length(cluster_pages)),"qc_03_umap.png") else character()
+if(preview_png) for(i in seq_along(pages)) ggsave(file.path(out,preview_names[i]),pages[[i]],width=12,height=9,dpi=300,bg="white")
 # Preserve all established annotation, secondary metric and candidate-retention
 # diagnostics in a separate atlas; full mode retains their individual PNGs.
 script <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value=TRUE)[1])
@@ -297,7 +299,7 @@ write_json(list(cells=ncol(obj),genes=nrow(obj),clusters=if(!is.na(cluster_col))
   source_object=obj_path,new_seurat_objects=0,cells_removed=0,mitochondrial_source_unit=mt_unit,mitochondrial_display_unit="percent",
   umap_reduction=red,sample_labels=as.list(setNames(labels,samples)),sample_palette=as.list(pal),
   approved_rules=cfg$approved_rules,approved_rules_source=cfg$approved_rules_source,
-  threshold_candidates_applied=FALSE,point_raster_pixels=1100,point_order_seed=777,png_dpi=300,
+  threshold_candidates_applied=FALSE,point_raster_pixels=1100,point_order_seed=777,png_dpi=if(preview_png)300 else NULL,preview_png=preview_png,
   atlas_pages=length(pages),sample_pages=length(sample_pages),cluster_pages=length(cluster_pages),previews=preview_names,
   supplemental_diagnostics=vapply(Filter(function(x)x$status=="generated",plot_log),function(x)x$file,character(1))),file.path(out,"_provenance","figure_methods.json"),auto_unbox=TRUE,pretty=TRUE)
 writeLines(capture.output(sessionInfo()),file.path(out,"_provenance","session_info.txt"))

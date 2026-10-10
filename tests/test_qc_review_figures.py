@@ -58,7 +58,7 @@ saveRDS(o,args[1])
                     before = hashlib.sha256(obj.read_bytes()).hexdigest()
                     out = root / mode
                     cfg = {'input':{'object':str(obj)},'metadata':{'sample':'sample'},'output_dir':str(out),
-                           'output':{'detail_level':'full' if mode=='fraction' else 'compact'},
+                           'output':{'detail_level':'full' if mode=='fraction' else 'compact','preview_png':mode=='fraction'},
                            'display':{'sample_labels':{'s1':'A','s2':'B'},'focus_clusters':['2']}}
                     if mode=='fraction':
                         cfg['approved_rules']={'mito_frac':{'upper':.05}}
@@ -74,6 +74,10 @@ saveRDS(o,args[1])
                     self.assertEqual(methods['atlas_pages'],5 if mode=='many' else 3)
                     for preview in methods['previews']:
                         self.assertTrue((out/preview).is_file())
+                    self.assertEqual(methods['preview_png'],mode=='fraction')
+                    if mode!='fraction':
+                        self.assertEqual(methods['previews'],[])
+                        self.assertEqual(list(out.glob('*.png')),[])
                     self.assertGreater((out/'qc_supplement.pdf').stat().st_size,1000)
                     with (out/'threshold_review.tsv').open() as handle:
                         rows=list(csv.DictReader(handle,delimiter='\t'))

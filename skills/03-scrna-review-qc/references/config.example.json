@@ -16,7 +16,8 @@
   },
   "output_dir": "/path/to/qc_review",
   "output": {
-    "detail_level": "compact"
+    "detail_level": "compact",
+    "preview_png": false
   },
   "thresholds": {},
   "display": {

@@ -37,12 +37,12 @@ Read `references/qc-review.md` only when interpreting the threshold table or cha
 - Treat thresholds as candidates requiring biological review.
 - Keep approval, decision, and notes fields blank.
 - Preserve the input object.
-- Keep sample, cluster and UMAP overview sections compact, with PNG previews. Preserve established annotation and secondary diagnostics in a supplemental PDF.
+- Keep sample, cluster and UMAP overview sections compact, with optional PNG previews. Preserve established annotation and secondary diagnostics in a supplemental PDF.
 - Read [references/compact-figures.md](references/compact-figures.md) for display units, labels, rule overlays and pagination.
 
 ## Outputs
 
-The result root contains `qc_atlas.pdf` (sample, cluster and shared-coordinate UMAP sections), 300-dpi PNG previews, `qc_supplement.pdf`, `threshold_review.tsv`, `qc_summary_by_sample.tsv`, and display/sample-composition tables. Large sample or cluster sets paginate without dropping groups. Missing clusters or UMAP produce availability panels. Technical records are stored under `_provenance/`. Set `output.detail_level` to `full` for availability, quantile, hypothetical retention and plot-status tables plus individual diagnostic PNGs under `details/`.
+The result root contains `qc_atlas.pdf` (sample, cluster and shared-coordinate UMAP sections), `qc_supplement.pdf`, `threshold_review.tsv`, `qc_summary_by_sample.tsv`, and display/sample-composition tables. Large sample or cluster sets paginate without dropping groups. Missing clusters or UMAP produce availability panels. Set `output.preview_png=true` only when standalone 300-dpi PNG previews are needed; the default is PDF-only. Technical records are stored under `_provenance/`. Set `output.detail_level` to `full` for availability, quantile, hypothetical retention and plot-status tables under `details/`; individual diagnostic PNGs additionally require `output.preview_png=true`.
 
 ## Result organization
 
