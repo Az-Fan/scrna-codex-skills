@@ -1,5 +1,6 @@
 """Dependency-free configuration contract for cNMF discovery."""
 from figure_output import figure_format
+from gene_filter_contract import validate_thresholds
 import math
 import os
 import re
@@ -12,6 +13,18 @@ def validate_config(config, get):
     errors = []
     try:
         figure_format(config)
+    except ValueError as exc:
+        errors.append(str(exc))
+    if "gene_filter" in config and not isinstance(config["gene_filter"], dict):
+        errors.append("gene_filter must be an object")
+    else:
+        try:
+            validate_thresholds(get(config, "gene_filter.min_cells") if get(config, "gene_filter.min_cells") is not None else 1,
+                                get(config, "gene_filter.min_fraction") if get(config, "gene_filter.min_fraction") is not None else 0)
+        except ValueError as exc:
+            errors.append(str(exc))
+    try:
+        validate_thresholds(get(config, "reporting.low_detection_cells") if get(config, "reporting.low_detection_cells") is not None else 20, min_cells_field="reporting.low_detection_cells")
     except ValueError as exc:
         errors.append(str(exc))
     action = get(config, "workflow.action") or "discover"

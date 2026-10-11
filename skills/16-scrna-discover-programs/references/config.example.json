@@ -42,7 +42,8 @@
   },
   "reporting": {
     "top_n": 50,
-    "programs_per_page": 6
+    "programs_per_page": 6,
+    "low_detection_cells": 20
   },
   "interpretation": {
     "gmt": null
@@ -50,5 +51,9 @@
   "runtime": {
     "pixi_root": "~/projects/scrna_envs"
   },
-  "output_dir": "results/16_cnmf_programs"
+  "output_dir": "results/16_cnmf_programs",
+  "gene_filter": {
+    "min_cells": 20,
+    "min_fraction": 0
+  }
 }

@@ -34,9 +34,12 @@ def input_records(config):
 
 
 def preparation_parameters(config):
-    return {key: get(config, "cnmf." + key) if get(config, "cnmf." + key) is not None else default
+    params = {key: get(config, "cnmf." + key) if get(config, "cnmf." + key) is not None else default
             for key, default in {"name": "programs", "components": None, "n_iter": 100,
                                  "num_highvar_genes": 2000, "seed": 14, "max_nmf_iter": 1000}.items()}
+    if "gene_filter" in config:
+        params["gene_filter"] = {"min_cells": get(config, "gene_filter.min_cells") if get(config, "gene_filter.min_cells") is not None else 1, "min_fraction": get(config, "gene_filter.min_fraction") if get(config, "gene_filter.min_fraction") is not None else 0}
+    return params
 
 
 def input_contract(config):
@@ -54,6 +57,7 @@ def read_identifiers(path, column=1):
 
 
 def load_input(config, destination):
+    from gene_filter import filter_counts
     kind = get(config, "input.type") or "seurat"
     if kind == "seurat":
         rscript = resolved_rscript(SKILL, config)
@@ -97,10 +101,13 @@ def load_input(config, destination):
         column = get(config, "metadata." + role)
         if column and metadata.groupby(sample)[column].nunique().gt(1).any():
             raise ValueError(f"Each sample must have one {role} value")
-    expressed = np.asarray(counts.sum(axis=0)).ravel() > 0
-    pd.DataFrame({"gene": genes, "status": np.where(expressed, "retained", "zero_counts")}).to_csv(destination / "feature_status.tsv", sep="\t", index=False)
-    # 显式记录零表达基因；不静默删除细胞或合并重复基因。
-    counts, genes = counts[:, expressed], genes[expressed]
+    original_umi = float(counts.sum())
+    filtered, retained, feature_audit = filter_counts(counts, genes,
+        get(config, "gene_filter.min_cells") if get(config, "gene_filter.min_cells") is not None else 1,
+        get(config, "gene_filter.min_fraction") if get(config, "gene_filter.min_fraction") is not None else 0)
+    feature_audit.to_csv(destination / "feature_status.tsv", sep="\t", index=False)
+    write_json(destination / "gene_filter_audit.json", {"source_genes": len(genes), "retained_genes": int(retained.sum()), "removed_low_detection": int(feature_audit.status.eq("low_detection").sum()), "removed_zero_counts": int(feature_audit.status.eq("zero_counts").sum()), "effective_min_cells": int(feature_audit.effective_min_cells.iloc[0]), "source_umi": original_umi, "retained_umi": float(filtered.sum()), "cells_removed": 0})
+    counts, genes = filtered, genes[retained]
     maximum = max(get(config, "cnmf.components"))
     hvg = get(config, "cnmf.num_highvar_genes") or 2000
     if hvg > len(genes):
@@ -108,7 +115,7 @@ def load_input(config, destination):
     if maximum >= min(len(cells), hvg):
         raise ValueError("Every candidate k must be smaller than both cell count and HVG count")
     genes.name = "gene"
-    adata = anndata.AnnData(counts, obs=metadata, var=pd.DataFrame(index=genes))
+    adata = anndata.AnnData(counts, obs=metadata, var=feature_audit.loc[retained].set_index("gene").loc[genes, ["n_detected_cells", "detection_fraction", "total_counts"]])
     adata.write_h5ad(destination / "counts.h5ad", compression="gzip")
     metadata.index.name = "cell_id"
     metadata.to_csv(destination / "cell_metadata.tsv", sep="\t")
@@ -227,7 +234,8 @@ def enrich_programs(scores, top_n, gmt, destination):
     (destination / "enrichment_universe.txt").write_text("\n".join(sorted(universe)) + "\n")
 
 
-def export_consensus(model, k, config, metadata, output, embedding):
+def export_consensus(model, k, config, metadata, output, embedding, adata):
+    from gene_filter import write_top_gene_tables
     threshold = get(config, "cnmf.density_threshold") or .02
     destination = output / f"k_{k}"
     if destination.exists():
@@ -260,11 +268,14 @@ def export_consensus(model, k, config, metadata, output, embedding):
     usage = raw_usage.div(raw_usage.sum(axis=1), axis=0)
     for name, frame in [("usage_raw", raw_usage), ("usage", usage), ("spectra_scores", scores), ("spectra_tpm", tpm)]:
         frame.to_csv(destination / (name + ".tsv"), sep="\t", index_label="cell_id" if "usage" in name else "gene")
-    ranked = []
-    for program in programs:
-        for rank, (gene, score) in enumerate(scores[program].nlargest(top_n).items(), 1):
-            ranked.append({"program": program, "rank": rank, "gene": gene, "score": score, "tpm_weight": tpm.loc[gene, program]})
-    pd.DataFrame(ranked).to_csv(destination / "top_genes.tsv", sep="\t", index=False)
+    # Older discovery bundles have no detection columns; recover them from
+    # their bound raw matrix without repeating discovery or changing spectra.
+    detected = np.asarray((adata.X > 0).sum(axis=0)).ravel()
+    metrics = pd.DataFrame({"gene": adata.var_names, "n_detected_cells": detected,
+                            "detection_fraction": detected / adata.n_obs,
+                            "total_counts": np.asarray(adata.X.sum(axis=0)).ravel()})
+    write_top_gene_tables(scores, tpm, metrics, destination, top_n,
+                         get(config, "reporting.low_detection_cells") if get(config, "reporting.low_detection_cells") is not None else 20)
     with (destination / "programs.gmt").open("w") as handle:
         for program in programs:
             genes = scores[program][scores[program] > 0].nlargest(top_n).index.astype(str)
@@ -333,6 +344,7 @@ def execute(config):
         prepared.mkdir(parents=True)
         adata = load_input(config, prepared)
         shutil.copy2(prepared / "feature_status.tsv", output / "feature_status.tsv")
+        shutil.copy2(prepared / "gene_filter_audit.json", output / "gene_filter_audit.json")
         shutil.copy2(prepared / "cell_metadata.tsv", output / "cell_metadata.tsv")
         write_json(output / "input_audit.json", {"cells": adata.n_obs, "expressed_genes": adata.n_vars, "counts_source": "raw_umi", "matrix_orientation": "cells_by_genes", "input": sources, "parameters": params})
         model = cNMF(output_dir=str(native), name=params["name"])
@@ -364,7 +376,7 @@ def execute(config):
     task_rows, usages = [], {}
     for k in ks:
         try:
-            usages[k] = export_consensus(model, k, config, adata.obs, output, embedding)
+            usages[k] = export_consensus(model, k, config, adata.obs, output, embedding, adata)
             task_rows.append({"k": k, "status": "completed", "reason": ""})
         except Exception as exc:
             task_rows.append({"k": k, "status": "failed", "reason": str(exc)})

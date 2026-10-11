@@ -9,7 +9,7 @@ cNMF separates non-negative expression into gene programs and cell usage. A cell
 
 ## Workflow
 
-1. Confirm the object or matrix bundle, raw-count provenance, biological sample column, population scope, candidate ranks, HVG count, repetitions, seed and available CPU/RAM. Input should already have passed QC. Use the population requested; do not silently subset, balance or correct batches.
+1. Confirm the object or matrix bundle, raw-count provenance, biological sample column, population scope, explicit gene-detection thresholds, candidate ranks, HVG count, repetitions, seed and available CPU/RAM. Input should already have passed QC. Use the population requested; do not silently subset, balance or correct batches.
 2. Read [references/discovery-contract.md](references/discovery-contract.md) for formats, rank review, density filtering and result interpretation. Adapt [references/config.example.json](references/config.example.json).
 3. Run `scripts/check_dependencies.py --config <config>` and `scripts/run.py --config <config>` in the foreground. Review the resolved interpreters and parameters. For long execution read [references/long-running-execution.md](references/long-running-execution.md) and use the bundled tmux supervisor with `--execute`.
 4. Default `workflow.action=discover` runs preparation, replicate factorizations, combination and k-selection diagnostics, then reports `awaiting_k_confirmation`. Show `k_selection.pdf` and complete `k_selection_stats.tsv`; discuss stability/error tradeoffs and obtain the selected rank(s).
@@ -20,6 +20,7 @@ cNMF separates non-negative expression into gene programs and cell usage. A cell
 ## Scientific constraints
 
 - Require `input.counts_source=raw_umi`. Use uncorrected RNA counts, never normalized, scaled, integrated or SCT values.
+- For new discovery, explicitly review `gene_filter.min_cells` and `min_fraction`; the example uses 20 detected cells as a starting point, not a universal cutoff. Omitted settings retain legacy zero-only filtering. Inspect gene-filter audits and low-detection top-gene flags before biological interpretation.
 - Preserve source objects and cell IDs. Resolve duplicate genes explicitly. Zero-count cells stop execution; zero-expression genes are omitted with a complete feature audit.
 - Align metadata by cell ID rather than row position. Join Seurat v5 counts layers in memory.
 - Export raw and row-normalized fractional usage. Gene score coefficients can be signed. Fractional usage is compositional and depends on k.

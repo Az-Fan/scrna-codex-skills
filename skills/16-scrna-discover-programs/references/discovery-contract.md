@@ -55,3 +55,11 @@ Discovery refuses existing prepared/native artifacts; consensus refuses existing
 _provenance/discovery_record.json binds input SHA256, preparation parameters, metadata roles, package versions and reusable artifact hashes. Consensus verifies these before reuse. This establishes integrity, not human authorization. Retain native factorizations and prepared input for reuse. RESULTS.md reports awaiting review, completion or failure and links scientific deliverables.
 
 API sources: [upstream cNMF workflow](https://github.com/dylkot/cNMF), [stepwise guide](https://github.com/dylkot/cNMF/blob/main/Stepwise_Guide.md). Match installed behavior when upstream changes.
+
+## Gene detection QC
+
+`gene_filter.min_cells` (integer >=1, legacy default1) and `min_fraction` (0..1, default0) retain genes detected in at least max(min_cells, ceil(min_fraction*n_cells)) cells. Detection means raw UMI >0. New-run example uses20 cells; review rare populations before choosing a threshold. Filtering changes only the working matrix, never source objects or cell IDs. Stop if any cell has zero retained counts or fewer genes than requested HVGs; do not silently remove cells or reduce HVGs.
+
+feature_status.tsv records every input gene, detection count/fraction, total UMI, effective threshold and retained/zero_counts/low_detection status. gene_filter_audit.json records source/retained UMI totals; filtering changes normalization denominators, so filtered discovery requires a fresh output and rank scan. Explicit filter settings are bound to discovery; consensus rejects changed thresholds. Legacy consensus without these settings can reuse its original discovery unchanged.
+
+Top-score and top-TPM tables include detection metrics and low_detection (below reporting.low_detection_cells, default20). top_gene_detection_summary.tsv and runtime warnings surface sparse top genes. Flags do not rewrite scores, truncate full spectra or imply a gene is noise. Presence in top50 and score magnitude do not establish biological importance.

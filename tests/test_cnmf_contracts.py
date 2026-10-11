@@ -117,7 +117,8 @@ class CNMFContracts(unittest.TestCase):
         cfg["cnmf"]["density_threshold"] = 2
         metadata = pd.DataFrame({"sample": ["s1", "s1", "s2", "s2"], "condition": ["control", "control", "case", "case"]}, index=cells)
         with patch.object(discovery, "load_df_from_npz", load_df_from_npz, create=True), patch.object(model, "consensus"), patch.object(discovery, "plot_summary"):
-            usage = discovery.export_consensus(model, 2, cfg, metadata, self.root, None)
+            adata = anndata.AnnData(sparse.csr_matrix(np.ones((4,3))),obs=metadata,var=pd.DataFrame(index=genes))
+            usage = discovery.export_consensus(model, 2, cfg, metadata, self.root, None, adata)
         self.assertEqual(list(usage.index), cells)
         np.testing.assert_allclose(usage.to_numpy(), raw.div(raw.sum(axis=1), axis=0))
         exported = pd.read_csv(self.root / "k_2/spectra_scores.tsv", sep="\t", index_col=0, dtype={"gene": str}, keep_default_na=False)
