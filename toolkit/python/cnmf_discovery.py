@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import sys
 
-from figure_output import figure_format
+from figure_output import figure_format, umap_marker_area
 
 from scrna_runtime import nested_get as get, sha256, resolved_rscript
 from cnmf_contract import SKILL, validate_config
@@ -184,7 +184,7 @@ def plot_embedding(usage, embedding, config, destination):
         selected = usage.columns[offset:offset + per_page]
         fig, axes = plt.subplots((len(selected) + 1) // 2, 2, figsize=(9, 3.7 * ((len(selected) + 1) // 2)), squeeze=False)
         for ax, program in zip(axes.flat, selected):
-            points = ax.scatter(embedding.iloc[:, 0], embedding.iloc[:, 1], c=usage[program], s=2, cmap="viridis", vmin=0, vmax=1, rasterized=True)
+            points = ax.scatter(embedding.iloc[:, 0], embedding.iloc[:, 1], c=usage[program], s=umap_marker_area(len(usage), get(config,"figure_style.umap_marker_area")), cmap="viridis", vmin=0, vmax=1, rasterized=True)
             ax.set_title(program)
             ax.set_xlabel(embedding.columns[0]); ax.set_ylabel(embedding.columns[1])
             fig.colorbar(points, ax=ax, label="Fractional usage")

@@ -140,7 +140,7 @@ for (v in var_info) {
     fields <- unique(c(sample_col, condition_col, batch_col, v$column)); fields <- fields[!is.null(fields) & nzchar(fields) & fields %in% names(md)]
     fields <- fields[vapply(fields, function(f) length(unique(as.character(md[[f]]))) > 1L, logical(1))]
     if (!length(fields)) { record("embedding_diagnostics", v$column, "skipped", "no requested metadata field has at least two observed levels"); next }
-    plots <- lapply(fields, function(f) DimPlot(obj, reduction = reduction, group.by = f, raster = FALSE, pt.size = .08) + theme_paper + labs(title = f))
+    plots <- lapply(fields, function(f) DimPlot(obj, reduction = reduction, group.by = f, raster = FALSE, pt.size = umap_point_size(ncol(obj),getv(cfg,"figure_style.umap_point_size"))) + scale_color_manual(values=umap_palette(obj[[]][[f]],getv(cfg,paste0("figure_style.colors.",f)))) + theme_paper + labs(title = f))
     p5 <- wrap_plots(plots, ncol = 2); save_plot(p5, file.path(out, paste0("embedding_diagnostics_", safe(v$column))), 12, 5 * ceiling(length(plots) / 2)); record("embedding_diagnostics", v$column)
   } else record("embedding_diagnostics", v$column, "skipped", if (is.null(obj)) "requires Seurat object" else paste("reduction unavailable:", reduction))
 }

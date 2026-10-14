@@ -137,7 +137,7 @@ labels <- vapply(samples,function(s) cfg$display$sample_labels[[s]] %||% s,chara
 if (anyNA(labels) || any(!nzchar(trimws(labels)))) stop("Sample display labels cannot be empty")
 if(anyDuplicated(labels)) stop("Sample display labels must be unique")
 md$.label <- factor(labels[match(md$.sample,samples)],levels=labels)
-pal <- setNames(vapply(seq_along(labels),function(i) cfg$display$sample_colors[[labels[i]]] %||% grDevices::hcl.colors(length(labels),"Dark 3")[i],character(1)),labels)
+pal <- umap_palette(labels,cfg$display$sample_colors)
 mt_unit <- cfg$display$mito_unit %||% if(identical(cols[["mito_frac"]],"percent.mt")) "percent" else "fraction"
 if(!mt_unit %in% c("percent","fraction")) stop("display.mito_unit must be percent or fraction")
 if (length(cfg$approved_rules)) {
@@ -265,7 +265,7 @@ if(!is.null(xy) && all(is.finite(xy))) {
     }
     tf<-tempfile(fileext=".png");png(tf,width=1100,height=1100,bg="white")
     par(mar=c(0,0,0,0),xaxs="i",yaxs="i");plot.new();plot.window(xlim=xr,ylim=yr)
-    set.seed(777); ii<-sample(seq_len(nrow(xy)))
+    ii<-withr::with_seed(777,sample(seq_len(nrow(xy))))
     point_cex <- min(2, max(.28, 20/sqrt(nrow(xy))))
     points(xy[ii,1],xy[ii,2],pch=16,cex=point_cex,col=cc[ii]);dev.off()
     raster<-png::readPNG(tf);unlink(tf)
@@ -277,7 +277,7 @@ if(!is.null(xy) && all(is.finite(xy))) {
     if(cluster_labels) {cent<-aggregate(xy,list(cluster=values),median);p<-p+geom_label(data=cent,aes(x=.data[[names(cent)[2]]],y=.data[[names(cent)[3]]],label=cluster),inherit.aes=FALSE,size=2.5,linewidth=.1,fill="white")}
     p
   }
-  uc<-if(!is.na(cluster_col))raster_umap(md$.cluster,"Cluster",TRUE,setNames(hcl.colors(length(cl),"Dark 3"),cl),TRUE) else blank("Cluster","No cluster metadata")
+  uc<-if(!is.na(cluster_col))raster_umap(md$.cluster,"Cluster",TRUE,umap_palette(cl),TRUE) else blank("Cluster","No cluster metadata")
   us<-raster_umap(md$.label,"Sample",TRUE,pal)
   um<-lapply(core,function(m)raster_umap(if(m %in% c("n_genes","n_UMIs"))positive_log(md[[m]]) else display_value(m,md[[m]]),
     paste0(metric_labels[[m]],if(m %in% c("n_genes","n_UMIs"))" · log10" else "")))

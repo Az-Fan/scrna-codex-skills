@@ -10,7 +10,7 @@ Implemented in skills 06, 07, 08, 11 and 12. Other families in figure-catalog.md
 - Differential analysis (11): Volcano and MA plots use explicit zero lines, significance colours, and explanatory subtitles; pseudobulk PCA uses the same deterministic condition map; the top-DE heatmap uses a fixed blue-white-red scale. Every figure is recorded under `_provenance/`.
 - Enrichment (11/12): retain the signed, paginated lollipop/dot form inspired by FigureYa's compact biomedical summaries. It encodes direction, FDR, and set size without replacing the complete result table or relying on a dense network layout.
 - A single page retains the original filename stem with `.pdf`; multiple pages use `_page01`, `_page02`, etc. PNG, when explicitly selected, uses the same page stems instead of PDF. Do not leave old-format files in new output directories. Existing historical outputs are not automatically removed.
-- Categorical colours are deterministic per label, independent of row order or subset composition. For a project-approved palette use named `figure_style.colors.<metadata_field>` maps and reuse the same config across stages. Arbitrary labels can yield similar hues; inspect high-cardinality legends and supply explicit colours when needed. Do not infer condition semantics or rename categories to obtain a colour.
+- Categorical colours are deterministic for a declared label set and independent of row order. Existing exported mappings are reused within the shared R renderer when panels show subsets; across separate output directories, reuse exported mappings as explicit colours to preserve collision-resolved choices. For a project-approved palette use named `figure_style.colors.<metadata_field>` maps and reuse the same config across stages. Arbitrary labels can yield similar hues; inspect high-cardinality legends and supply explicit colours when needed. Do not infer condition semantics or rename categories to obtain a colour.
 - `_provenance/figure_colors.tsv` records resolved mappings; `_provenance/figure_status.tsv` records generated files and unavailable requested genes. These are technical records, not primary deliverables.
 
 Example configuration addition (replace the example field names and genes with confirmed project values):
@@ -27,3 +27,5 @@ Example configuration addition (replace the example field names and genes with c
 ```
 
 The addition must be merged with existing output settings, not replace object-format or other fields. Do not add unrequested genes or run new statistical analyses. When an empty result or missing dependency prevents a plot, retain the scientific status and report the reason.
+
+UMAP point sizes adapt to cell count unless explicitly overridden. Categorical maps reject duplicate configured RGB values and resolve collisions in automatic colours. See [figure-output.md](figure-output.md) for R/Python units, overrides and high-category limitations.

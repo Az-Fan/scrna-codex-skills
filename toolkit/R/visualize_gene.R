@@ -125,7 +125,7 @@ condition_colors <- paper_colors(sample_values$condition, "condition", config, o
 if (enabled("featureplot") && reduction %in% names(obj@reductions)) {
   pages <- split(available, ceiling(seq_along(available) / 6)); files <- character()
   for (i in seq_along(pages)) {
-    ps <- Seurat::FeaturePlot(obj, features = pages[[i]], reduction = reduction, cols = c("#ECECEC", "#B2182B"), order = TRUE, raster = FALSE, combine = FALSE, keep.scale = "feature")
+    ps <- Seurat::FeaturePlot(obj, features = pages[[i]], reduction = reduction, pt.size=umap_point_size(ncol(obj),cfg_get(config,"figure_style.umap_point_size")), cols = c("#ECECEC", "#B2182B"), order = TRUE, raster = FALSE, combine = FALSE, keep.scale = "feature")
     ps <- lapply(seq_along(ps), function(j) ps[[j]] + paper_theme() + Seurat::NoAxes() + labs(title = gene_info$label[match(pages[[i]][j], gene_info$symbol)], subtitle = paste(assay, "normalized expression; per-gene scale")))
     stem <- file.path(out, if (length(pages) == 1) "target_gene_featureplots" else sprintf("target_gene_featureplots_page%02d", i))
     files <- c(files, paper_save(wrap_plots(ps, ncol = min(3, length(ps))), stem, 5 * min(3, length(ps)), 4.8 * ceiling(length(ps) / 3), config, out, "target_gene_featureplots"))

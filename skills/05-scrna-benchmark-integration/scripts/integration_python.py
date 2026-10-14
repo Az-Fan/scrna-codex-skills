@@ -11,10 +11,10 @@ from decimal import Decimal
 from pathlib import Path
 
 try:
-    from figure_output import figure_format
+    from figure_output import figure_format, umap_marker_area, categorical_palette
 except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "toolkit/python"))
-    from figure_output import figure_format
+    from figure_output import figure_format, umap_marker_area, categorical_palette
 
 import numpy as np
 import pandas as pd
@@ -369,7 +369,23 @@ def make_plots(adata, runs, metrics, summary, config, output, seed):
             if plot not in plots: continue
             fields = [x for x in fields if x and x in adata.obs]
             if fields:
-                fig = sc.pl.embedding(adata, basis="plot", color=fields, show=False, return_fig=True, title=[run["scenario"] + " | " + x for x in fields])
+                # Plot metadata-only views without changing analysis metadata types.
+                import anndata
+                view = anndata.AnnData(obs=adata.obs[fields].copy())
+                view.obsm["X_plot"] = adata.obsm["X_plot"]
+                fig, axes = plt.subplots(1, len(fields), figsize=(5 * len(fields), 4.5), squeeze=False)
+                color_rows = []
+                for ax, field in zip(axes.flat, fields):
+                    view.obs[field] = view.obs[field].astype("category")
+                    labels = [str(x) for x in view.obs[field].cat.categories]
+                    palette = categorical_palette(labels, config.get("figure_style", {}).get("colors", {}).get(field))
+                    sc.pl.embedding(view, basis="plot", color=field, palette=[palette[x] for x in labels],
+                                    size=umap_marker_area(adata.n_obs, config.get("figure_style", {}).get("umap_marker_area")),
+                                    show=False, ax=ax, title=run["scenario"] + " | " + field)
+                    for collection in ax.collections:
+                        collection.set_rasterized(True)
+                    color_rows.extend({"field": field, "label": label, "color": palette[label]} for label in labels)
+                pd.DataFrame(color_rows).to_csv(figure_dir / (plot + "__" + run["scenario"] + "__colors.tsv"), sep="\t", index=False)
                 fig.savefig(figure_dir / (plot + "__" + run["scenario"] + "." + figure_format(config)), dpi=200, bbox_inches="tight"); plt.close(fig)
     if not summary.empty and "metric_tradeoff" in plots:
         fig, ax = plt.subplots(figsize=(7, 6)); ax.scatter(summary["batch_score"], summary["biology_score"])

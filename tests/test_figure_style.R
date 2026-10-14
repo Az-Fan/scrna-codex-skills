@@ -29,3 +29,7 @@ stopifnot(all(file.exists(files)), length(files) == 5L, identical(obj, original)
 record <- utils::read.delim(file.path(out, "_provenance/figure_status.tsv"))
 stopifnot(any(record$status == "skipped"), all(record$style_version == "paper_v1"))
 cat("PASS stable colours, formats, UMAP, paginated dotplots/FeaturePlots, missing genes and unchanged object\n")
+
+collision <- paper_colors(c("Aa","BB"),"collision_test",config,out)
+stopifnot(!anyDuplicated(apply(grDevices::col2rgb(collision),2,paste,collapse=",")))
+stopifnot(identical(unname(paper_colors("BB","collision_test",config,out)),unname(collision["BB"])))

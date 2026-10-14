@@ -30,22 +30,19 @@ paper_record <- function(out, family, file = "", status = "generated", reason = 
 
 paper_colors <- function(values, field, config, out) {
   labels <- sort(unique(as.character(values[!is.na(values)])), method = "radix")
-  # Per-label hashing is independent of row order and which other labels are present.
-  fallback <- vapply(labels, function(label) {
-    hash <- 0
-    for (code in utf8ToInt(enc2utf8(label))) hash <- (hash * 31 + code) %% 104729
-    grDevices::hcl(h = (hash * 137.508) %% 360, c = 65, l = 58, fixup = TRUE)
-  }, character(1))
-  names(fallback) <- labels
-  configured <- cfg_get(config, "figure_style.colors", list())[[field]]
-  if (!is.null(configured)) {
-    configured <- unlist(configured)
-    if (is.null(names(configured)) || any(!nzchar(names(configured))) || anyDuplicated(names(configured))) stop("figure_style.colors maps must have unique label names")
-    tryCatch(grDevices::col2rgb(configured), error = function(e) stop("Invalid configured figure colour: ", conditionMessage(e)))
-    common <- intersect(labels, names(configured))
-    fallback[common] <- configured[common]
-  }
+  configured <- unlist(cfg_get(config, "figure_style.colors", list())[[field]])
+  invisible(umap_palette(character(),configured))
   path <- technical_path(out, "figure_colors.tsv")
+  prior <- character()
+  if(file.exists(path)) {
+    recorded <- utils::read.delim(path,stringsAsFactors=FALSE,check.names=FALSE)
+    recorded <- recorded[recorded$field==field,,drop=FALSE]
+    prior <- setNames(recorded$color,recorded$label)
+  }
+  # Preserve collision-resolved mappings when later panels show a subset.
+  prior[names(configured)] <- configured
+  universe <- unique(c(labels,names(prior)))
+  fallback <- umap_palette(universe,prior)[labels]
   rows <- data.frame(field = field, label = labels, color = unname(fallback), stringsAsFactors = FALSE)
   if (file.exists(path)) {
     previous <- utils::read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
@@ -84,7 +81,8 @@ paper_base_save <- function(draw, stem, width, height, config, out, family = bas
   files
 }
 
-paper_dimplot <- function(obj, reduction, groups, stem, config, out, point_size = .1, label = TRUE, legends = TRUE) {
+paper_dimplot <- function(obj, reduction, groups, stem, config, out, point_size = NULL, label = TRUE, legends = TRUE) {
+  point_size <- umap_point_size(ncol(obj), point_size %||% cfg_get(config,"figure_style.umap_point_size"))
   groups <- unique(groups)
   audit_fields <- unlist(cfg_get(config, "metadata", list())[c("sample", "condition", "batch")], use.names = FALSE)
   plots <- lapply(groups, function(field) {
@@ -148,7 +146,7 @@ paper_features <- function(obj, reduction, config, out) {
   files <- character(); pages <- split(genes, ceiling(seq_along(genes) / 6))
   for (i in seq_along(pages)) {
     plots <- Seurat::FeaturePlot(obj, features = pages[[i]], reduction = reduction,
-      cols = c("#E8E8E8", "#B2182B"), order = TRUE, raster = FALSE, combine = FALSE, keep.scale = "feature")
+      pt.size=umap_point_size(ncol(obj),cfg_get(config,"figure_style.umap_point_size")), cols = c("#E8E8E8", "#B2182B"), order = TRUE, raster = FALSE, combine = FALSE, keep.scale = "feature")
     plots <- lapply(plots, function(p) p + paper_theme() + ggplot2::labs(subtitle = paste(assay, "normalized expression; per-gene scale")))
     stem <- file.path(out, if (length(pages) == 1) "target_gene_featureplots" else sprintf("target_gene_featureplots_page%02d", i))
     files <- c(files, paper_save(patchwork::wrap_plots(plots, ncol = min(3, length(plots))), stem,

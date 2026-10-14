@@ -58,12 +58,13 @@ umap_xy <- if (!is.null(xy) && all(is.finite(xy))) xy else NULL
 if (!is.null(umap_xy)) {
   md$.UMAP1 <- umap_xy[,1]; md$.UMAP2 <- umap_xy[,2]
   if (!is.na(annotation_col)) {
-    p_ann <- ggplot(md,aes(.UMAP1,.UMAP2,color=.data[[annotation_col]])) + geom_point(size=.08,alpha=.7) +
-      theme_void() + guides(color=guide_legend(override.aes=list(size=2))) + labs(color="Annotation")
+    md$.annotation_umap <- factor(as.character(md[[annotation_col]]))
+    p_ann <- ggplot(md,aes(.UMAP1,.UMAP2,color=.annotation_umap)) + geom_point(size=umap_point_size(nrow(md),cfg$display$umap_point_size),alpha=.7) +
+      scale_color_manual(values=umap_palette(md[[annotation_col]])) + theme_void() + guides(color=guide_legend(override.aes=list(size=2))) + labs(color="Annotation")
     save_plot("umap_annotation_qc_context.png",p_ann,8,6)
   } else skip_plot("umap_annotation_qc_context.png","No annotation metadata column")
   for (m in available) {
-    p_umap <- ggplot(md,aes(.UMAP1,.UMAP2,color=.data[[m]])) + geom_point(size=.08,alpha=.7) +
+    p_umap <- ggplot(md,aes(.UMAP1,.UMAP2,color=.data[[m]])) + geom_point(size=umap_point_size(nrow(md),cfg$display$umap_point_size),alpha=.7) +
       scale_color_gradient(low="grey90",high="#B2182B",na.value="grey80") + theme_void() + labs(title=paste("UMAP:",m),color=m)
     save_plot(paste0("umap_qc_",m,".png"),p_umap,8,6)
   }

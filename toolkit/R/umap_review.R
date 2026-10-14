@@ -17,18 +17,9 @@ review_cluster_umap <- function(obj, config, out, prefix="") {
   if (!length(samples)) samples <- unique(d$sample)
   if (anyDuplicated(samples) || !setequal(samples, unique(d$sample))) stop("sample_order must contain every sample exactly once")
   d$cluster <- factor(d$cluster, levels = clusters)
-  palette <- c("#E6194B", "#3CB44B", "#FFE119", "#4363D8", "#F58231", "#911EB4", "#46F0F0", "#F032E6", "#BCF60C", "#FABEBE", "#008080", "#E6BEFF", "#9A6324", "#FFFAC8", "#800000", "#AAFFC3", "#808000", "#FFD8B1", "#000075", "#808080")
-  if(length(clusters)>20L) warning("More than 20 clusters: inspect colour distinguishability and retain labels")
-  colors <- unlist(cfg_get(config,"review_umap.cluster_colors",list()))
-  if (!length(colors)) {
-    if (length(clusters) > length(palette)) {
-      palette <- grDevices::hcl.colors(length(clusters), "Dark 3")
-    }
-    colors <- setNames(palette[seq_along(clusters)], clusters)
-  }
-  if (anyDuplicated(names(colors)) || !setequal(names(colors), clusters) || anyDuplicated(toupper(colors))) stop("cluster_colors must give one unique colour per cluster")
-  rgb <- grDevices::col2rgb(colors,alpha=TRUE)
-  if(anyDuplicated(apply(rgb,2,paste,collapse=","))) stop("Cluster colours must be distinct after colour-name normalization")
+  configured <- cfg_get(config,"review_umap.cluster_colors",list())
+  if(length(configured) && !setequal(names(configured),clusters)) stop("cluster_colors must cover every cluster")
+  colors <- umap_palette(clusters,configured)
   dir.create(out, recursive = TRUE, showWarnings = FALSE)
   utils::write.table(data.frame(cluster = clusters, color = colors[clusters]), file.path(out, paste0(prefix,"cluster_colors.tsv")), sep = "\t", quote = FALSE, row.names = FALSE)
   tab <- as.data.frame(table(sample = factor(d$sample, levels = samples), cluster = d$cluster), stringsAsFactors = FALSE)
@@ -40,7 +31,7 @@ review_cluster_umap <- function(obj, config, out, prefix="") {
   xlim <- range(d$x); ylim <- range(d$y)
   base <- function() ggplot() + coord_equal(xlim = xlim, ylim = ylim) + theme_classic(base_size = 11) + labs(x = "UMAP 1", y = "UMAP 2")
   save_plot <- function(p, stem, width, height) ggplot2::ggsave(file.path(out, paste0(prefix,stem, ".", fmt)), p, width = width, height = height, units = "in", dpi = 300, bg = "white")
-  point_size <- cfg_get(config,"review_umap.point_size",min(1,max(.2,6/sqrt(nrow(d)))))
+  point_size <- umap_point_size(nrow(d),cfg_get(config,"review_umap.point_size",cfg_get(config,"figure_style.umap_point_size")))
   if(!is.numeric(point_size) || length(point_size)!=1L || !is.finite(point_size) || point_size<=0) stop("review_umap.point_size must be a positive finite number")
   centres <- aggregate(cbind(x,y) ~ cluster, d, median)
   dd <- withr::with_seed(1,d[sample.int(nrow(d)), ])

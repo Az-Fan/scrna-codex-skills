@@ -79,7 +79,7 @@ write_cluster_artifacts <- function(object, scenario, cluster_col, output_dir) {
   reduction <- paste0(scenario, "_umap")
   if (!reduction %in% names(object@reductions)) stop("Final UMAP reduction not found: ", reduction)
   groups <- unique(c(cluster_col, intersect(unlist(cfg_get(config, "plots.group_by", list(sample_col))), colnames(object[[]]))))
-  point_size <- as_num(cfg_get(config, "plots.pt_size"), 0.03)
+  point_size <- cfg_get(config,"plots.pt_size")
   plots <- paper_dimplot(object, reduction, groups, file.path(output_dir, paste0(scenario, "_umap_diagnostics")),
                          config, output_dir, point_size = point_size)
   review_config <- config
@@ -209,7 +209,7 @@ if (!length(dims) || min(dims) < 1L || max(dims) > npcs) stop("preprocessing.dim
 resolution_default <- as_num(cfg_get(config, "preprocessing.resolution"), 0.4)
 plot_groups <- unique(unlist(cfg_get(config, "plots.group_by", list(sample_col))))
 plot_groups <- intersect(plot_groups, colnames(obj[[]]))
-pt_size <- as_num(cfg_get(config, "plots.pt_size"), 0.03)
+pt_size <- cfg_get(config,"plots.pt_size")
 
 adjusted_rand <- function(a, b) {
   tab <- table(a, b)

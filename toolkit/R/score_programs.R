@@ -309,7 +309,7 @@ plot_score_umaps <- function(obj, task_scores, task_assays, out, config) {
     pages <- split(features, ceiling(seq_along(features) / page_size))
     for (page in seq_along(pages)) {
       p <- Seurat::FeaturePlot(obj, features = pages[[page]], reduction = reduction,
-                               split.by = split_by, keep.scale = "all", combine = TRUE)
+                               pt.size=umap_point_size(ncol(obj),cfg_get(spec,"point_size",cfg_get(config,"figure_style.umap_point_size"))), raster=FALSE, split.by = split_by, keep.scale = "all", combine = TRUE)
       path <- file.path(out, "figures", paste0(task_name, "_umap_activity_page", page, ".", figure_format(config)))
       panels <- length(pages[[page]]) * if (is.null(split_by)) 1L else length(unique(obj[[split_by]][, 1L]))
       save_ggplot(p, path, width = min(20, max(7, 3.4 * min(4, panels))),

@@ -1,0 +1,10 @@
+source('toolkit/R/figure_output.R')
+stopifnot(umap_point_size(60)>umap_point_size(10000),umap_point_size(100000)>0,umap_point_size(60,.03)==.03)
+for(x in list(0,-1,TRUE,Inf,NA)) stopifnot(inherits(try(umap_point_size(60,x),silent=TRUE),'try-error'))
+# A large category set makes quantized HCL collisions observable.
+p<-suppressWarnings(umap_palette(as.character(0:999)))
+keys<-apply(grDevices::col2rgb(p,alpha=TRUE),2,paste,collapse=',')
+stopifnot(length(p)==1000,!anyDuplicated(keys),identical(p,suppressWarnings(umap_palette(as.character(999:0)))))
+stopifnot(inherits(try(umap_palette(c('a','b'),c(a='red',b='#FF0000')),silent=TRUE),'try-error'))
+stopifnot(umap_palette('a',c(a='#123456'))[['a']]=='#123456')
+cat('PASS adaptive linear point sizes, explicit overrides, 1000 unique categorical colours, stable ordering and duplicate aliases rejected\n')

@@ -22,7 +22,7 @@
       "stability": {"n_subsamples": 5, "subsample_frac": 0.8, "min_clusters": 3}
     }
   }],
-  "plots": {"group_by": ["sample_id", "condition", "batch_id"], "pt_size": 0.03},
+  "plots": {"group_by": ["sample_id", "condition", "batch_id"], "pt_size": null},
   "output": {"object_format": "qs", "figure_format": "pdf", "drop_scale_data": true},
   "output_dir": "results/preprocess-cluster-guided"
 }
