@@ -1,11 +1,15 @@
 ---
 name: 06-scrna-preprocess-and-cluster
-description: Preprocess and cluster an already filtered Seurat scRNA-seq object using one user-selected workflow or an explicitly requested comparison, with configurable normalization, cell-cycle scoring, covariate regression, fixed-resolution clustering, and optional Harmony. Use after QC filtering and before marker detection or annotation, or when comparing selected preprocessing choices without automatically choosing one.
+description: Preprocess and cluster an already filtered Seurat scRNA-seq object using one user-selected workflow or an explicitly requested comparison, with configurable normalization, cell-cycle scoring, covariate regression, fixed-resolution clustering, and optional Harmony. Use after QC filtering and before marker detection or annotation, when comparing selected preprocessing choices without automatically choosing one, or to review an existing UMAP and sample representation without recomputing embeddings.
 ---
 
 # Preprocess and Cluster scRNA-seq
 
 Use the existing project environment. Never install, create, or update an environment.
+
+## Review an existing UMAP
+
+For a plotting-only request, use [references/umap-review.md](references/umap-review.md) and the bundled `scripts/review_umap.R`. Reuse the declared embedding and cluster column; do not run preprocessing or request a preprocessing workflow choice for this branch. The workflow-selection and resolution gates below apply to preprocessing/clustering; plotting-only review needs the object, sample/cluster fields, reduction and output directory. After fixed-resolution clustering or guided resolution confirmation, the main executor also writes the labelled cluster review, sample highlights, exported colours and complete sample×cluster counts with fractions. These plots describe sample representation, not evidence that batch effects are absent.
 
 ## Required conversation
 

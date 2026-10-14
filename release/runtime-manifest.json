@@ -28,7 +28,7 @@
     },
     "06-scrna-preprocess-and-cluster": {
       "python": ["result_delivery.py", "check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "validate_project.py", "figure_output.py"],
-      "r": ["runtime.R", "figure_style.R", "preprocess_cluster.R", "figure_output.R"],
+      "r": ["runtime.R", "figure_style.R", "preprocess_cluster.R", "umap_review.R", "review_umap.R", "figure_output.R"],
       "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "long-running-execution.md", "figure-style.md", "figure-output.md"]
     },
     "07-scrna-find-cluster-markers": {

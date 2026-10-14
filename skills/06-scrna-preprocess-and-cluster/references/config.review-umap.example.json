@@ -1,0 +1,21 @@
+{
+  "project": {
+    "id": "project_id"
+  },
+  "input": {
+    "object": "path/to/clustered_object.qs"
+  },
+  "metadata": {
+    "sample": "sample_id",
+    "cluster": "standard_clusters",
+    "reduction": "standard_umap"
+  },
+  "review_umap": {
+    "sample_order": [],
+    "cluster_colors": {}
+  },
+  "output": {
+    "figure_format": "pdf"
+  },
+  "output_dir": "results/umap-review"
+}

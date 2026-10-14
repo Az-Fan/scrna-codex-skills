@@ -35,6 +35,7 @@ This catalog records existing plot families before visual redesign. A family may
 | 06 | <scenario>_umap_clusters_by_resolution.pdf | Resolution scan; panels share the same UMAP | Preserve all resolutions |
 | 06 | <scenario>_clustree_resolution.pdf | Resolution scan and clustree available; otherwise record failure | Preserve |
 | 06 | <first_scenario>_elbow.pdf | PCA diagnostic currently for first scenario | Preserve; comparison expansion requires explicit change |
+| 06 | <scenario>_review_cluster_umap.pdf; <scenario>_review_sample_highlights.pdf | Fixed/finalized clusters; labelled colours and blue sample highlights on shared grey background | Complete samples; four panels per page; multipage PDF |
 | 07 | top_marker_dotplot.pdf | Configured top markers across existing clusters | Single page; all clusters; adaptive dimensions |
 | 08 | cluster_umap.pdf | prepare_review; one cluster view | Preserve |
 | 08 | cluster_sample_umap.pdf | prepare_review; cluster and sample panels | Preserve |

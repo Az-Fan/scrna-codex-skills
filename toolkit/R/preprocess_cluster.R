@@ -4,6 +4,7 @@ script_arg <- grep("^--file=", commandArgs(FALSE), value = TRUE)
 script_dir <- if (length(script_arg)) dirname(normalizePath(sub("^--file=", "", script_arg[[1]]))) else getwd()
 source(file.path(script_dir, "runtime.R"))
 source(file.path(script_dir, "figure_style.R"))
+source(file.path(script_dir, "umap_review.R"))
 
 for (pkg in c("Seurat", "SeuratObject", "jsonlite", "ggplot2")) {
   if (!requireNamespace(pkg, quietly = TRUE)) stop("Package '", pkg, "' is required")
@@ -81,7 +82,11 @@ write_cluster_artifacts <- function(object, scenario, cluster_col, output_dir) {
   point_size <- as_num(cfg_get(config, "plots.pt_size"), 0.03)
   plots <- paper_dimplot(object, reduction, groups, file.path(output_dir, paste0(scenario, "_umap_diagnostics")),
                          config, output_dir, point_size = point_size)
-  c(size_file, comp_file, plots)
+  review_config <- config
+  review_config$metadata$cluster <- cluster_col
+  review_config$metadata$reduction <- reduction
+  review_files <- review_cluster_umap(object,review_config,output_dir,prefix=paste0(scenario,"_review_"))
+  c(size_file, comp_file, plots, review_files)
 }
 
 action <- cfg_get(config, "workflow.action", "run")
