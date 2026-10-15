@@ -41,9 +41,11 @@ SKILL_ENVS = {
     "15-scrna-visualize-gene": "02-annotation",
     "16-scrna-discover-programs": "05-pathway_program",
     "17-scrna-infer-grn": "04-grn",
+    "18-scrna-prioritize-perturbation": "07-cell-abundance",
 }
 
 EXPECTED = {
+    "18-scrna-prioritize-perturbation": ["auc_ranking.tsv", "fold_auc.tsv", "subsample_auc.tsv", "feature_importance.tsv", "sample_design.tsv", "cell_type_eligibility.tsv", "task_status.tsv", "sample_cell_type_qc.tsv", "cell_inclusion.tsv", "feature_status.tsv", "interpretation.json", "interpretation_audit.tsv", "auc_ranking.pdf", "subsample_auc.pdf", "_provenance/run_manifest.json"],
     "17-scrna-infer-grn": ["input_audit.json", "cell_membership.tsv", "inference_unit_audit.tsv", "inference_unit_sizes.pdf", "tf_coverage.tsv", "database_coverage.tsv", "adjacencies.tsv", "motif_enrichment.tsv", "regulon_targets.tsv", "regulon_summary.tsv", "regulons.gmt", "regulon_list.rds", "regulon_activity.tsv", "regulon_activity.rds", "regulon_activity_by_sample.tsv", "handoff.json", "task_status.tsv", "_provenance/grn_prepare_record.json"],
     "16-scrna-discover-programs": ["gene_filter_audit.json", "k_2/top_genes_by_tpm.tsv", "k_2/top_gene_detection_summary.tsv", "input_audit.json", "feature_status.tsv", "cell_metadata.tsv", "k_selection.pdf", "k_selection_stats.tsv", "task_status.tsv", "k_2/usage.tsv", "k_3/usage.tsv", "k_2/spectra_scores.tsv", "k_2/spectra_tpm.tsv", "k_2/top_genes.tsv", "k_2/programs.gmt", "k_2/program_review.tsv", "k_2/usage_summary_by_sample.tsv", "k_2/usage_sample_heatmap.pdf", "k_2/usage_embedding.pdf", "cross_k_usage_correlations.tsv", "_provenance/workflow_state.json", "_provenance/discovery_record.json", "_provenance/run_manifest.json"],
     "01-scrna-standardize-input": ["cell_metadata.tsv", "samples.tsv", "field_mapping.json", "_provenance/run_manifest.json"],
@@ -218,6 +220,16 @@ def main() -> int:
         "resources": {"species": "synthetic", "genome": "toy", "gene_identifier": "fixture_symbol", "tf_list": str(grn_resources / "tfs.txt"), "motif_annotations": str(grn_resources / "annotations.tbl"), "ranking_databases": [str(grn_resources / "toy.genes_vs_motifs.rankings.feather")]},
         "grn": {"workers": 2, "seed": 777}, "ctx": {"min_genes": 3, "rank_threshold": 15, "auc_threshold": .5, "nes_threshold": 0},
         "regulons": {"min_genes": 2}, "aucell": {"rank_fraction": .5, "batch_size": 30},
+    }
+    augur_fixture = configs / "augur_fixture"
+    call([str(args.env_root / "07-cell-abundance/.pixi/envs/sccoda/bin/python"), str(repo / "tests/fixtures/create_augur_fixture.py"), str(augur_fixture)])
+    definitions["18-scrna-prioritize-perturbation"] = {
+        "project": {"id": "augur_fixture"},
+        "input": {"type": "matrix", "counts_source": "raw_umi", "orientation": "cells_by_genes", **{key: str(augur_fixture / (key + (".mtx" if key == "counts" else ".tsv"))) for key in ["counts", "features", "barcodes", "metadata"]}},
+        "metadata": {"sample": "sample", "condition": "condition", "cell_type": "cell_type", "batch": "batch"},
+        "contrast": {"numerator": "case", "denominator": "control"},
+        "augur": {"n_subsamples": 3, "subsample_size": 12, "n_estimators": 30, "n_threads": 1, "seed": 14},
+        "runtime": {"pixi_root": str(args.env_root)},
     }
     definitions["05-scrna-benchmark-integration"]["input"]["object"] = str(qc_fixture)
     definitions["10-scrna-score-programs"]["input"]["object"] = str(qc_fixture)
@@ -509,6 +521,22 @@ def main() -> int:
             raise RuntimeError("Inline scoring leaked internal or unused caches")
         if skill == "11-scrna-run-differential-analysis" and "low_replication_warning" not in (out / "RESULTS.md").read_text():
             raise RuntimeError("Delivery omitted low-replication interpretation")
+        if skill == "18-scrna-prioritize-perturbation":
+            with (out / "auc_ranking.tsv").open() as handle:
+                ranking = list(csv.DictReader(handle, delimiter="\t"))
+            if [r["cell_type"] for r in ranking] != ["EC", "EC_2"] or float(ranking[0]["auc"]) <= float(ranking[1]["auc"]):
+                raise RuntimeError("Augur did not recover the simulated population prioritization")
+            with (out / "task_status.tsv").open() as handle:
+                status = {r["cell_type"]:r["status"] for r in csv.DictReader(handle,delimiter="\t")}
+            if status != {"EC":"completed", "EC_2":"completed", "rare":"untestable"}:
+                raise RuntimeError("Augur lost eligible or ineligible population outcomes")
+            with (out / "fold_auc.tsv").open() as handle:
+                if len(list(csv.DictReader(handle,delimiter="\t"))) != 18:
+                    raise RuntimeError("Augur did not retain all native folds")
+            if "cell-level CV" not in (out/"RESULTS.md").read_text():
+                raise RuntimeError("Augur handoff hides the cell-CV limitation")
+            if json.loads((out/"interpretation.json").read_text())["cv_unit"] != "cell":
+                raise RuntimeError("Augur CV interpretation missing")
         unexpected_png = [str(p.relative_to(out)) for p in out.rglob("*.png") if "_provenance" not in p.relative_to(out).parts]
         if unexpected_png:
             raise RuntimeError(f"{skill}: duplicate/non-default PNG exports: {unexpected_png}")

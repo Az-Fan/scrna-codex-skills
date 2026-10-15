@@ -4,10 +4,11 @@ import argparse
 import json
 import subprocess
 from pathlib import Path
-from scrna_runtime import nested_get, environment_project, environment_record, integration_python_prefix, sccoda_python, cnmf_python, pyscenic_python
+from scrna_runtime import nested_get, environment_project, environment_record, integration_python_prefix, sccoda_python, cnmf_python, pyscenic_python, augur_python
 
 CORE = ["Seurat", "SeuratObject", "Matrix", "jsonlite"]
 PROFILES = {
+    "18-scrna-prioritize-perturbation": (CORE,["qs"]),
     "17-scrna-infer-grn": (CORE + ["AUCell"], ["qs"]),
     "16-scrna-discover-programs": (CORE, ["qs"]),
     "01-scrna-standardize-input": (CORE, ["qs", "hdf5r"]),
@@ -30,7 +31,7 @@ PROFILES = {
 
 def package_requirements(skill, config):
     required, optional = (list(x) for x in PROFILES[skill])
-    if skill == "16-scrna-discover-programs" and nested_get(config, "input.type") == "matrix":
+    if skill in {"16-scrna-discover-programs","18-scrna-prioritize-perturbation"} and nested_get(config, "input.type") == "matrix":
         return [], []
     paths = [nested_get(config, key) for key in ("input.object", "input.path", "output.object_name")]
     if any(str(x or "").lower().endswith(".qs") for x in paths) or nested_get(config, "output.object_format") == "qs":
@@ -68,7 +69,7 @@ def package_requirements(skill, config):
 def probe_python(prefix, modules):
     expression = """import importlib.util, importlib.metadata, json
 modules = MODULES
-distributions = {"scib_metrics": "scib-metrics", "scvi": "scvi-tools", "sklearn": "scikit-learn"}
+distributions = {"scib_metrics": "scib-metrics", "scvi": "scvi-tools", "sklearn": "scikit-learn", "skmisc": "scikit-misc"}
 versions = {}
 for name in modules:
     try:
@@ -113,7 +114,7 @@ def main():
     report = {"skill": skill, "pixi_manifest": str(project / "pixi.toml"), "required_packages": {}, "optional_packages": {}, "compatible": False, "errors": []}
     report["environment"] = environment_record(skill, config)
     rscript = project / ".pixi/envs" / (nested_get(config, "pixi.environment") or "default") / "bin/Rscript"
-    if skill == "16-scrna-discover-programs" and nested_get(config, "input.type") == "matrix":
+    if skill in {"16-scrna-discover-programs","18-scrna-prioritize-perturbation"} and nested_get(config, "input.type") == "matrix":
         if not (project / "pixi.toml").is_file():
             report["errors"].append("Registered pixi manifest is missing")
     elif not (project / "pixi.toml").is_file() or not rscript.is_file():
@@ -180,6 +181,12 @@ def main():
         if error:
             report["errors"].append(error)
         report["compatible"] = not report["errors"]
+    if skill == "18-scrna-prioritize-perturbation":
+        python = augur_python(config)
+        present,error,versions=probe_python([python],["pertpy","anndata","numpy","pandas","scipy","sklearn","matplotlib","skmisc"])
+        report.update(augur_runtime=python,python_modules=present,python_versions=versions)
+        if error:report["errors"].append(error)
+        report["compatible"]=not report["errors"]
     if report["errors"]:
         report["error"] = "; ".join(report["errors"])
     unavailable = [x for x, version in report["optional_packages"].items() if version is None]

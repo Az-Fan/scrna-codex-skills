@@ -85,6 +85,11 @@
       "python": ["result_delivery.py", "check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "grn_contract.py", "grn_pipeline.py", "validate_project.py", "figure_output.py"],
       "r": ["runtime.R", "grn_input_and_activity.R", "figure_output.R"],
       "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "long-running-execution.md", "figure-output.md"]
+    },
+    "18-scrna-prioritize-perturbation": {
+      "python": ["result_delivery.py", "check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "augur_contract.py", "augur_prioritization.py", "figure_output.py"],
+      "r": ["runtime.R", "export_cnmf_input.R", "figure_output.R"],
+      "references": ["output-layout.md", "compatibility.md", "long-running-execution.md", "figure-output.md"]
     }
   }
 }

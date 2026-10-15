@@ -1,6 +1,6 @@
 # scRNA-seq Codex Skills
 
-这是一套面向 Codex、Claude Code 和 WispScience 的可审计单细胞 RNA 测序工作流。当前开发分支包含 17 个 skill，覆盖输入标准化、QC、人工批准后过滤、整合评估、预处理聚类、marker、人工注释、子集导出、基因程序评分、差异表达、通路富集、细胞丰度变化、组成可视化、目标基因展示、cNMF 程序发现和 GRN 主流程。固定发布标签 `v3.1.0` 包含 13 个 skill，不包含开发分支新增的 14/15/16/17 和后续修复。
+这是一套面向 Codex、Claude Code 和 WispScience 的可审计单细胞 RNA 测序工作流。当前开发分支包含 18 个 skill，覆盖输入标准化、QC、人工批准后过滤、整合评估、预处理聚类、marker、人工注释、子集导出、基因程序评分、差异表达、通路富集、细胞丰度变化、组成可视化、目标基因展示、cNMF 程序发现、GRN 主流程和 Augur 细胞类型响应优先级。固定发布标签 `v3.1.0` 包含 13 个 skill，不包含开发分支新增的 14/15/16/17/18 和后续修复。
 
 规范开发仓库位于 `/home/faz_laptop/projects/scrna-codex-skills`；GitHub 仓库 `git@github.com:Az-Fan/scrna-codex-skills.git` 是固定版本的分发来源。科学计算默认复用服务器上已经注册的 pixi 环境，不会自动创建环境、修改环境或安装缺失依赖。
 
@@ -41,7 +41,9 @@
   ├─→ 13 细胞类型组成与局部邻域丰度变化
   ├─→ 14 细胞组成、比例与批次诊断可视化
   ├─→ 15 目标基因表达与既有差异结果可视化
-  └─→ 16 cNMF 程序发现 → 人工选 k → consensus 与程序解释
+  ├─→ 16 cNMF 程序发现 → 人工选 k → consensus 与程序解释
+  ├─→ 17 GRN 推断 → regulon → 单细胞 AUCell
+  └─→ 18 Augur 细胞类型响应优先级（探索性细胞级 CV）
 ```
 
 几个重要边界：
@@ -130,6 +132,7 @@ python3 ~/.codex/skills/<skill-name>/scripts/run_in_tmux.py \
 | `13` | `07-cell-abundance`（R 方法为 `default`，scCODA 为 `sccoda`） |
 | `14`–`15` | `02-annotation` |
 | `16` | `05-pathway_program`（Seurat 导出用 `default`，cNMF 用 `cnmf`） |
+| `18` | `07-cell-abundance`（Seurat 导出用 `default`，Augur 用现有 `sccoda` Python 中的 pertpy） |
 
 完整兼容性说明见 [toolkit/references/compatibility.md](toolkit/references/compatibility.md)。
 
@@ -794,3 +797,7 @@ python3 ~/.codex/skills/17-scrna-infer-grn/scripts/run.py --config config/17_grn
 主要输出为候选 TF-target 边、原生 motif 表、regulon 靶基因/权重/GMT、细胞 × regulon 活性、样本描述性汇总及 `handoff.json`。在主流程 handoff 处停止；CSI、RSS、差异 regulon、通路驱动 TF、方差分解和靶基因筛选等待后续独立 skill。详见 [grn-contract.md](skills/17-scrna-infer-grn/references/grn-contract.md)。
 
 所有 scRNA skill 的图形默认只输出 PDF；`output.figure_format=png` 可改用 PNG，但不会同时生成两种格式。多页图优先使用 PDF；不绘图的步骤仍不生成图。
+
+## Augur 响应优先级
+
+[18-scrna-prioritize-perturbation](skills/18-scrna-prioritize-perturbation/SKILL.md) 使用原生 pertpy Augur，对两个条件之间更易从表达谱区分的细胞类型排序。输出完整 AUC、每折/每次抽样结果、特征重要性、样本/QC/批次审计及不满足条件的细胞类型。它采用细胞级 CV，同一样本细胞可能同时进入训练和测试集，因此排名是探索性的，不是绝对扰动强度或供体级显著性；不替代 13 的相对丰度或 11 的样本级差异分析。默认不执行 SCPA、差异优先级置换或供体分块验证。

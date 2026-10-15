@@ -25,6 +25,10 @@ _delivery_spec.loader.exec_module(_delivery)
 
 
 SPECS = {
+    "18-scrna-prioritize-perturbation": {
+        "required": ["project.id", "metadata.sample", "metadata.condition", "metadata.cell_type", "output_dir"],
+        "artifacts": ["auc_ranking", "fold_auc", "subsample_auc", "feature_importance", "sample_design", "cell_type_eligibility", "task_status", "interpretation", "run_manifest"],
+    },
     "17-scrna-infer-grn": {
         "required": ["project.id", "metadata.sample", "output_dir", "inference.mode"],
         "artifacts": ["input_audit", "cell_membership", "inference_unit_audit", "feature_status", "resource_coverage", "adjacencies", "motif_enrichment", "regulons", "single_cell_activity", "sample_summary", "task_status", "workflow_state", "handoff", "run_manifest"],
@@ -88,6 +92,7 @@ SPECS = {
 }
 
 DRIVERS = {
+    "18-scrna-prioritize-perturbation": "augur_prioritization.py",
     "17-scrna-infer-grn": "grn_pipeline.py",
     "16-scrna-discover-programs": "cnmf_discovery.py",
     "01-scrna-standardize-input": "standardize_input.R",
@@ -106,6 +111,7 @@ DRIVERS = {
 }
 
 ENV_PROFILES = {
+    "18-scrna-prioritize-perturbation": "07-cell-abundance",
     "17-scrna-infer-grn": "04-grn",
     "16-scrna-discover-programs": "05-pathway_program",
     "02-scrna-calculate-qc-metrics": "01-scrna-qc",
@@ -207,7 +213,19 @@ def pyscenic_python(config):
     return os.path.expandvars(os.path.expanduser(str(configured)))
 
 
+def augur_python(config):
+    configured = nested_get(config,"runtime.augur_python")
+    if configured is None:
+        configured = str(environment_root(config)/"07-cell-abundance/.pixi/envs/sccoda/bin/python")
+    return os.path.expandvars(os.path.expanduser(str(configured)))
+
+
 def default_argv(skill, config_path, config):
+    if skill == "18-scrna-prioritize-perturbation":
+        here = Path(__file__).resolve()
+        driver = here.with_name("augur_prioritization.py")
+        python = augur_python(config)
+        return [python,str(driver),str(config_path.resolve())] if driver.is_file() and Path(python).is_file() else None
     if skill == "17-scrna-infer-grn":
         driver = Path(__file__).with_name("grn_pipeline.py")
         python = pyscenic_python(config)
@@ -282,6 +300,16 @@ def validate(skill, config, config_path):
     if skill == "17-scrna-infer-grn":
         from grn_contract import validate_config
         errors.extend(validate_config(config, nested_get))
+    if skill == "18-scrna-prioritize-perturbation":
+        from augur_contract import validate_config
+        errors.extend(validate_config(config,nested_get))
+        destination = nested_get(config,"output_dir")
+        if isinstance(destination,str) and destination.strip():
+            output = Path(os.path.expandvars(destination)).expanduser().resolve()
+            configured_path = Path(config_path).resolve()
+            if configured_path == output or output in configured_path.parents:
+                errors.append("Augur config must be outside output_dir to preserve its source")
+        warnings.append("Augur ranks exploratory transcriptional separability using cell-level CV; it does not perform donor-level inference or estimate absolute perturbation strength")
     stage = nested_get(config, "analysis.stage") or "differential"
     source = nested_get(config, "input.object") or nested_get(config, "input.counts_table") or nested_get(config, "input.differential_table") or nested_get(config, "enrichment.input_results") or nested_get(config, "input.path")
     if skill in {"11-scrna-run-differential-analysis", "12-scrna-run-pathway-enrichment"}:
@@ -761,6 +789,8 @@ def validate(skill, config, config_path):
 
 def make_manifest(skill, config, config_path, errors, warnings):
     source = nested_get(config, "input.object") or nested_get(config, "input.counts_table") or nested_get(config, "input.differential_table") or nested_get(config, "enrichment.input_results") or nested_get(config, "input.path")
+    if skill == "18-scrna-prioritize-perturbation" and source is None:
+        source = nested_get(config,"input.counts")
     source_path = Path(os.path.expandvars(os.path.expanduser(str(source)))) if source else None
     input_record = {"path": str(source_path) if source_path else None}
     if source_path and source_path.is_file():
