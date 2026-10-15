@@ -506,6 +506,8 @@ def main() -> int:
                     universe = next(csv.DictReader(handle, delimiter="\t"))
                 if universe["universe_mode"] != "multiple_testing_eligible":
                     raise RuntimeError(f"{skill}: ORA background default was not retained")
+            call([args.env_root / "06-deg-analysis/.pixi/envs/default/bin/Rscript",
+                  repo / "tests/test_enrichment_review.R", installed / skill / "scripts"], cwd=repo)
         if skill == "13-scrna-test-cell-abundance":
             with (out / "all_method_results.tsv").open(encoding="utf-8", newline="") as handle:
                 abundance_results = list(csv.DictReader(handle, delimiter="\t"))

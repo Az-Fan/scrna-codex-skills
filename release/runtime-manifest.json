@@ -58,7 +58,7 @@
     },
     "12-scrna-run-pathway-enrichment": {
       "python": ["result_delivery.py", "check_dependencies.py", "runner_bootstrap.py", "run_in_tmux.py", "scrna_runtime.py", "validate_project.py", "figure_output.py"],
-      "r": ["runtime.R", "figure_style.R", "differential_utils.R", "differential_analysis.R", "figure_output.R"],
+      "r": ["runtime.R", "figure_style.R", "differential_utils.R", "differential_analysis.R", "figure_output.R", "enrichment_review_common.R", "enrichment_review_plot.R", "enrichment_review_atlas.R", "enrichment_review_dense.R", "enrichment_review_modules.R"],
       "references": ["output-layout.md", "figure-catalog.md", "compatibility.md", "enrichment-design.md", "long-running-execution.md", "figure-style.md", "figure-output.md"]
     },
     "13-scrna-test-cell-abundance": {
